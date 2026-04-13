@@ -11,7 +11,9 @@ import {
     Platform,
     UIManager,
     Dimensions,
+    StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     MapPin,
     Plus,
@@ -21,7 +23,7 @@ import {
     Home,
     Briefcase,
     Map as MapIcon,
-} from 'lucide-react-native';
+} from 'lucide-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -38,6 +40,7 @@ interface Address {
 }
 
 export default function Addresses({ navigation }: any) {
+    const insets = useSafeAreaInsets();
     const [addresses, setAddresses] = useState<Address[]>([
         { id: '1', type: 'home', label: 'Home', address: '123 Pet Lane, Sunshine Valley, CA 90210', isDefault: true },
         { id: '2', type: 'work', label: 'Office', address: '456 Tech Park, Innovation Way, CA 90211' },
@@ -101,7 +104,7 @@ export default function Addresses({ navigation }: any) {
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
                 {/* Header */}
-                <View style={styles.header}>
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
                     <TouchableOpacity
                         onPress={() => isAdding ? resetForm() : navigation.goBack()}
                         style={styles.backBtn}
@@ -244,7 +247,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 24,
-        paddingVertical: 16,
+        paddingBottom: 16,
         gap: 16,
     },
     backBtn: {

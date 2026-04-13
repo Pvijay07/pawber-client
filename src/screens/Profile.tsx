@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     View,
     Text,
@@ -39,6 +40,7 @@ interface ProfileProps {
 }
 
 export default function Profile({ navigation }: ProfileProps) {
+    const insets = useSafeAreaInsets();
     const [isDarkMode, setIsDarkMode] = useState(false);
 
     const stats = [
@@ -62,10 +64,10 @@ export default function Profile({ navigation }: ProfileProps) {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <View style={styles.safeArea}>
             <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
                 {/* Header Section */}
-                <View style={styles.header}>
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 16 }]}>
                     <View style={styles.avatarWrapper}>
                         <View style={styles.avatarContainer}>
                             <Image
@@ -74,7 +76,7 @@ export default function Profile({ navigation }: ProfileProps) {
                             />
                         </View>
                         <TouchableOpacity style={styles.editBtn}>
-                            <Edit2 size={16} color="white" />
+                            <Edit2 size={14} color="white" strokeWidth={3} />
                         </TouchableOpacity>
                         <View style={styles.levelBadge}>
                             <Crown size={10} color="white" fill="white" />
@@ -88,8 +90,8 @@ export default function Profile({ navigation }: ProfileProps) {
                     <View style={styles.statsRow}>
                         {stats.map((s, i) => (
                             <View key={i} style={styles.statBox}>
-                                <View style={[styles.statIconBox, { backgroundColor: s.bgColor }]}>
-                                    <s.icon size={20} color={s.color} />
+                                <View style={[styles.statIconBox, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+                                    <s.icon size={18} color="white" />
                                 </View>
                                 <Text style={styles.statValue}>{s.value}</Text>
                                 <Text style={styles.statLabel}>{s.label.toUpperCase()}</Text>
@@ -171,7 +173,7 @@ export default function Profile({ navigation }: ProfileProps) {
                 </View>
 
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -185,10 +187,9 @@ const styles = StyleSheet.create({
     },
     header: {
         backgroundColor: '#0f172a',
-        paddingTop: 40,
-        paddingBottom: 40,
-        borderBottomLeftRadius: 48,
-        borderBottomRightRadius: 48,
+        paddingBottom: 48,
+        borderBottomLeftRadius: 40,
+        borderBottomRightRadius: 40,
         alignItems: 'center',
         paddingHorizontal: 24,
     },
@@ -197,12 +198,13 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     avatarContainer: {
-        width: 100,
-        height: 100,
-        borderRadius: 40,
+        width: 108,
+        height: 108,
+        borderRadius: 44,
         borderWidth: 4,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: 'rgba(255,255,255,0.08)',
         overflow: 'hidden',
+        backgroundColor: '#1e293b',
     },
     avatar: {
         width: '100%',
@@ -210,70 +212,79 @@ const styles = StyleSheet.create({
     },
     editBtn: {
         position: 'absolute',
-        bottom: -4,
-        right: -4,
-        width: 36,
-        height: 36,
+        bottom: -2,
+        right: -2,
+        width: 32,
+        height: 32,
         backgroundColor: '#14b8a6',
-        borderRadius: 14,
+        borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 4,
+        borderWidth: 3,
         borderColor: '#0f172a',
+        shadowColor: '#14b8a6',
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 4,
     },
     levelBadge: {
         position: 'absolute',
-        top: -10,
-        left: -10,
+        top: -6,
+        left: -12,
         backgroundColor: '#f97316',
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 10,
         paddingVertical: 4,
-        borderRadius: 20,
+        borderRadius: 12,
         borderWidth: 2,
         borderColor: '#0f172a',
         gap: 4,
+        shadowColor: '#f97316',
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 4,
     },
     levelText: {
         color: 'white',
-        fontSize: 10,
+        fontSize: 9,
         fontWeight: '900',
-        letterSpacing: 1,
+        letterSpacing: 1.2,
     },
     userName: {
-        fontSize: 24,
-        fontWeight: 'bold',
+        fontSize: 26,
+        fontWeight: '900',
         color: 'white',
-        marginBottom: 4,
+        marginBottom: 6,
+        letterSpacing: -0.5,
     },
     userSince: {
         fontSize: 10,
-        color: 'rgba(255,255,255,0.5)',
-        fontWeight: 'bold',
+        color: 'rgba(255,255,255,0.4)',
+        fontWeight: '900',
         letterSpacing: 1.5,
-        marginBottom: 32,
+        marginBottom: 36,
     },
     statsRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        justifyContent: 'space-around',
         width: '100%',
         paddingHorizontal: 10,
     },
     statBox: {
         alignItems: 'center',
-        gap: 6,
+        gap: 8,
     },
     statIconBox: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
+        width: 48,
+        height: 48,
+        borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
     },
     statValue: {
-        fontSize: 18,
-        fontWeight: 'bold',
+        fontSize: 19,
+        fontWeight: '900',
         color: 'white',
     },
     statLabel: {
@@ -285,21 +296,23 @@ const styles = StyleSheet.create({
     menuContainer: {
         backgroundColor: 'white',
         marginHorizontal: 24,
-        marginTop: -24,
-        borderRadius: 40,
+        marginTop: -32,
+        borderRadius: 36,
         padding: 24,
+        paddingBottom: 16,
         shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowOffset: { width: 0, height: 10 },
-        shadowRadius: 20,
-        elevation: 8,
+        shadowOpacity: 0.08,
+        shadowOffset: { width: 0, height: 12 },
+        shadowRadius: 24,
+        elevation: 10,
         marginBottom: 24,
     },
     darkModeRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 12,
+        paddingVertical: 4,
     },
     menuItemLeft: {
         flexDirection: 'row',
@@ -315,63 +328,68 @@ const styles = StyleSheet.create({
     },
     menuLabel: {
         fontSize: 14,
-        fontWeight: 'bold',
+        fontWeight: '800',
         color: '#0f172a',
     },
     divider: {
-        height: 1,
-        backgroundColor: '#f1f5f9',
+        height: 1.5,
+        backgroundColor: '#f8fafc',
         marginVertical: 12,
     },
     menuItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 8,
+        paddingVertical: 10,
     },
     signOutBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 10,
-        height: 56,
+        height: 58,
         backgroundColor: '#fff1f2',
         borderRadius: 20,
-        marginTop: 12,
-        borderWidth: 1,
+        marginTop: 16,
+        borderWidth: 1.5,
         borderColor: '#ffe4e6',
     },
     signOutText: {
         fontSize: 11,
         fontWeight: '900',
         color: '#ef4444',
-        letterSpacing: 1,
+        letterSpacing: 1.2,
     },
     promoCard: {
         backgroundColor: '#14b8a6',
         marginHorizontal: 24,
-        borderRadius: 40,
-        padding: 32,
+        borderRadius: 36,
+        padding: 28,
         marginBottom: 24,
         overflow: 'hidden',
+        shadowColor: '#14b8a6',
+        shadowOpacity: 0.2,
+        shadowRadius: 15,
+        elevation: 6,
     },
     promoBgIcon: {
         position: 'absolute',
-        top: 20,
-        right: 20,
+        top: -10,
+        right: -10,
+        opacity: 0.2,
     },
     promoTitle: {
         fontSize: 22,
-        fontWeight: 'bold',
+        fontWeight: '900',
         color: 'white',
         marginBottom: 8,
     },
     promoSubtitle: {
         fontSize: 13,
-        color: 'rgba(255,255,255,0.7)',
+        color: 'rgba(255,255,255,0.8)',
         lineHeight: 20,
         marginBottom: 24,
-        fontWeight: '500',
+        fontWeight: '600',
     },
     referralRow: {
         flexDirection: 'row',
@@ -380,16 +398,16 @@ const styles = StyleSheet.create({
     referralCodeBox: {
         flex: 1,
         height: 56,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        borderRadius: 18,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1.5,
+        borderColor: 'rgba(255,255,255,0.15)',
     },
     referralCode: {
         color: 'white',
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '900',
         letterSpacing: 2,
     },
@@ -397,24 +415,29 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         backgroundColor: 'white',
-        borderRadius: 16,
+        borderRadius: 18,
         alignItems: 'center',
         justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 4,
     },
     helpCard: {
         flexDirection: 'row',
         alignItems: 'center',
         marginHorizontal: 24,
         backgroundColor: 'white',
-        borderRadius: 32,
+        borderRadius: 36,
         padding: 24,
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-        gap: 20,
+        borderWidth: 2,
+        borderColor: '#f8fafc',
+        gap: 16,
+        marginBottom: 20,
     },
     helpIconBox: {
-        width: 64,
-        height: 64,
+        width: 60,
+        height: 60,
         borderRadius: 20,
         backgroundColor: '#eff6ff',
         alignItems: 'center',
@@ -424,21 +447,21 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     helpTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
+        fontSize: 17,
+        fontWeight: '900',
         color: '#0f172a',
         marginBottom: 4,
     },
     helpSubtitle: {
         fontSize: 12,
         color: '#64748b',
-        fontWeight: '500',
-        marginBottom: 8,
+        fontWeight: '600',
+        marginBottom: 10,
     },
     contactLink: {
         fontSize: 11,
         fontWeight: '900',
         color: '#3b82f6',
-        letterSpacing: 1,
+        letterSpacing: 1.2,
     },
 });

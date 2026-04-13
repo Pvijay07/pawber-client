@@ -12,7 +12,9 @@ import {
     LayoutAnimation,
     Platform,
     UIManager,
+    StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     ArrowLeft,
     Plus,
@@ -52,6 +54,7 @@ interface PetsProps {
 }
 
 export default function Pets({ navigation }: PetsProps) {
+    const insets = useSafeAreaInsets();
     const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
     const [isAdding, setIsAdding] = useState(false);
     const [activeTab, setActiveTab] = useState<'info' | 'health' | 'docs'>('info');
@@ -127,7 +130,7 @@ export default function Pets({ navigation }: PetsProps) {
                             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                             setSelectedPet(null);
                         }}
-                        style={styles.detailBackBtn}
+                        style={[styles.detailBackBtn, { top: Math.max(insets.top, 20) + 10 }]}
                     >
                         <ArrowLeft size={20} color="#0f172a" />
                     </TouchableOpacity>
@@ -271,7 +274,7 @@ export default function Pets({ navigation }: PetsProps) {
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
                 {/* Header */}
-                <View style={styles.listHeader}>
+                <View style={[styles.listHeader, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
                     <View style={styles.headerLeft}>
                         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backIconBtn}>
                             <ArrowLeft size={20} color="#0f172a" />
@@ -432,7 +435,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 24,
-        paddingVertical: 20,
+        paddingBottom: 20,
     },
     headerLeft: {
         flexDirection: 'row',
@@ -684,7 +687,6 @@ const styles = StyleSheet.create({
     },
     detailBackBtn: {
         position: 'absolute',
-        top: 50,
         left: 24,
         width: 44,
         height: 44,

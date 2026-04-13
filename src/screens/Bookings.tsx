@@ -11,7 +11,10 @@ import {
     TextInput,
     FlatList,
     ActivityIndicator,
+    Platform,
+    StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     Calendar,
     Clock,
@@ -38,6 +41,7 @@ import { Booking } from '../shared/types';
 const { width } = Dimensions.get('window');
 
 export default function Bookings({ navigation }: any) {
+    const insets = useSafeAreaInsets();
     const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -160,10 +164,10 @@ export default function Bookings({ navigation }: any) {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <View style={styles.safeArea}>
             <View style={styles.container}>
                 {/* Header */}
-                <View style={styles.header}>
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
                     <View style={styles.headerTop}>
                         <Text style={styles.headerTitle}>Bookings</Text>
                         <View style={styles.headerActions}>
@@ -209,8 +213,6 @@ export default function Bookings({ navigation }: any) {
                             </View>
                         }
                     />
-                )}
-
                 <TouchableOpacity
                     style={styles.fab}
                     onPress={() => navigation.navigate('BookingFlow')}
@@ -218,7 +220,7 @@ export default function Bookings({ navigation }: any) {
                     <RefreshCcw size={24} color="white" />
                 </TouchableOpacity>
             </View>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -232,7 +234,6 @@ const styles = StyleSheet.create({
     },
     header: {
         paddingHorizontal: 24,
-        paddingTop: 20,
         paddingBottom: 24,
     },
     headerTop: {

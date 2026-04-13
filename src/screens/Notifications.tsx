@@ -8,7 +8,10 @@ import {
     SafeAreaView,
     Dimensions,
     ActivityIndicator,
+    Platform,
+    StatusBar
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     ArrowLeft,
     Bell,
@@ -27,6 +30,7 @@ interface NotificationsProps {
 }
 
 export default function Notifications({ navigation }: NotificationsProps) {
+    const insets = useSafeAreaInsets();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -95,10 +99,10 @@ export default function Notifications({ navigation }: NotificationsProps) {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <View style={styles.safeArea}>
             <View style={styles.container}>
                 {/* Header */}
-                <View style={styles.header}>
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                         <ArrowLeft size={20} color="#0f172a" />
                     </TouchableOpacity>
@@ -110,7 +114,7 @@ export default function Notifications({ navigation }: NotificationsProps) {
 
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     {isLoading ? (
-                        <View style={{ padding: 40, alignItems: 'center' }}>
+                        <View style={{ padding: 80, alignItems: 'center' }}>
                             <ActivityIndicator size="large" color="#14b8a6" />
                         </View>
                     ) : notifications.length === 0 ? (
@@ -119,18 +123,26 @@ export default function Notifications({ navigation }: NotificationsProps) {
                         </View>
                     ) : (
                         <View style={styles.listContainer}>
-                            {notifications.map((item) => (
-                                <TouchableOpacity key={item.id} onPress={() => handleMarkAsRead(item.id, item.isNew)} style={[styles.card, item.isNew && styles.cardNew]}>
-                                    {item.isNew && <View style={styles.newDot} />}
-
-                                    <View style={[styles.iconBox, { backgroundColor: item.bgColor }]}>
-                                        <item.icon size={20} color={item.color} />
+                            {notifications.map((item: any) => (
+                                <TouchableOpacity 
+                                    key={item.id} 
+                                    onPress={() => handleMarkAsRead(item.id, item.isNew)} 
+                                    style={[styles.card, item.isNew && styles.cardNew]}
+                                >
+                                    <View style={[styles.iconBox, { backgroundColor: item.isNew ? 'rgba(255,255,255,0.8)' : item.bgColor }]}>
+                                        <item.icon size={20} color={item.color} strokeWidth={2.5} />
                                     </View>
 
                                     <View style={styles.content}>
-                                        <Text style={[styles.title, item.isNew && styles.titleNew]}>{item.title}</Text>
-                                        <Text style={styles.message}>{item.message}</Text>
-                                        <Text style={styles.time}>{item.time.toUpperCase()}</Text>
+                                        <View style={styles.titleRow}>
+                                            <Text style={[styles.title, item.isNew && styles.titleNew]}>{item.title}</Text>
+                                            {item.isNew && <View style={styles.newBadge}><Text style={styles.newBadgeText}>NEW</Text></View>}
+                                        </View>
+                                        <Text style={styles.message} numberOfLines={2}>{item.message}</Text>
+                                        <View style={styles.timeRow}>
+                                            <Calendar size={10} color="#94a3b8" />
+                                            <Text style={styles.time}>{item.time.toUpperCase()}</Text>
+                                        </View>
                                     </View>
 
                                     <ChevronRight size={16} color="#cbd5e1" />
@@ -143,7 +155,7 @@ export default function Notifications({ navigation }: NotificationsProps) {
                     )}
                 </ScrollView>
             </View>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -160,73 +172,87 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 24,
-        paddingVertical: 20,
+        paddingBottom: 24,
         backgroundColor: 'white',
-        borderBottomLeftRadius: 32,
-        borderBottomRightRadius: 32,
+        borderBottomLeftRadius: 40,
+        borderBottomRightRadius: 40,
         shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 2,
+        shadowOpacity: 0.04,
+        shadowOffset: { width: 0, height: 10 },
+        shadowRadius: 20,
+        elevation: 3,
         zIndex: 10,
     },
     backBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
+        width: 46,
+        height: 46,
+        borderRadius: 16,
         backgroundColor: '#f8fafc',
         alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
+        fontSize: 19,
+        fontWeight: '900',
         color: '#0f172a',
+        letterSpacing: -0.5,
     },
     headerActionBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
+        width: 46,
+        height: 46,
+        borderRadius: 16,
         backgroundColor: '#f0fdfa',
         alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#ccfbf1',
     },
     scrollContent: {
-        paddingHorizontal: 20,
-        paddingTop: 24,
+        paddingHorizontal: 24,
+        paddingTop: 28,
         paddingBottom: 40,
     },
     listContainer: {
-        gap: 16,
+        gap: 18,
     },
     card: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: 'white',
-        borderRadius: 24,
-        padding: 16,
-        borderWidth: 1,
+        borderRadius: 28,
+        padding: 18,
+        borderWidth: 1.5,
         borderColor: '#f1f5f9',
         position: 'relative',
         gap: 16,
+        shadowColor: '#000',
+        shadowOpacity: 0.02,
+        shadowRadius: 10,
+        elevation: 1,
     },
     cardNew: {
-        borderColor: '#ccfbf1',
+        borderColor: '#14b8a6',
         backgroundColor: '#f0fdfa',
     },
-    newDot: {
-        position: 'absolute',
-        top: 16,
-        right: 16,
-        width: 8,
-        height: 8,
-        borderRadius: 4,
+    newBadge: {
         backgroundColor: '#f97316',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
+        marginLeft: 8,
+    },
+    newBadgeText: {
+        color: 'white',
+        fontSize: 8,
+        fontWeight: '900',
+        letterSpacing: 0.5,
     },
     iconBox: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
+        width: 52,
+        height: 52,
+        borderRadius: 18,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -234,35 +260,45 @@ const styles = StyleSheet.create({
         flex: 1,
         gap: 4,
     },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     title: {
-        fontSize: 14,
-        fontWeight: 'bold',
+        fontSize: 15,
+        fontWeight: '800',
         color: '#64748b',
     },
     titleNew: {
         color: '#0f172a',
     },
     message: {
-        fontSize: 12,
-        color: '#64748b',
-        lineHeight: 18,
-        fontWeight: '500',
+        fontSize: 13,
+        color: '#475569',
+        lineHeight: 19,
+        fontWeight: '600',
+    },
+    timeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 6,
     },
     time: {
         fontSize: 9,
         fontWeight: '900',
         color: '#94a3b8',
-        letterSpacing: 1,
-        marginTop: 4,
+        letterSpacing: 1.2,
     },
     footer: {
-        marginTop: 32,
+        marginTop: 40,
         alignItems: 'center',
     },
     footerText: {
         fontSize: 12,
         color: '#94a3b8',
-        fontWeight: 'bold',
+        fontWeight: '800',
         fontStyle: 'italic',
+        letterSpacing: 0.5,
     },
 });

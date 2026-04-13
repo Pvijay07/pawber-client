@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabase } from './src/lib/supabase';
 
 // Screens
+// ... (imports remain the same)
 import BookingFlow from './src/screens/BookingFlow';
 import Pets from './src/screens/Pets';
 import Chat from './src/screens/Chat';
@@ -73,38 +75,41 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer theme={navigationTheme}>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          animation: 'slide_from_right',
-          contentStyle: { backgroundColor: '#f8fafc' },
-        }}
-      >
-        {session ? (
-          <>
-            <Stack.Screen name="Main" component={MainTabNavigator} />
-            <Stack.Screen name="GroomingBooking" component={GroomingBooking} />
-            <Stack.Screen name="Onboarding" component={Onboarding} />
-            <Stack.Screen name="BookingFlow" component={BookingFlow} />
-            <Stack.Screen name="PackageSelection" component={PackageSelection} />
-            <Stack.Screen name="ServiceBidding" component={ServiceBidding} />
-            <Stack.Screen name="Pets" component={Pets} />
-            <Stack.Screen name="Chat" component={Chat} />
-            <Stack.Screen name="LiveTracking" component={LiveTracking} />
-            <Stack.Screen name="Notifications" component={Notifications} />
-            <Stack.Screen name="Addresses" component={Addresses} />
-            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
-            <Stack.Screen name="TermsConditions" component={TermsConditions} />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="Auth" component={Auth} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
-          </>
-        )}
-      </Stack.Navigator>
-      <StatusBar style="dark" />
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer theme={navigationTheme}>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            animation: 'slide_from_right',
+            contentStyle: { backgroundColor: '#f8fafc' },
+          }}
+        >
+          {session ? (
+            <>
+              <Stack.Screen name="Main" component={MainTabNavigator} />
+              <Stack.Screen name="GroomingBooking" component={GroomingBooking} />
+              <Stack.Screen name="Onboarding" component={Onboarding} />
+              <Stack.Screen name="BookingFlow" component={BookingFlow} />
+              <Stack.Screen name="PackageSelection" component={PackageSelection} />
+              <Stack.Screen name="ServiceBidding" component={ServiceBidding} />
+              <Stack.Screen name="Pets" component={Pets} />
+              <Stack.Screen name="Chat" component={Chat} />
+              <Stack.Screen name="LiveTracking" component={LiveTracking} />
+              <Stack.Screen name="Notifications" component={Notifications} />
+              <Stack.Screen name="Addresses" component={Addresses} />
+              <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
+              <Stack.Screen name="TermsConditions" component={TermsConditions} />
+            </>
+          ) : (
+            <>
+              <Stack.Screen name="Auth" component={Auth} />
+              <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
+            </>
+          )}
+        </Stack.Navigator>
+        <StatusBar style="dark" />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
+

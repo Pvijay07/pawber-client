@@ -10,7 +10,9 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     Mail,
     Lock,
@@ -28,6 +30,7 @@ interface AuthProps {
 }
 
 export default function Auth({ navigation }: AuthProps) {
+    const insets = useSafeAreaInsets();
     const [mode, setMode] = useState<'login' | 'signup'>('login');
     const [email, setEmail] = useState('demo@pawber.com');
     const [password, setPassword] = useState('password123');
@@ -118,7 +121,7 @@ export default function Auth({ navigation }: AuthProps) {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
             >
-                <ScrollView contentContainerStyle={styles.container}>
+                <ScrollView contentContainerStyle={[styles.container, { paddingTop: Math.max(insets.top, 20) + 20 }]}>
                     <View style={styles.header}>
                         <View style={styles.logoContainer}>
                             <PawPrint size={32} color="white" />
@@ -251,7 +254,6 @@ const styles = StyleSheet.create({
     },
     container: {
         paddingHorizontal: 24,
-        paddingTop: 60,
         paddingBottom: 40,
     },
     header: {

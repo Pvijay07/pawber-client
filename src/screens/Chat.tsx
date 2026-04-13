@@ -13,7 +13,9 @@ import {
     Platform,
     ActivityIndicator,
     Linking,
+    StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     ArrowLeft,
     Send,
@@ -50,6 +52,7 @@ const DEMO_PROVIDER = {
 };
 
 export default function Chat({ navigation, route }: any) {
+    const insets = useSafeAreaInsets();
     const bookingId = route?.params?.bookingId;
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
@@ -263,7 +266,7 @@ export default function Chat({ navigation, route }: any) {
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
                 {/* Header */}
-                <View style={styles.header}>
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                         <ArrowLeft size={20} color="#0f172a" />
                     </TouchableOpacity>
@@ -364,10 +367,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingVertical: 12,
+        paddingBottom: 12,
         borderBottomWidth: 1,
         borderBottomColor: '#f1f5f9',
         gap: 12,
+        backgroundColor: 'white',
     },
     backBtn: {
         width: 40,

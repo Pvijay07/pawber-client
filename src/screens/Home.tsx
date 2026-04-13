@@ -10,8 +10,11 @@ import {
     Dimensions,
     ActivityIndicator,
     Image,
-    RefreshControl
+    RefreshControl,
+    Platform,
+    StatusBar
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Icons from 'lucide-react-native';
 import {
     Bell,
@@ -47,6 +50,7 @@ export default function Home({ navigation }: HomeProps) {
     const [walletData, setWalletData] = useState<any>(null);
     const [petsCount, setPetsCount] = useState(0);
     const [user, setUser] = useState<any>(null);
+    const insets = useSafeAreaInsets();
 
     const isCompact = width < 400;
     const serviceColumns = isCompact ? 3 : 5;
@@ -115,7 +119,7 @@ export default function Home({ navigation }: HomeProps) {
     const banners = homepageContent?.client_home_banners || [];
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <View style={styles.safeArea}>
             <ScrollView 
                 contentContainerStyle={styles.container} 
                 showsVerticalScrollIndicator={false}
@@ -124,20 +128,22 @@ export default function Home({ navigation }: HomeProps) {
                 }
             >
                 {/* Header */}
-                <View style={styles.header}>
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 10 }]}>
                     <View style={styles.headerTextGroup}>
                         <View style={styles.greetingRow}>
                             <Text style={styles.greetingText}>Hello, </Text>
                             <Text style={styles.nameText}>{user?.full_name?.split(' ')[0] || 'Friend'}</Text>
                         </View>
                         <TouchableOpacity style={styles.addressRow} onPress={() => navigation.navigate('Addresses')}>
-                            <MapPin size={12} color="#14b8a6" />
+                            <View style={styles.pinBg}>
+                                <MapPin size={10} color="#14b8a6" fill="#14b8a6" fillOpacity={0.1} />
+                            </View>
                             <Text style={styles.addressText} numberOfLines={1}>123 Pet Lane, Mumbai 400001</Text>
                             <ChevronRight size={12} color="#94a3b8" />
                         </TouchableOpacity>
                     </View>
                     <TouchableOpacity style={styles.notificationBtn} onPress={() => navigation.navigate('Notifications')}>
-                        <Bell size={22} color="#0f172a" strokeWidth={2.2} />
+                        <Bell size={22} color="#0f172a" strokeWidth={2} />
                         <View style={styles.notificationBadge} />
                     </TouchableOpacity>
                 </View>
@@ -200,21 +206,28 @@ export default function Home({ navigation }: HomeProps) {
                 <View style={styles.statsRow}>
                     <View style={styles.walletCard}>
                         <View style={styles.walletHeader}>
-                            <WalletIcon size={14} color="#14b8a6" />
+                            <View style={styles.statIconCircle}>
+                                <WalletIcon size={16} color="#14b8a6" />
+                            </View>
                             <Text style={styles.walletLabel}>BALANCE</Text>
                         </View>
-                        <Text style={styles.walletValue}>₹{walletData?.balance || '0.00'}</Text>
+                        <View style={styles.priceRow}>
+                            <Text style={styles.currencySymbol}>₹</Text>
+                            <Text style={styles.walletValue}>{walletData?.balance || '0.00'}</Text>
+                        </View>
                         <TouchableOpacity style={styles.walletDetails} onPress={() => navigation.navigate('Wallet')}>
                             <Text style={styles.walletDetailsText}>Refill Wallet </Text>
-                            <ChevronRight size={14} color="rgba(255,255,255,0.4)" />
+                            <ChevronRight size={14} color="#14b8a6" />
                         </TouchableOpacity>
                     </View>
 
                     <TouchableOpacity style={styles.petsCard} onPress={() => navigation.navigate('Pets')}>
-                        <View style={styles.heartIcon}>
+                        <View style={styles.statIconCircleOrange}>
                             <Heart size={20} color="#f97316" fill="#f97316" />
                         </View>
-                        <Text style={styles.petsCount}>{petsCount}</Text>
+                        <View style={styles.petsCountRow}>
+                            <Text style={styles.petsCount}>{petsCount}</Text>
+                        </View>
                         <Text style={styles.petsLabel}>MY PETS</Text>
                     </TouchableOpacity>
                 </View>
@@ -292,7 +305,7 @@ export default function Home({ navigation }: HomeProps) {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -306,19 +319,19 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 24,
-        paddingTop: 16,
         paddingBottom: 20,
     },
     headerTextGroup: { flex: 1 },
-    greetingRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 2 },
-    greetingText: { fontSize: 18, fontWeight: '500', color: '#64748b' },
-    nameText: { fontSize: 26, fontWeight: '900', color: '#0f172a', letterSpacing: -0.5 },
-    addressRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    greetingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+    greetingText: { fontSize: 16, fontWeight: '600', color: '#64748b', lineHeight: 32 },
+    nameText: { fontSize: 26, fontWeight: '900', color: '#0f172a', letterSpacing: -0.5, lineHeight: 32 },
+    addressRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    pinBg: { width: 22, height: 22, borderRadius: 6, backgroundColor: '#f0fdfa', alignItems: 'center', justifyContent: 'center' },
     addressText: { fontSize: 12, color: '#94a3b8', fontWeight: '700', maxWidth: width * 0.6 },
     notificationBtn: {
-        width: 50,
-        height: 50,
-        borderRadius: 18,
+        width: 48,
+        height: 48,
+        borderRadius: 16,
         backgroundColor: '#fff',
         alignItems: 'center',
         justifyContent: 'center',
@@ -326,39 +339,43 @@ const styles = StyleSheet.create({
         borderColor: '#f1f5f9',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.04,
         shadowRadius: 10,
-        elevation: 2,
+        elevation: 1,
     },
     notificationBadge: {
         position: 'absolute',
-        top: 14,
-        right: 14,
-        width: 8,
-        height: 8,
-        borderRadius: 4,
+        top: 12,
+        right: 12,
+        width: 9,
+        height: 9,
+        borderRadius: 4.5,
         backgroundColor: '#f97316',
         borderWidth: 2,
         borderColor: 'white',
     },
-    searchContainer: { paddingHorizontal: 24, marginBottom: 24 },
+    searchContainer: { paddingHorizontal: 24, marginBottom: 28 },
     searchWrapper: { position: 'relative' },
-    searchIcon: { position: 'absolute', left: 16, top: 16, zIndex: 1 },
+    searchIcon: { position: 'absolute', left: 16, top: 18, zIndex: 1 },
     searchInput: {
-        height: 52,
+        height: 56,
         backgroundColor: '#f8fafc',
-        borderRadius: 16,
+        borderRadius: 20,
         paddingLeft: 48,
         paddingRight: 16,
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: '#f1f5f9',
         fontSize: 14,
         color: '#0f172a',
+        shadowColor: '#000',
+        shadowOpacity: 0.02,
+        shadowRadius: 5,
+        elevation: 0.5,
     },
-    bannerScroll: { paddingLeft: 24, marginBottom: 28 },
+    bannerScroll: { paddingLeft: 24, marginBottom: 32 },
     bannerCard: {
-        height: 160,
-        borderRadius: 24,
+        height: 170,
+        borderRadius: 28,
         overflow: 'hidden',
         marginRight: 16,
         backgroundColor: '#f1f5f9',
@@ -370,55 +387,87 @@ const styles = StyleSheet.create({
         padding: 24,
         justifyContent: 'flex-end',
     },
-    bannerTitle: { color: 'white', fontSize: 18, fontWeight: '900', marginBottom: 4 },
-    bannerSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '600' },
-    quickActions: { flexDirection: 'row', paddingHorizontal: 24, gap: 12, marginBottom: 28 },
+    bannerTitle: { color: 'white', fontSize: 19, fontWeight: '900', marginBottom: 6 },
+    bannerSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' },
+    quickActions: { flexDirection: 'row', paddingHorizontal: 24, gap: 16, marginBottom: 32 },
     quickActionBtn: {
         flex: 1,
-        height: 120,
-        borderRadius: 28,
-        borderWidth: 1.5,
+        height: 128,
+        borderRadius: 32,
+        borderWidth: 2,
         alignItems: 'center',
         justifyContent: 'center',
         gap: 12,
+        shadowColor: '#000',
+        shadowOpacity: 0.03,
+        shadowRadius: 10,
+        elevation: 1,
     },
-    quickActionIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-    quickActionText: { fontSize: 11, fontWeight: '900', letterSpacing: 1 },
-    statsRow: { flexDirection: 'row', paddingHorizontal: 24, gap: 12, marginBottom: 32 },
-    walletCard: { flex: 2, backgroundColor: '#0f172a', borderRadius: 32, padding: 24, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 5 },
-    walletHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-    walletLabel: { fontSize: 10, fontWeight: 'bold', color: '#14b8a6', letterSpacing: 1.5 },
-    walletValue: { fontSize: 26, fontWeight: '900', color: 'white', marginBottom: 12 },
-    walletDetails: { flexDirection: 'row', alignItems: 'center' },
-    walletDetailsText: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },
-    petsCard: { flex: 1, backgroundColor: '#fff', borderRadius: 32, borderWidth: 1.5, borderColor: '#f1f5f9', padding: 20, alignItems: 'center', justifyContent: 'center' },
-    heartIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-    petsCount: { fontSize: 24, fontWeight: 'bold', color: '#0f172a' },
-    petsLabel: { fontSize: 10, fontWeight: 'bold', color: '#94a3b8', letterSpacing: 1 },
-    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 18 },
-    sectionTitle: { fontSize: 12, fontWeight: '900', color: '#0f172a', letterSpacing: 1.5, textTransform: 'uppercase' },
-    servicesGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 24, gap: 12, marginBottom: 36 },
-    serviceItem: { alignItems: 'center', gap: 8 },
-    serviceIcon: { width: 66, height: 66, borderRadius: 24, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 1 },
-    serviceName: { fontSize: 11, fontWeight: '700', color: '#64748b', textAlign: 'center' },
-    howItWorksContainer: { marginBottom: 40, paddingHorizontal: 24 },
-    guideBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#f0fdfa', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: '#ccfbf1' },
-    guideText: { fontSize: 9, fontWeight: '900', color: '#14b8a6', letterSpacing: 1 },
-    stepsWrapper: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
-    stepBlock: { flex: 1, alignItems: 'center', paddingHorizontal: 5 },
-    stepCircleOuter: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#f8fafc', borderStyle: 'dashed', borderWidth: 1.5, borderColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-    stepCircleInner: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-    stepNumberBadge: { position: 'absolute', top: -5, right: -5, width: 22, height: 22, borderRadius: 11, backgroundColor: '#0f172a', alignItems: 'center', justifyContent: 'center' },
-    stepNumber: { color: 'white', fontSize: 10, fontWeight: 'bold' },
-    stepTitleText: { fontSize: 11, fontWeight: '800', color: '#0f172a', marginBottom: 4, textAlign: 'center' },
-    stepDescText: { fontSize: 9, color: '#64748b', textAlign: 'center', fontWeight: '600', lineHeight: 12 },
-    stepConnector: { position: 'absolute', right: -15, top: 32, width: 30, height: 2, backgroundColor: '#f1f5f9' },
-    upcomingSection: { marginBottom: 32 },
-    timeTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0fdfa', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 6 },
-    timeTagText: { fontSize: 10, fontWeight: '900', color: '#14b8a6' },
-    appointmentCard: { marginHorizontal: 24, backgroundColor: 'white', borderRadius: 28, padding: 20, flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#f1f5f9', shadowColor: '#0f172a', shadowOpacity: 0.05, shadowRadius: 15, elevation: 3 },
-    appointmentIcon: { width: 54, height: 54, borderRadius: 18, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+    quickActionIcon: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+    quickActionText: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+    statsRow: { flexDirection: 'row', paddingHorizontal: 24, gap: 16, marginBottom: 36 },
+    walletCard: { 
+        flex: 1.6, 
+        backgroundColor: '#0f172a', 
+        borderRadius: 32, 
+        padding: 20, 
+        paddingBottom: 24,
+        justifyContent: 'space-between',
+        shadowColor: '#000', 
+        shadowOpacity: 0.1, 
+        shadowRadius: 20, 
+        elevation: 8 
+    },
+    statIconCircle: { width: 32, height: 32, borderRadius: 12, backgroundColor: 'rgba(20, 184, 166, 0.1)', alignItems: 'center', justifyContent: 'center' },
+    statIconCircleOrange: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+    walletHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    walletLabel: { fontSize: 10, fontWeight: '900', color: '#14b8a6', letterSpacing: 1.5 },
+    priceRow: { flexDirection: 'row', alignItems: 'flex-start', marginVertical: 8 },
+    currencySymbol: { color: '#14b8a6', fontSize: 18, fontWeight: '900', marginTop: 4, marginRight: 2 },
+    walletValue: { fontSize: 32, fontWeight: '900', color: 'white' },
+    walletDetails: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+    walletDetailsText: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5 },
+    petsCard: { 
+        flex: 1, 
+        backgroundColor: '#fff', 
+        borderRadius: 32, 
+        borderWidth: 2, 
+        borderColor: '#f1f5f9', 
+        padding: 20, 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOpacity: 0.02,
+        shadowRadius: 10,
+        elevation: 1
+    },
+    petsCountRow: { marginBottom: 4 },
+    petsCount: { fontSize: 32, fontWeight: '900', color: '#0f172a' },
+    petsLabel: { fontSize: 10, fontWeight: '900', color: '#94a3b8', letterSpacing: 1.2 },
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 20 },
+    sectionTitle: { fontSize: 13, fontWeight: '900', color: '#0f172a', letterSpacing: 1.8, textTransform: 'uppercase' },
+    servicesGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 24, gap: 16, marginBottom: 40 },
+    serviceItem: { alignItems: 'center', gap: 10 },
+    serviceIcon: { width: 70, height: 70, borderRadius: 26, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
+    serviceName: { fontSize: 11, fontWeight: '800', color: '#475569', textAlign: 'center' },
+    howItWorksContainer: { marginBottom: 44, paddingHorizontal: 24 },
+    guideBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f0fdfa', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1, borderColor: '#ccfbf1' },
+    guideText: { fontSize: 9, fontWeight: '900', color: '#14b8a6', letterSpacing: 1.2 },
+    stepsWrapper: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, position: 'relative' },
+    stepBlock: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
+    stepCircleOuter: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#f8fafc', borderStyle: 'dashed', borderWidth: 2, borderColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+    stepCircleInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
+    stepNumberBadge: { position: 'absolute', top: -4, right: -4, width: 24, height: 24, borderRadius: 12, backgroundColor: '#0f172a', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' },
+    stepNumber: { color: 'white', fontSize: 11, fontWeight: 'bold' },
+    stepTitleText: { fontSize: 12, fontWeight: '800', color: '#0f172a', marginBottom: 6, textAlign: 'center' },
+    stepDescText: { fontSize: 9.5, color: '#64748b', textAlign: 'center', fontWeight: '700', lineHeight: 13 },
+    stepConnector: { position: 'absolute', right: -25, top: 36, width: 50, height: 2, backgroundColor: '#f1f5f9', zIndex: -1 },
+    upcomingSection: { marginBottom: 40 },
+    timeTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0fdfa', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 24, gap: 8 },
+    timeTagText: { fontSize: 11, fontWeight: '900', color: '#14b8a6' },
+    appointmentCard: { marginHorizontal: 24, backgroundColor: 'white', borderRadius: 32, padding: 24, flexDirection: 'row', alignItems: 'center', borderWidth: 2, borderColor: '#f1f5f9', shadowColor: '#0f172a', shadowOpacity: 0.06, shadowRadius: 20, elevation: 4 },
+    appointmentIcon: { width: 60, height: 60, borderRadius: 20, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', marginRight: 20 },
     appointmentInfo: { flex: 1 },
-    appointmentTitle: { fontSize: 16, fontWeight: 'bold', color: '#0f172a', marginBottom: 2 },
-    appointmentDate: { fontSize: 12, color: '#94a3b8', fontWeight: '700' },
+    appointmentTitle: { fontSize: 17, fontWeight: 'bold', color: '#0f172a', marginBottom: 4 },
+    appointmentDate: { fontSize: 13, color: '#94a3b8', fontWeight: '700' },
 });

@@ -10,7 +10,9 @@ import {
     Animated,
     Platform,
     ActivityIndicator,
+    StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Import MapView dynamically to avoid web errors
 let MapView: any = View;
 let Marker: any = View;
@@ -49,6 +51,7 @@ interface LocationPoint {
 }
 
 export default function LiveTracking({ navigation, route }: any) {
+    const insets = useSafeAreaInsets();
     const bookingId = route?.params?.bookingId;
     const mapRef = useRef<any>(null);
     const [providerPosition, setProviderPosition] = useState<LocationPoint | null>(null);
@@ -200,7 +203,7 @@ export default function LiveTracking({ navigation, route }: any) {
             </MapView>
 
             {/* Header Overlay */}
-            <View style={styles.header}>
+            <View style={[styles.header, { top: Math.max(insets.top, 20) + 10 }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <ArrowLeft size={20} color="#0f172a" />
                 </TouchableOpacity>
@@ -378,7 +381,6 @@ const styles = StyleSheet.create({
     },
     header: {
         position: 'absolute',
-        top: 50,
         left: 20,
         right: 20,
         flexDirection: 'row',

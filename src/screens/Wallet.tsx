@@ -11,7 +11,9 @@ import {
     Switch,
     Platform,
     ActivityIndicator,
+    StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     Wallet as WalletIcon,
     ArrowUpRight,
@@ -35,6 +37,7 @@ interface WalletProps {
 }
 
 export default function Wallet({ navigation }: WalletProps) {
+    const insets = useSafeAreaInsets();
     const [filter, setFilter] = useState<'all' | 'services' | 'topups' | 'refunds'>('all');
     const [autoRecharge, setAutoRecharge] = useState(false);
     
@@ -81,7 +84,7 @@ export default function Wallet({ navigation }: WalletProps) {
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
                 {/* Header */}
-                <View style={styles.header}>
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
                     <Text style={styles.headerTitle}>Wallet</Text>
                     <TouchableOpacity style={styles.headerBtn}>
                         <Filter size={18} color="#64748b" />
@@ -224,7 +227,7 @@ const styles = StyleSheet.create({
     },
     header: {
         paddingHorizontal: 24,
-        paddingVertical: 20,
+        paddingBottom: 20,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
