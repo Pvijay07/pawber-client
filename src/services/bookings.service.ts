@@ -27,6 +27,7 @@ export const bookingsApi = {
         longitude?: number;
         notes?: string;
         coupon_code?: string;
+        points_to_use?: number;
     }) => api.post<{ booking: Booking }>('/bookings', data),
 
     cancel: (id: string, reason?: string) =>

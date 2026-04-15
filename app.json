@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "client-mobile",
-    "slug": "client-mobile",
+    "name": "Pawber Client",
+    "slug": "pawber-client",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -22,10 +22,15 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.clientmobile"
+      "package": "com.pawber.client"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "92ea1594-ec6a-4e5d-a122-0ffe48306f9c"
+      }
     }
   }
 }

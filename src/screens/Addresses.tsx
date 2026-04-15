@@ -12,8 +12,12 @@ import {
     UIManager,
     Dimensions,
     StatusBar,
+    ActivityIndicator,
+    Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
+import { useTheme } from '../theme/ThemeContext';
 import {
     MapPin,
     Plus,
@@ -23,7 +27,7 @@ import {
     Home,
     Briefcase,
     Map as MapIcon,
-} from 'lucide-native';
+} from 'lucide-react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -41,6 +45,7 @@ interface Address {
 
 export default function Addresses({ navigation }: any) {
     const insets = useSafeAreaInsets();
+    const { colors, isDark } = useTheme();
     const [addresses, setAddresses] = useState<Address[]>([
         { id: '1', type: 'home', label: 'Home', address: '123 Pet Lane, Sunshine Valley, CA 90210', isDefault: true },
         { id: '2', type: 'work', label: 'Office', address: '456 Tech Park, Innovation Way, CA 90211' },
@@ -53,6 +58,45 @@ export default function Addresses({ navigation }: any) {
     const [type, setType] = useState<'home' | 'work' | 'other'>('home');
     const [label, setLabel] = useState('');
     const [addressValue, setAddressValue] = useState('');
+    const [isLocating, setIsLocating] = useState(false);
+
+    const handleUseCurrentLocation = async () => {
+        setIsLocating(true);
+        try {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Denied', 'Please enable location permissions to use this feature.');
+                return;
+            }
+
+            const location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+            });
+
+            const [place] = await Location.reverseGeocodeAsync({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+            });
+
+            if (place) {
+                const addrStr = [
+                    place.name,
+                    place.street,
+                    place.district,
+                    place.city,
+                    place.region,
+                    place.postalCode
+                ].filter(Boolean).join(', ');
+                setAddressValue(addrStr);
+                if (!label) setLabel(place.district || place.city || '');
+            }
+        } catch (error) {
+            console.error('Location error:', error);
+            Alert.alert('Error', 'Could not fetch your current location.');
+        } finally {
+            setIsLocating(false);
+        }
+    };
 
     const handleDelete = (id: string) => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -101,17 +145,17 @@ export default function Addresses({ navigation }: any) {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <View style={styles.container}>
                 {/* Header */}
-                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10, borderBottomColor: colors.border }]}>
                     <TouchableOpacity
                         onPress={() => isAdding ? resetForm() : navigation.goBack()}
-                        style={styles.backBtn}
+                        style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                     >
-                        <ChevronLeft size={24} color="#0f172a" />
+                        <ChevronLeft size={24} color={colors.text} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>My Addresses</Text>
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>My Addresses</Text>
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -120,35 +164,35 @@ export default function Addresses({ navigation }: any) {
                             {addresses.map((addr) => {
                                 const Icon = getIcon(addr.type);
                                 return (
-                                    <View key={addr.id} style={styles.addressCard}>
-                                        <View style={styles.iconBox}>
-                                            <Icon size={20} color="#14b8a6" />
+                                    <View key={addr.id} style={[styles.addressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                        <View style={[styles.iconBox, { backgroundColor: colors.primaryLight }]}>
+                                            <Icon size={20} color={colors.primary} />
                                         </View>
                                         <View style={styles.addressInfo}>
                                             <View style={styles.labelRow}>
-                                                <Text style={styles.addressLabel}>{addr.label}</Text>
+                                                <Text style={[styles.addressLabel, { color: colors.text }]}>{addr.label}</Text>
                                                 {addr.isDefault && (
-                                                    <View style={styles.defaultBadge}>
-                                                        <Text style={styles.defaultText}>DEFAULT</Text>
+                                                    <View style={[styles.defaultBadge, { backgroundColor: colors.primaryLight }]}>
+                                                        <Text style={[styles.defaultText, { color: colors.primary }]}>DEFAULT</Text>
                                                     </View>
                                                 )}
                                             </View>
-                                            <Text style={styles.addressText}>{addr.address}</Text>
+                                            <Text style={[styles.addressText, { color: colors.textSecondary }]}>{addr.address}</Text>
 
                                             <View style={styles.cardActions}>
                                                 <TouchableOpacity
                                                     onPress={() => handleEdit(addr)}
                                                     style={styles.actionBtn}
                                                 >
-                                                    <Edit2 size={12} color="#14b8a6" />
-                                                    <Text style={styles.actionBtnText}>EDIT</Text>
+                                                    <Edit2 size={12} color={colors.primary} />
+                                                    <Text style={[styles.actionBtnText, { color: colors.primary }]}>EDIT</Text>
                                                 </TouchableOpacity>
                                                 <TouchableOpacity
                                                     onPress={() => handleDelete(addr.id)}
                                                     style={[styles.actionBtn, styles.deleteBtn]}
                                                 >
-                                                    <Trash2 size={12} color="#ef4444" />
-                                                    <Text style={[styles.actionBtnText, styles.deleteBtnText]}>DELETE</Text>
+                                                    <Trash2 size={12} color={colors.danger} />
+                                                    <Text style={[styles.actionBtnText, { color: colors.danger }]}>DELETE</Text>
                                                 </TouchableOpacity>
                                             </View>
                                         </View>
@@ -161,15 +205,15 @@ export default function Addresses({ navigation }: any) {
                                     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                                     setIsAdding(true);
                                 }}
-                                style={styles.addNewBtn}
+                                style={[styles.addNewBtn, { borderColor: colors.border }]}
                             >
-                                <Plus size={20} color="#64748b" />
-                                <Text style={styles.addNewText}>Add New Address</Text>
+                                <Plus size={20} color={colors.textSecondary} />
+                                <Text style={[styles.addNewText, { color: colors.textSecondary }]}>Add New Address</Text>
                             </TouchableOpacity>
                         </View>
                     ) : (
-                        <View style={styles.formContainer}>
-                            <Text style={styles.formTitle}>
+                        <View style={[styles.formContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <Text style={[styles.formTitle, { color: colors.text }]}>
                                 {editingId ? 'Edit Address' : 'Add New Address'}
                             </Text>
 
@@ -178,49 +222,67 @@ export default function Addresses({ navigation }: any) {
                                     <TouchableOpacity
                                         key={t}
                                         onPress={() => setType(t)}
-                                        style={[styles.typeBtn, type === t && styles.typeBtnActive]}
+                                        style={[styles.typeBtn, type === t && styles.typeBtnActive, { backgroundColor: colors.background, borderColor: type === t ? colors.primary : 'transparent' }]}
                                     >
-                                        <Text style={[styles.typeBtnText, type === t && styles.typeBtnTextActive]}>
+                                        <Text style={[styles.typeBtnText, type === t && styles.typeBtnTextActive, { color: type === t ? colors.primary : colors.textSecondary }]}>
                                             {t.toUpperCase()}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
 
+                            {/* Location Shortcut */}
+                            {!editingId && (
+                                <TouchableOpacity 
+                                    style={[styles.locationShortcut, { backgroundColor: colors.primaryLight, borderColor: colors.primary + '22' }]}
+                                    onPress={handleUseCurrentLocation}
+                                    disabled={isLocating}
+                                >
+                                    {isLocating ? (
+                                        <ActivityIndicator size="small" color={colors.primary} />
+                                    ) : (
+                                        <MapPin size={18} color={colors.primary} />
+                                    )}
+                                    <Text style={[styles.locationShortcutText, { color: colors.primary }]}>
+                                        {isLocating ? 'Locating...' : 'Use Current Location'}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+
                             <View style={styles.inputGroup}>
-                                <Text style={styles.inputLabel}>LABEL (OPTIONAL)</Text>
+                                <Text style={[styles.inputLabel, { color: colors.textMuted }]}>LABEL (OPTIONAL)</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { backgroundColor: colors.background, color: colors.text }]}
                                     placeholder="e.g. Grandma's House"
                                     value={label}
                                     onChangeText={setLabel}
-                                    placeholderTextColor="#cbd5e1"
+                                    placeholderTextColor={colors.textMuted}
                                 />
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.inputLabel}>FULL ADDRESS</Text>
+                                <Text style={[styles.inputLabel, { color: colors.textMuted }]}>FULL ADDRESS</Text>
                                 <TextInput
-                                    style={[styles.input, styles.textArea]}
+                                    style={[styles.input, styles.textArea, { backgroundColor: colors.background, color: colors.text }]}
                                     placeholder="Enter street name, building, city..."
                                     value={addressValue}
                                     onChangeText={setAddressValue}
                                     multiline
                                     numberOfLines={4}
-                                    placeholderTextColor="#cbd5e1"
+                                    placeholderTextColor={colors.textMuted}
                                 />
                             </View>
 
                             <View style={styles.formFooter}>
                                 <TouchableOpacity
                                     onPress={resetForm}
-                                    style={styles.cancelActionBtn}
+                                    style={[styles.cancelActionBtn, { backgroundColor: colors.surfaceSecondary }]}
                                 >
-                                    <Text style={styles.cancelActionText}>CANCEL</Text>
+                                    <Text style={[styles.cancelActionText, { color: colors.textSecondary }]}>CANCEL</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={handleSubmit}
-                                    style={styles.saveActionBtn}
+                                    style={[styles.saveActionBtn, { backgroundColor: colors.primary, shadowColor: colors.primary }]}
                                 >
                                     <Text style={styles.saveActionText}>
                                         {editingId ? 'SAVE CHANGES' : 'SAVE ADDRESS'}
@@ -238,7 +300,20 @@ export default function Addresses({ navigation }: any) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#fff',
+    },
+    locationShortcut: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+    },
+    locationShortcutText: {
+        fontSize: 14,
+        fontWeight: 'bold',
     },
     container: {
         flex: 1,

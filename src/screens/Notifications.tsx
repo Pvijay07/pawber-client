@@ -22,6 +22,7 @@ import {
     ChevronRight,
 } from 'lucide-react-native';
 import { notificationsApi, Notification } from '../services/notifications.service';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -31,6 +32,7 @@ interface NotificationsProps {
 
 export default function Notifications({ navigation }: NotificationsProps) {
     const insets = useSafeAreaInsets();
+    const { colors, isDark } = useTheme();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -91,35 +93,35 @@ export default function Notifications({ navigation }: NotificationsProps) {
     
     const getBgColorForType = (type: string) => {
         switch (type) {
-            case 'booking': return '#f0fdfa';
-            case 'payment': return '#fff7ed';
-            case 'promo': return '#fdf2f8';
-            default: return '#eff6ff';
+            case 'booking': return isDark ? 'rgba(20,184,166,0.1)' : '#f0fdfa';
+            case 'payment': return isDark ? 'rgba(249,115,22,0.1)' : '#fff7ed';
+            case 'promo': return isDark ? 'rgba(236,72,153,0.1)' : '#fdf2f8';
+            default: return isDark ? 'rgba(59,130,246,0.1)' : '#eff6ff';
         }
     };
 
     return (
-        <View style={styles.safeArea}>
+        <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <View style={styles.container}>
                 {/* Header */}
-                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                        <ArrowLeft size={20} color="#0f172a" />
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10, backgroundColor: colors.surface }]}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+                        <ArrowLeft size={20} color={colors.text} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Notifications</Text>
-                    <TouchableOpacity style={styles.headerActionBtn}>
-                        <Bell size={20} color="#14b8a6" />
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
+                    <TouchableOpacity style={[styles.headerActionBtn, { backgroundColor: colors.primaryLight, borderColor: isDark ? colors.border : '#ccfbf1' }]}>
+                        <Bell size={20} color={colors.primary} />
                     </TouchableOpacity>
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     {isLoading ? (
                         <View style={{ padding: 80, alignItems: 'center' }}>
-                            <ActivityIndicator size="large" color="#14b8a6" />
+                            <ActivityIndicator size="large" color={colors.primary} />
                         </View>
                     ) : notifications.length === 0 ? (
                         <View style={styles.footer}>
-                            <Text style={styles.footerText}>No notifications yet!</Text>
+                            <Text style={[styles.footerText, { color: colors.textMuted }]}>No notifications yet!</Text>
                         </View>
                     ) : (
                         <View style={styles.listContainer}>
@@ -127,29 +129,29 @@ export default function Notifications({ navigation }: NotificationsProps) {
                                 <TouchableOpacity 
                                     key={item.id} 
                                     onPress={() => handleMarkAsRead(item.id, item.isNew)} 
-                                    style={[styles.card, item.isNew && styles.cardNew]}
+                                    style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, item.isNew && { borderColor: colors.primary, backgroundColor: colors.primaryLight }]}
                                 >
-                                    <View style={[styles.iconBox, { backgroundColor: item.isNew ? 'rgba(255,255,255,0.8)' : item.bgColor }]}>
+                                    <View style={[styles.iconBox, { backgroundColor: item.isNew ? (isDark ? 'rgba(45,212,191,0.15)' : 'rgba(255,255,255,0.8)') : item.bgColor }]}>
                                         <item.icon size={20} color={item.color} strokeWidth={2.5} />
                                     </View>
 
                                     <View style={styles.content}>
                                         <View style={styles.titleRow}>
-                                            <Text style={[styles.title, item.isNew && styles.titleNew]}>{item.title}</Text>
+                                            <Text style={[styles.title, { color: colors.textSecondary }, item.isNew && { color: colors.text }]}>{item.title}</Text>
                                             {item.isNew && <View style={styles.newBadge}><Text style={styles.newBadgeText}>NEW</Text></View>}
                                         </View>
-                                        <Text style={styles.message} numberOfLines={2}>{item.message}</Text>
+                                        <Text style={[styles.message, { color: colors.textSecondary }]} numberOfLines={2}>{item.message}</Text>
                                         <View style={styles.timeRow}>
-                                            <Calendar size={10} color="#94a3b8" />
-                                            <Text style={styles.time}>{item.time.toUpperCase()}</Text>
+                                            <Calendar size={10} color={colors.textMuted} />
+                                            <Text style={[styles.time, { color: colors.textMuted }]}>{item.time.toUpperCase()}</Text>
                                         </View>
                                     </View>
 
-                                    <ChevronRight size={16} color="#cbd5e1" />
+                                    <ChevronRight size={16} color={colors.borderSecondary} />
                                 </TouchableOpacity>
                             ))}
                             <View style={styles.footer}>
-                                <Text style={styles.footerText}>That's all for now!</Text>
+                                <Text style={[styles.footerText, { color: colors.textMuted }]}>That's all for now!</Text>
                             </View>
                         </View>
                     )}
@@ -162,7 +164,6 @@ export default function Notifications({ navigation }: NotificationsProps) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#f8fafc',
     },
     container: {
         flex: 1,

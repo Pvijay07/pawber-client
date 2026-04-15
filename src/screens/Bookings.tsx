@@ -37,11 +37,14 @@ import {
 } from 'lucide-react-native';
 import { bookingsApi } from '../services/bookings.service';
 import { Booking } from '../shared/types';
+import { supabase } from '../lib/supabase';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 export default function Bookings({ navigation }: any) {
     const insets = useSafeAreaInsets();
+    const { colors, isDark } = useTheme();
     const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -49,6 +52,34 @@ export default function Bookings({ navigation }: any) {
     React.useEffect(() => {
         fetchBookings();
     }, [activeTab]);
+
+    React.useEffect(() => {
+        const setupRealtime = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            console.log('📡 Listening for Booking updates for client:', user.id);
+            
+            const channel = supabase
+                .channel(`client_bookings:${user.id}`)
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'bookings',
+                    filter: `client_id=eq.${user.id}`
+                }, (payload: any) => {
+                    console.log('🔄 Booking change detected:', payload.eventType, payload.new?.status);
+                    fetchBookings(); // Simple refresh for now to handle complex joins
+                })
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(channel);
+            };
+        };
+
+        setupRealtime();
+    }, []);
 
     const fetchBookings = async () => {
         setIsLoading(true);
@@ -71,10 +102,10 @@ export default function Bookings({ navigation }: any) {
 
     const getServiceIconVisual = (serviceName: string) => {
         const name = (serviceName || '').toLowerCase();
-        if (name.includes('groom')) return { icon: Scissors, color: '#fff7ed', iconColor: '#f97316' };
-        if (name.includes('vet') || name.includes('medic')) return { icon: Stethoscope, color: '#f0fdfa', iconColor: '#14b8a6' };
-        if (name.includes('walk')) return { icon: MapPin, color: '#f5f3ff', iconColor: '#8b5cf6' };
-        return { icon: Calendar, color: '#f8fafc', iconColor: '#64748b' };
+        if (name.includes('groom')) return { icon: Scissors, color: isDark ? 'rgba(249,115,22,0.1)' : '#fff7ed', iconColor: '#f97316' };
+        if (name.includes('vet') || name.includes('medic')) return { icon: Stethoscope, color: colors.primaryLight, iconColor: colors.primary };
+        if (name.includes('walk')) return { icon: MapPin, color: isDark ? 'rgba(139,92,246,0.1)' : '#f5f3ff', iconColor: '#8b5cf6' };
+        return { icon: Calendar, color: colors.surfaceSecondary, iconColor: colors.textSecondary };
     };
 
     const renderBookingItem = ({ item }: { item: Booking }) => {
@@ -83,42 +114,42 @@ export default function Bookings({ navigation }: any) {
         const visuals = getServiceIconVisual(serviceName);
         
         return (
-            <View style={styles.bookingCard}>
+            <View style={[styles.bookingCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={styles.cardHeader}>
                     <View style={styles.serviceInfo}>
                         <View style={[styles.iconBox, { backgroundColor: visuals.color }]}>
                             <visuals.icon size={24} color={visuals.iconColor} />
                         </View>
                         <View>
-                            <Text style={styles.serviceText}>{serviceName}</Text>
+                            <Text style={[styles.serviceText, { color: colors.text }]}>{serviceName}</Text>
                             <View style={styles.petRow}>
                                 <Text style={styles.petLabel}>REF: {item.id ? item.id.substring(0, 6) : 'Unknown'}</Text>
-                                <View style={styles.dot} />
-                                <Text style={styles.statusLabel}>{item.status.toUpperCase()}</Text>
+                                <View style={[styles.dot, { backgroundColor: colors.borderSecondary }]} />
+                                <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>{item.status.toUpperCase()}</Text>
                             </View>
                         </View>
                     </View>
                     <TouchableOpacity style={styles.moreBtn}>
-                        <MoreVertical size={20} color="#94a3b8" />
+                        <MoreVertical size={20} color={colors.textMuted} />
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.cardMeta}>
-                    <View style={styles.metaItem}>
-                        <Calendar size={14} color="#64748b" />
-                        <Text style={styles.metaText}>
+                    <View style={[styles.metaItem, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+                        <Calendar size={14} color={colors.textSecondary} />
+                        <Text style={[styles.metaText, { color: colors.textSecondary }]}>
                             {item.booking_date 
                                 ? new Date(item.booking_date).toLocaleDateString() 
                                 : 'TBD'}
                         </Text>
                     </View>
-                    <View style={styles.metaItem}>
+                    <View style={[styles.metaItem, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
                         <ShieldCheck size={14} color="#4f46e5" />
                         <Text style={[styles.metaText, { color: '#4f46e5' }]}>Escrow Held</Text>
                     </View>
                 </View>
 
-                <View style={styles.divider} />
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
                 {activeTab === 'upcoming' ? (
                     <View style={styles.cardFooter}>
@@ -164,61 +195,64 @@ export default function Bookings({ navigation }: any) {
     };
 
     return (
-        <View style={styles.safeArea}>
+        <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <View style={styles.container}>
                 {/* Header */}
                 <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
                     <View style={styles.headerTop}>
-                        <Text style={styles.headerTitle}>Bookings</Text>
+                        <Text style={[styles.headerTitle, { color: colors.text }]}>Bookings</Text>
                         <View style={styles.headerActions}>
-                            <TouchableOpacity style={styles.roundBtn}><Search size={20} color="#64748b" /></TouchableOpacity>
-                            <TouchableOpacity style={styles.roundBtn}><Filter size={20} color="#64748b" /></TouchableOpacity>
+                            <TouchableOpacity style={[styles.roundBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}><Search size={20} color={colors.textSecondary} /></TouchableOpacity>
+                            <TouchableOpacity style={[styles.roundBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}><Filter size={20} color={colors.textSecondary} /></TouchableOpacity>
                         </View>
                     </View>
 
-                    <View style={styles.tabContainer}>
+                    <View style={[styles.tabContainer, { backgroundColor: colors.surfaceSecondary }]}>
                         <TouchableOpacity
                             onPress={() => setActiveTab('upcoming')}
-                            style={[styles.tab, activeTab === 'upcoming' && styles.activeTab]}
+                            style={[styles.tab, activeTab === 'upcoming' && [styles.activeTab, { backgroundColor: colors.surface }]]}
                         >
-                            <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>UPCOMING</Text>
+                            <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'upcoming' && styles.activeTabText]}>UPCOMING</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             onPress={() => setActiveTab('past')}
-                            style={[styles.tab, activeTab === 'past' && styles.activeTab]}
+                            style={[styles.tab, activeTab === 'past' && [styles.activeTab, { backgroundColor: colors.surface }]]}
                         >
-                            <Text style={[styles.tabText, activeTab === 'past' && styles.activeTabText]}>PAST</Text>
+                            <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'past' && styles.activeTabText]}>PAST</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
 
                 {isLoading ? (
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                        <ActivityIndicator size="large" color="#4f46e5" />
+                        <ActivityIndicator size="large" color={colors.primary} />
                     </View>
                 ) : (
-                    <FlatList
-                        data={bookings}
-                        renderItem={renderBookingItem}
-                        keyExtractor={item => item.id}
-                        contentContainerStyle={styles.listContent}
-                        showsVerticalScrollIndicator={false}
-                        ListEmptyComponent={
-                            <View style={styles.emptyState}>
-                                <View style={styles.emptyIconBox}>
-                                    <Calendar size={48} color="#cbd5e1" />
+                    <>
+                        <FlatList
+                            data={bookings}
+                            renderItem={renderBookingItem}
+                            keyExtractor={item => item.id}
+                            contentContainerStyle={styles.listContent}
+                            showsVerticalScrollIndicator={false}
+                            ListEmptyComponent={
+                                <View style={styles.emptyState}>
+                                    <View style={[styles.emptyIconBox, { backgroundColor: colors.surfaceSecondary }]}>
+                                        <Calendar size={48} color={colors.borderSecondary} />
+                                    </View>
+                                    <Text style={[styles.emptyTitle, { color: colors.text }]}>No bookings yet</Text>
+                                    <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>Your {activeTab} bookings will appear here once you book a service.</Text>
                                 </View>
-                                <Text style={styles.emptyTitle}>No bookings yet</Text>
-                                <Text style={styles.emptyDesc}>Your {activeTab} bookings will appear here once you book a service.</Text>
-                            </View>
-                        }
-                    />
-                <TouchableOpacity
-                    style={styles.fab}
-                    onPress={() => navigation.navigate('BookingFlow')}
-                >
-                    <RefreshCcw size={24} color="white" />
-                </TouchableOpacity>
+                            }
+                        />
+                        <TouchableOpacity
+                            style={styles.fab}
+                            onPress={() => navigation.navigate('BookingFlow')}
+                        >
+                            <RefreshCcw size={24} color="white" />
+                        </TouchableOpacity>
+                    </>
+                )}
             </View>
         </View>
     );
@@ -227,7 +261,6 @@ export default function Bookings({ navigation }: any) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: 'white',
     },
     container: {
         flex: 1,

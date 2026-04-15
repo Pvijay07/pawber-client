@@ -32,6 +32,7 @@ import {
     MessageCircle,
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -41,7 +42,7 @@ interface ProfileProps {
 
 export default function Profile({ navigation }: ProfileProps) {
     const insets = useSafeAreaInsets();
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const { colors, isDark, toggleTheme } = useTheme();
 
     const stats = [
         { label: 'Orders', value: '12', icon: FileText, color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.1)' },
@@ -50,12 +51,13 @@ export default function Profile({ navigation }: ProfileProps) {
     ];
 
     const menuItems = [
-        { id: 'Addresses', label: 'My Addresses', icon: MapPin, color: '#3b82f6', bgColor: '#eff6ff' },
-        { id: 'Notifications', label: 'Notifications', icon: Bell, color: '#f97316', bgColor: '#fff7ed' },
-        { id: 'Loyalty', label: 'Refer & Earn', icon: Share2, color: '#14b8a6', bgColor: '#f0fdfa' },
-        { id: 'Help', label: 'Help & Support', icon: HelpCircle, color: '#a855f7', bgColor: '#faf5ff' },
-        { id: 'PrivacyPolicy', label: 'Privacy Policy', icon: ShieldCheck, color: '#14b8a6', bgColor: '#f0fdfa' },
-        { id: 'TermsConditions', label: 'Terms & Conditions', icon: FileText, color: '#64748b', bgColor: '#f8fafc' },
+        { id: 'Addresses', label: 'My Addresses', icon: MapPin, color: '#3b82f6', bgColor: isDark ? 'rgba(59,130,246,0.1)' : '#eff6ff' },
+        { id: 'Notifications', label: 'Notifications', icon: Bell, color: '#f97316', bgColor: isDark ? 'rgba(249,115,22,0.1)' : '#fff7ed' },
+        { id: 'ReferralHub', label: 'Refer & Earn', icon: Share2, color: colors.primary, bgColor: colors.primaryLight },
+        { id: 'AIChatScreen', label: 'AI Support Chat', icon: MessageCircle, color: '#3b82f6', bgColor: isDark ? 'rgba(59,130,246,0.1)' : '#eff6ff' },
+        { id: 'Help', label: 'Help & Knowledge Base', icon: HelpCircle, color: '#a855f7', bgColor: isDark ? 'rgba(168,85,247,0.1)' : '#faf5ff' },
+        { id: 'PrivacyPolicy', label: 'Privacy Policy', icon: ShieldCheck, color: colors.primary, bgColor: colors.primaryLight },
+        { id: 'TermsConditions', label: 'Terms & Conditions', icon: FileText, color: colors.textSecondary, bgColor: colors.surfaceSecondary },
     ];
 
     const handleSignOut = async () => {
@@ -64,10 +66,10 @@ export default function Profile({ navigation }: ProfileProps) {
     };
 
     return (
-        <View style={styles.safeArea}>
+        <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
                 {/* Header Section */}
-                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 16 }]}>
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 16, backgroundColor: isDark ? colors.surface : '#0f172a' }]}>
                     <View style={styles.avatarWrapper}>
                         <View style={styles.avatarContainer}>
                             <Image
@@ -101,18 +103,18 @@ export default function Profile({ navigation }: ProfileProps) {
                 </View>
 
                 {/* Menu Section */}
-                <View style={styles.menuContainer}>
+                <View style={[styles.menuContainer, { backgroundColor: colors.surface }]}>
                     <View style={styles.darkModeRow}>
                         <View style={styles.menuItemLeft}>
-                            <View style={[styles.menuIconBox, { backgroundColor: '#f1f5f9' }]}>
-                                <Moon size={20} color="#0f172a" />
+                            <View style={[styles.menuIconBox, { backgroundColor: colors.surfaceSecondary }]}>
+                                <Moon size={20} color={colors.text} />
                             </View>
-                            <Text style={styles.menuLabel}>Dark Mode</Text>
+                            <Text style={[styles.menuLabel, { color: colors.text }]}>Dark Mode</Text>
                         </View>
                         <Switch
-                            value={isDarkMode}
-                            onValueChange={setIsDarkMode}
-                            trackColor={{ false: '#cbd5e1', true: '#14b8a6' }}
+                            value={isDark}
+                            onValueChange={toggleTheme}
+                            trackColor={{ false: colors.borderSecondary, true: colors.primary }}
                             thumbColor="white"
                         />
                     </View>
@@ -129,9 +131,9 @@ export default function Profile({ navigation }: ProfileProps) {
                                 <View style={[styles.menuIconBox, { backgroundColor: item.bgColor }]}>
                                     <item.icon size={20} color={item.color} />
                                 </View>
-                                <Text style={styles.menuLabel}>{item.label}</Text>
+                                <Text style={[styles.menuLabel, { color: colors.text }]}>{item.label}</Text>
                             </View>
-                            <ChevronRight size={18} color="#cbd5e1" />
+                            <ChevronRight size={18} color={colors.borderSecondary} />
                         </TouchableOpacity>
                     ))}
 
@@ -144,28 +146,31 @@ export default function Profile({ navigation }: ProfileProps) {
                 </View>
 
                 {/* Promo Section */}
-                <View style={styles.promoCard}>
+                <TouchableOpacity 
+                    style={styles.promoCard} 
+                    onPress={() => navigation.navigate('ReferralHub')}
+                >
                     <Gift size={36} color="rgba(255,255,255,0.2)" style={styles.promoBgIcon} />
                     <Text style={styles.promoTitle}>Refer a Pet Parent</Text>
-                    <Text style={styles.promoSubtitle}>Share the love! Get ₹500 credits for every friend who books their first service.</Text>
+                    <Text style={styles.promoSubtitle}>Share the love! Get ₹200 for every friend who books their first service.</Text>
                     <View style={styles.referralRow}>
                         <View style={styles.referralCodeBox}>
-                            <Text style={styles.referralCode}>PAWBER500</Text>
+                            <Text style={styles.referralCode}>REFER & EARN</Text>
                         </View>
-                        <TouchableOpacity style={styles.shareButton}>
+                        <View style={styles.shareButton}>
                             <Share2 size={24} color="#14b8a6" />
-                        </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
+                </TouchableOpacity>
 
                 {/* Help Card */}
-                <View style={styles.helpCard}>
-                    <View style={styles.helpIconBox}>
+                <View style={[styles.helpCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <View style={[styles.helpIconBox, { backgroundColor: isDark ? 'rgba(59,130,246,0.1)' : '#eff6ff' }]}>
                         <MessageCircle size={28} color="#3b82f6" />
                     </View>
                     <View style={styles.helpContent}>
-                        <Text style={styles.helpTitle}>Need Help?</Text>
-                        <Text style={styles.helpSubtitle}>Our pet experts are available 24/7 for you.</Text>
+                        <Text style={[styles.helpTitle, { color: colors.text }]}>Need Help?</Text>
+                        <Text style={[styles.helpSubtitle, { color: colors.textSecondary }]}>Our pet experts are available 24/7 for you.</Text>
                         <TouchableOpacity>
                             <Text style={styles.contactLink}>CONTACT SUPPORT</Text>
                         </TouchableOpacity>
@@ -180,7 +185,6 @@ export default function Profile({ navigation }: ProfileProps) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#fff',
     },
     container: {
         paddingBottom: 40,

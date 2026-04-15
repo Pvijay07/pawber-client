@@ -117,6 +117,7 @@ export interface Wallet {
     id: string;
     user_id: string;
     balance: number;
+    points_balance: number;
     auto_recharge: boolean;
     auto_recharge_threshold?: number;
     auto_recharge_amount?: number;

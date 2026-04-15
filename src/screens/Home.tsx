@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Icons from 'lucide-react-native';
 import {
     Bell,
+    Bot,
     Search,
     MapPin,
     ChevronRight,
@@ -31,11 +32,14 @@ import {
     Calendar,
     Wallet as WalletIcon
 } from 'lucide-react-native';
+import { LoyaltyProgress } from '../components/LoyaltyProgress';
 import { contentService } from '../services/content.service';
 import { walletApi as walletService } from '../services/wallet.service';
 import { petsApi as petsService } from '../services/pets.service';
 
 import { authApi } from '../services/auth.service';
+import { loyaltyApi, LoyaltyStatus } from '../services/loyalty.service';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -46,11 +50,13 @@ interface HomeProps {
 export default function Home({ navigation }: HomeProps) {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [loyaltyStatus, setLoyaltyStatus] = useState<LoyaltyStatus | null>(null);
     const [homepageContent, setHomepageContent] = useState<any>(null);
     const [walletData, setWalletData] = useState<any>(null);
     const [petsCount, setPetsCount] = useState(0);
     const [user, setUser] = useState<any>(null);
     const insets = useSafeAreaInsets();
+    const { colors, isDark } = useTheme();
 
     const isCompact = width < 400;
     const serviceColumns = isCompact ? 3 : 5;
@@ -72,17 +78,19 @@ export default function Home({ navigation }: HomeProps) {
 
     const fetchData = async () => {
         try {
-            const [content, wallet, pets, profile] = await Promise.all([
+            const [content, wallet, pets, profile, loyalty] = await Promise.all([
                 contentService.getHomepageContent(),
                 walletService.get(),
                 petsService.list(),
-                authApi.getProfile()
+                authApi.getProfile(),
+                loyaltyApi.getStatus()
             ]);
 
             if ((content as any)?.content) setHomepageContent((content as any).content);
             if (wallet?.success && wallet.data) setWalletData(wallet.data.wallet);
             if (pets?.success && pets.data) setPetsCount(pets.data.pets.length);
             if (profile?.data?.user) setUser(profile.data.user);
+            if (loyalty?.success && loyalty.data) setLoyaltyStatus(loyalty.data);
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
@@ -119,43 +127,43 @@ export default function Home({ navigation }: HomeProps) {
     const banners = homepageContent?.client_home_banners || [];
 
     return (
-        <View style={styles.safeArea}>
+        <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <ScrollView 
                 contentContainerStyle={styles.container} 
                 showsVerticalScrollIndicator={false}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#14b8a6']} />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
                 }
             >
                 {/* Header */}
-                <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 10 }]}>
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 10, borderBottomColor: colors.border }]}>
                     <View style={styles.headerTextGroup}>
                         <View style={styles.greetingRow}>
-                            <Text style={styles.greetingText}>Hello, </Text>
-                            <Text style={styles.nameText}>{user?.full_name?.split(' ')[0] || 'Friend'}</Text>
+                            <Text style={[styles.greetingText, { color: colors.textSecondary }]}>Hello, </Text>
+                            <Text style={[styles.nameText, { color: colors.text }]}>{user?.full_name?.split(' ')[0] || 'Friend'}</Text>
                         </View>
                         <TouchableOpacity style={styles.addressRow} onPress={() => navigation.navigate('Addresses')}>
-                            <View style={styles.pinBg}>
-                                <MapPin size={10} color="#14b8a6" fill="#14b8a6" fillOpacity={0.1} />
+                            <View style={[styles.pinBg, { backgroundColor: colors.primaryLight }]}>
+                                <MapPin size={10} color={colors.primary} fill={colors.primary} fillOpacity={0.1} />
                             </View>
-                            <Text style={styles.addressText} numberOfLines={1}>123 Pet Lane, Mumbai 400001</Text>
-                            <ChevronRight size={12} color="#94a3b8" />
+                            <Text style={[styles.addressText, { color: colors.textMuted }]} numberOfLines={1}>123 Pet Lane, Mumbai 400001</Text>
+                            <ChevronRight size={12} color={colors.textMuted} />
                         </TouchableOpacity>
                     </View>
-                    <TouchableOpacity style={styles.notificationBtn} onPress={() => navigation.navigate('Notifications')}>
-                        <Bell size={22} color="#0f172a" strokeWidth={2} />
-                        <View style={styles.notificationBadge} />
+                    <TouchableOpacity style={[styles.notificationBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Notifications')}>
+                        <Bell size={22} color={colors.text} strokeWidth={2} />
+                        <View style={[styles.notificationBadge, { borderColor: colors.surface }]} />
                     </TouchableOpacity>
                 </View>
 
                 {/* Search */}
                 <View style={styles.searchContainer}>
                     <View style={styles.searchWrapper}>
-                        <Search size={18} color="#94a3b8" style={styles.searchIcon} />
+                        <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
                         <TextInput
                             placeholder="What does your pet need today?"
-                            style={styles.searchInput}
-                            placeholderTextColor="#94a3b8"
+                            style={[styles.searchInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                            placeholderTextColor={colors.textMuted}
                         />
                     </View>
                 </View>
@@ -178,6 +186,14 @@ export default function Home({ navigation }: HomeProps) {
                         ))}
                     </ScrollView>
                 )}
+
+                <View style={{ paddingHorizontal: 24 }}>
+                    <LoyaltyProgress 
+                        currentStreak={loyaltyStatus?.currentStreak || 0} 
+                        progress={loyaltyStatus?.progress || ['M1', 'M2', 'M3', 'M4']} 
+                        isEligible={loyaltyStatus?.isEligible || false} 
+                    />
+                </View>
 
                 {/* Quick Actions */}
                 <View style={styles.quickActions}>
@@ -204,29 +220,29 @@ export default function Home({ navigation }: HomeProps) {
 
                 {/* Stats */}
                 <View style={styles.statsRow}>
-                    <View style={styles.walletCard}>
+                    <View style={[styles.walletCard, { backgroundColor: isDark ? colors.surface : '#0f172a' }]}>
                         <View style={styles.walletHeader}>
-                            <View style={styles.statIconCircle}>
-                                <WalletIcon size={16} color="#14b8a6" />
+                            <View style={[styles.statIconCircle, { backgroundColor: colors.primaryLight }]}>
+                                <WalletIcon size={16} color={colors.primary} />
                             </View>
-                            <Text style={styles.walletLabel}>BALANCE</Text>
+                            <Text style={[styles.walletLabel, { color: colors.primary }]}>BALANCE</Text>
                         </View>
                         <View style={styles.priceRow}>
-                            <Text style={styles.currencySymbol}>₹</Text>
+                            <Text style={[styles.currencySymbol, { color: colors.primary }]}>₹</Text>
                             <Text style={styles.walletValue}>{walletData?.balance || '0.00'}</Text>
                         </View>
                         <TouchableOpacity style={styles.walletDetails} onPress={() => navigation.navigate('Wallet')}>
                             <Text style={styles.walletDetailsText}>Refill Wallet </Text>
-                            <ChevronRight size={14} color="#14b8a6" />
+                            <ChevronRight size={14} color={colors.primary} />
                         </TouchableOpacity>
                     </View>
 
-                    <TouchableOpacity style={styles.petsCard} onPress={() => navigation.navigate('Pets')}>
-                        <View style={styles.statIconCircleOrange}>
-                            <Heart size={20} color="#f97316" fill="#f97316" />
+                    <TouchableOpacity style={[styles.petsCard, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Pets')}>
+                        <View style={[styles.statIconCircleOrange, { backgroundColor: isDark ? colors.surfaceSecondary : '#fff7ed' }]}>
+                            <Heart size={20} color={colors.accent} fill={colors.accent} />
                         </View>
                         <View style={styles.petsCountRow}>
-                            <Text style={styles.petsCount}>{petsCount}</Text>
+                            <Text style={[styles.petsCount, { color: colors.text }]}>{petsCount}</Text>
                         </View>
                         <Text style={styles.petsLabel}>MY PETS</Text>
                     </TouchableOpacity>
@@ -234,7 +250,7 @@ export default function Home({ navigation }: HomeProps) {
 
                 {/* Services Section */}
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>EXPLORE SERVICES</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>EXPLORE SERVICES</Text>
                 </View>
 
                 <View style={styles.servicesGrid}>
@@ -244,10 +260,10 @@ export default function Home({ navigation }: HomeProps) {
                             style={[styles.serviceItem, { width: serviceItemWidth }]}
                             onPress={() => navigation.navigate('BookingFlow', { serviceId: service.id })}
                         >
-                            <View style={[styles.serviceIcon, { backgroundColor: service.bgColor }]}>
+                            <View style={[styles.serviceIcon, { backgroundColor: isDark ? colors.surface : service.bgColor }]}>
                                 {renderIcon(service.icon, 28, service.color)}
                             </View>
-                            <Text style={styles.serviceName}>{service.name}</Text>
+                            <Text style={[styles.serviceName, { color: colors.textSecondary }]}>{service.name}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -255,28 +271,28 @@ export default function Home({ navigation }: HomeProps) {
                 {/* How It Works Section */}
                 <View style={styles.howItWorksContainer}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>HOW IT WORKS</Text>
-                        <View style={styles.guideBadge}>
-                            <Info size={12} color="#14b8a6" />
-                            <Text style={styles.guideText}>EASY GUIDE</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>HOW IT WORKS</Text>
+                        <View style={[styles.guideBadge, { backgroundColor: colors.primaryLight, borderColor: colors.primary + '33' }]}>
+                            <Info size={12} color={colors.primary} />
+                            <Text style={[styles.guideText, { color: colors.primary }]}>EASY GUIDE</Text>
                         </View>
                     </View>
                     
                     <View style={styles.stepsWrapper}>
                         {howItWorksSteps.map((step: any, index: number) => (
                             <View key={index} style={styles.stepBlock}>
-                                <View style={styles.stepCircleOuter}>
-                                    <View style={styles.stepCircleInner}>
-                                        {renderIcon(step.icon, 22, '#0f172a')}
+                                <View style={[styles.stepCircleOuter, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                    <View style={[styles.stepCircleInner, { backgroundColor: colors.background }]}>
+                                        {renderIcon(step.icon, 22, colors.text)}
                                     </View>
-                                    <View style={styles.stepNumberBadge}>
-                                        <Text style={styles.stepNumber}>{index + 1}</Text>
+                                    <View style={[styles.stepNumberBadge, { backgroundColor: colors.text, borderColor: colors.background }]}>
+                                        <Text style={[styles.stepNumber, { color: colors.background }]}>{index + 1}</Text>
                                     </View>
                                 </View>
-                                <Text style={styles.stepTitleText}>{step.title}</Text>
-                                <Text style={styles.stepDescText}>{step.description}</Text>
+                                <Text style={[styles.stepTitleText, { color: colors.text }]}>{step.title}</Text>
+                                <Text style={[styles.stepDescText, { color: colors.textSecondary }]}>{step.description}</Text>
                                 {index < howItWorksSteps.length - 1 && (
-                                    <View style={styles.stepConnector} />
+                                    <View style={[styles.stepConnector, { backgroundColor: colors.border }]} />
                                 )}
                             </View>
                         ))}
@@ -286,34 +302,70 @@ export default function Home({ navigation }: HomeProps) {
                 {/* Upcoming */}
                 <View style={styles.upcomingSection}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>UPCOMING SESSION</Text>
-                        <View style={styles.timeTag}>
-                            <Clock size={12} color="#14b8a6" />
-                            <Text style={styles.timeTagText}>Today • 11:30 AM</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>UPCOMING SESSION</Text>
+                        <View style={[styles.timeTag, { backgroundColor: colors.primaryLight }]}>
+                            <Clock size={12} color={colors.primary} />
+                            <Text style={[styles.timeTagText, { color: colors.primary }]}>Today • 11:30 AM</Text>
                         </View>
                     </View>
 
-                    <TouchableOpacity style={styles.appointmentCard} onPress={() => navigation.navigate('Bookings')}>
-                        <View style={styles.appointmentIcon}>
-                            <Sparkles size={22} color="#f97316" />
+                    <TouchableOpacity style={[styles.appointmentCard, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Bookings')}>
+                        <View style={[styles.appointmentIcon, { backgroundColor: isDark ? colors.surfaceSecondary : '#fff7ed' }]}>
+                            <Sparkles size={22} color={colors.accent} />
                         </View>
                         <View style={styles.appointmentInfo}>
-                            <Text style={styles.appointmentTitle}>Spa & Grooming</Text>
+                            <Text style={[styles.appointmentTitle, { color: colors.text }]}>Spa & Grooming</Text>
                             <Text style={styles.appointmentDate}>Max • Sector 14, Mumbai</Text>
                         </View>
-                        <ChevronRight size={18} color="#cbd5e1" />
+                        <ChevronRight size={18} color={colors.textMuted} />
                     </TouchableOpacity>
                 </View>
             </ScrollView>
+
+            {/* Floating AI Assistant Button */}
+            <TouchableOpacity 
+                style={styles.aiFab} 
+                onPress={() => navigation.navigate('AIChatScreen')}
+            >
+                <Bot size={28} color="white" />
+                <View style={styles.aiPing} />
+            </TouchableOpacity>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: 'white' },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white' },
-    loadingText: { marginTop: 12, fontSize: 14, color: '#64748b', fontWeight: 'bold' },
-    container: { paddingBottom: 60 },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    loadingText: { marginTop: 12, fontSize: 14, fontWeight: 'bold' },
+    container: { paddingBottom: 100 },
+    aiFab: {
+        position: 'absolute',
+        bottom: 30,
+        right: 24,
+        width: 64,
+        height: 64,
+        borderRadius: 22,
+        backgroundColor: '#8b5cf6',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#8b5cf6',
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 10,
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.2)',
+    },
+    aiPing: {
+        position: 'absolute',
+        top: 14,
+        right: 14,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#14b8a6',
+        borderWidth: 2,
+        borderColor: 'white',
+    },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',

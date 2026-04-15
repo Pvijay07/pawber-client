@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabase } from './src/lib/supabase';
+import * as Notifications from 'expo-notifications';
 
 // Screens
 // ... (imports remain the same)
@@ -13,7 +14,7 @@ import Pets from './src/screens/Pets';
 import Chat from './src/screens/Chat';
 import Profile from './src/screens/Profile';
 import LiveTracking from './src/screens/LiveTracking';
-import Notifications from './src/screens/Notifications';
+import NotificationsScreen from './src/screens/Notifications';
 import Addresses from './src/screens/Addresses';
 import Auth from './src/screens/Auth';
 import Splash from './src/screens/Splash';
@@ -26,23 +27,18 @@ import Events from './src/screens/Events';
 import Onboarding from './src/screens/Onboarding';
 import ForgotPassword from './src/screens/ForgotPassword';
 import Wallet from './src/screens/Wallet';
+import AIChatScreen from './src/screens/AIChatScreen';
+import ReferralHub from './src/screens/ReferralHub';
 import GroomingBooking from './src/screens/GroomingBooking';
+import KYCScreen from './src/screens/KYCScreen';
 
 // Navigation
 import MainTabNavigator from './src/navigation/MainTabNavigator';
 
+import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import * as Linking from 'expo-linking';
+
 const Stack = createNativeStackNavigator();
-const navigationTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: '#f8fafc',
-    card: '#ffffff',
-    text: '#0f172a',
-    primary: '#14b8a6',
-    border: '#e2e8f0',
-  },
-};
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -50,7 +46,6 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
-
     supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
       const nextSession = data.session;
       if (!isMounted) return;
@@ -76,40 +71,178 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer theme={navigationTheme}>
-        <Stack.Navigator
-          screenOptions={{
-            headerShown: false,
-            animation: 'slide_from_right',
-            contentStyle: { backgroundColor: '#f8fafc' },
-          }}
-        >
-          {session ? (
-            <>
-              <Stack.Screen name="Main" component={MainTabNavigator} />
-              <Stack.Screen name="GroomingBooking" component={GroomingBooking} />
-              <Stack.Screen name="Onboarding" component={Onboarding} />
-              <Stack.Screen name="BookingFlow" component={BookingFlow} />
-              <Stack.Screen name="PackageSelection" component={PackageSelection} />
-              <Stack.Screen name="ServiceBidding" component={ServiceBidding} />
-              <Stack.Screen name="Pets" component={Pets} />
-              <Stack.Screen name="Chat" component={Chat} />
-              <Stack.Screen name="LiveTracking" component={LiveTracking} />
-              <Stack.Screen name="Notifications" component={Notifications} />
-              <Stack.Screen name="Addresses" component={Addresses} />
-              <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
-              <Stack.Screen name="TermsConditions" component={TermsConditions} />
-            </>
-          ) : (
-            <>
-              <Stack.Screen name="Auth" component={Auth} />
-              <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
-            </>
-          )}
-        </Stack.Navigator>
-        <StatusBar style="dark" />
-      </NavigationContainer>
+      <ThemeProvider>
+        <AppContent session={session} />
+      </ThemeProvider>
     </SafeAreaProvider>
+  );
+}
+
+function AppContent({ session }: { session: Session | null }) {
+  const { colors, isDark } = useTheme();
+  const notificationListener = React.useRef<any>();
+  const responseListener = React.useRef<any>();
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      registerForPushNotificationsAsync(session.user.id);
+      setupRealtime(session.user.id);
+    }
+
+    // Handle notifications while the app is foregrounded
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notification received:', notification);
+    });
+
+    // Handle user interaction with a notification
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      const { data } = response.notification.request.content;
+      console.log('Notification response:', data);
+      // Redirection logic can be handled here if linking config is not enough
+    });
+
+    return () => {
+      if (notificationListener.current) Notifications.removeNotificationSubscription(notificationListener.current);
+      if (responseListener.current) Notifications.removeNotificationSubscription(responseListener.current);
+    };
+  }, [session]);
+
+  const registerForPushNotificationsAsync = async (userId: string) => {
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') return;
+
+      const token = (await Notifications.getExpoPushTokenAsync()).data;
+      
+      // Update profile with token
+      await supabase
+        .from('profiles')
+        .update({ push_token: token })
+        .eq('id', userId);
+
+      console.log('Push token registered', { userId, token });
+    } catch (e) {
+      console.error('Push token error:', e);
+    }
+  };
+
+  const setupRealtime = (userId: string) => {
+    const channel = supabase
+      .channel(`user-${userId}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'notifications', 
+        filter: `user_id=eq.${userId}` 
+      }, (payload) => {
+        // Trigger local notification for in-app events
+        Notifications.scheduleNotificationAsync({
+          content: {
+            title: payload.new.title,
+            body: payload.new.message,
+            data: payload.new.data,
+          },
+          trigger: null,
+        });
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'bookings',
+        filter: `user_id=eq.${userId}`
+      }, (payload) => {
+        // Notify user about booking status changes
+        if (payload.old.status !== payload.new.status) {
+          Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Booking Updated',
+              body: `Your booking status has changed to ${payload.new.status.toUpperCase()}`,
+              data: { type: 'booking', id: payload.new.id },
+            },
+            trigger: null,
+          });
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
+
+  const navigationTheme = {
+    dark: isDark,
+    colors: {
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.accent,
+    },
+  };
+
+  const linking = {
+    prefixes: [Linking.createURL('/')],
+    config: {
+      screens: {
+        Main: {
+          screens: {
+            Home: 'home',
+            Bookings: 'bookings',
+            Wallet: 'wallet',
+          },
+        },
+        BookingFlow: 'booking/:serviceId',
+        AIChatScreen: 'chat',
+        ReferralHub: 'referral',
+        Notifications: 'notifications',
+      },
+    },
+  };
+
+  return (
+    <NavigationContainer theme={navigationTheme} linking={linking}>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
+        {session ? (
+          <>
+            <Stack.Screen name="Main" component={MainTabNavigator} />
+            <Stack.Screen name="GroomingBooking" component={GroomingBooking} />
+            <Stack.Screen name="Onboarding" component={Onboarding} />
+            <Stack.Screen name="BookingFlow" component={BookingFlow} />
+            <Stack.Screen name="PackageSelection" component={PackageSelection} />
+            <Stack.Screen name="ServiceBidding" component={ServiceBidding} />
+            <Stack.Screen name="Pets" component={Pets} />
+            <Stack.Screen name="Chat" component={Chat} />
+            <Stack.Screen name="LiveTracking" component={LiveTracking} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="Addresses" component={Addresses} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
+            <Stack.Screen name="TermsConditions" component={TermsConditions} />
+            <Stack.Screen name="AIChatScreen" component={AIChatScreen} />
+            <Stack.Screen name="ReferralHub" component={ReferralHub} />
+            <Stack.Screen name="KYCScreen" component={KYCScreen} />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="Auth" component={Auth} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
+          </>
+        )}
+      </Stack.Navigator>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+    </NavigationContainer>
   );
 }
 

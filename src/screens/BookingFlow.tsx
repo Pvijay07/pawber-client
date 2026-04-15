@@ -29,10 +29,15 @@ import {
     Timer,
     Receipt,
     Percent,
-    Repeat,
     MessageSquare,
+    Star,
+    Crown,
+    Repeat,
 } from 'lucide-react-native';
+import { walletApi } from '../services/wallet.service';
 import { getServiceById } from '../data/services';
+import { bookingsApi } from '../services/bookings.service';
+import { supabase } from '../lib/supabase';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -65,15 +70,29 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     const [paymentMode, setPaymentMode] = useState<'wallet' | 'gateway' | 'split'>('wallet');
     const [couponCode, setCouponCode] = useState('');
     const [holdTimer, setHoldTimer] = useState(300);
+    const [usePoints, setUsePoints] = useState(false);
+    const [pointsBalance, setPointsBalance] = useState(0);
+    const [createdBooking, setCreatedBooking] = useState<any>(null);
+    const [bookingStatus, setBookingStatus] = useState<string>('pending');
 
     const serviceData = getServiceById(serviceId);
 
     useEffect(() => {
+        fetchWalletData();
         if (step === 2 && holdTimer > 0) {
             const timer = setInterval(() => setHoldTimer(t => t - 1), 1000);
             return () => clearInterval(timer);
         }
     }, [step, holdTimer]);
+
+    const fetchWalletData = async () => {
+        try {
+            const res = await walletApi.get();
+            if (res.success && res.data) {
+                setPointsBalance(res.data.wallet.points_balance || 0);
+            }
+        } catch (e) {}
+    };
 
     const pets = [
         { id: 1, name: 'Max', image: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=200&h=200' },
@@ -118,22 +137,74 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         if (recurringType !== 'none') base = base * 0.9;
         if (couponCode === 'SAVE20') base = base * 0.8;
 
-        return base;
+        if (usePoints) {
+            const redeemable = Math.min(pointsBalance, base);
+            base -= redeemable;
+        }
+
+        return Math.max(0, base);
     };
 
     const handleNext = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         if (step < 4) setStep(step + 1);
         else if (step === 4) {
-            setIsSubmitting(true);
-            setTimeout(() => {
-                setIsSubmitting(false);
-                setStep(5);
-            }, 2000);
+            submitBooking();
         } else {
             navigation.navigate('Home');
         }
     };
+
+    const submitBooking = async () => {
+        setIsSubmitting(true);
+        try {
+            const res = await bookingsApi.create({
+                service_id: serviceId,
+                package_id: selectedPackage!,
+                booking_type: 'scheduled',
+                pet_ids: selectedPets.map(id => String(id)),
+                booking_date: '2026-04-12', // Simplified for now
+                address: addresses.find(a => a.id === selectedAddress)?.address,
+                notes: instructions,
+                coupon_code: couponCode,
+                points_to_use: usePoints ? Math.min(pointsBalance, calculateTotal() + (usePoints ? Math.min(pointsBalance, calculateTotal() * 2) : 0)) : 0 // Simplified: Backend checks limit
+            });
+
+            if (res.success && res.data) {
+                setCreatedBooking(res.data.booking);
+                setStep(5);
+            } else {
+                alert('Booking failed: ' + ((res as any).error?.message || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error('Submit booking error:', err);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!createdBooking?.id) return;
+
+        console.log('📡 Tracking Booking Status:', createdBooking.id);
+        
+        const channel = supabase
+            .channel(`booking_status:${createdBooking.id}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'bookings',
+                filter: `id=eq.${createdBooking.id}`
+            }, (payload: any) => {
+                console.log('🔄 Booking Status Updated:', payload.new.status);
+                setBookingStatus(payload.new.status);
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [createdBooking]);
 
     const handleBack = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -431,9 +502,25 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         style={styles.couponInput}
                                         value={couponCode}
                                         onChangeText={setCouponCode}
-                                        autoCapitalize="characters"
-                                        placeholderTextColor="#94a3b8"
                                     />
+
+                                    {pointsBalance > 0 && (
+                                        <TouchableOpacity 
+                                            style={[styles.pointsRedeem, usePoints && styles.pointsRedeemActive]} 
+                                            onPress={() => setUsePoints(!usePoints)}
+                                        >
+                                            <View style={styles.pointsInfo}>
+                                                <Star size={20} color={usePoints ? 'white' : '#f97316'} fill={usePoints ? 'white' : '#f97316'} />
+                                                <View>
+                                                    <Text style={[styles.pointsTitle, usePoints && { color: 'white' }]}>Use Loyalty Points</Text>
+                                                    <Text style={[styles.pointsSubtitle, usePoints && { color: 'rgba(255,255,255,0.8)' }]}>Balance: {pointsBalance} pts (₹1 = 1 pt)</Text>
+                                                </View>
+                                            </View>
+                                            <View style={[styles.redeemToggle, usePoints && styles.redeemToggleActive]}>
+                                                {usePoints && <Check size={12} color="#14b8a6" />}
+                                            </View>
+                                        </TouchableOpacity>
+                                    )}
 
                                     <View style={styles.paymentMethods}>
                                         {[
@@ -470,17 +557,30 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                             <View style={styles.successView}>
                                 <View style={styles.successIconOuter}>
                                     <View style={styles.successIconInner}>
-                                        <CheckCircle2 size={64} color="#14b8a6" strokeWidth={2.5} />
+                                        {bookingStatus === 'confirmed' ? (
+                                            <CheckCircle2 size={64} color="#14b8a6" strokeWidth={2.5} />
+                                        ) : (
+                                            <ActivityIndicator size="large" color="#14b8a6" />
+                                        )}
                                     </View>
                                 </View>
-                                <Text style={styles.successTitle}>Expert Assigned!</Text>
-                                <Text style={styles.successSubtitle}>Your booking is confirmed. You can track status in the bookings tab.</Text>
+                                <Text style={styles.successTitle}>
+                                    {bookingStatus === 'confirmed' ? 'Expert Assigned!' : 'Finding Expert...'}
+                                </Text>
+                                <Text style={styles.successSubtitle}>
+                                    {bookingStatus === 'confirmed' 
+                                        ? 'Your booking is confirmed. You can track status in the bookings tab.' 
+                                        : 'We are matching you with the best available professional.'}
+                                </Text>
                                 <View style={styles.successButtons}>
                                     <TouchableOpacity style={styles.trackBtn} onPress={() => navigation.navigate('Home')}>
                                         <Text style={styles.trackBtnText}>BACK TO HOME</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={styles.homeBtn} onPress={() => navigation.navigate('Bookings')}>
-                                        <Text style={styles.homeBtnText}>VIEW BOOKING</Text>
+                                    <TouchableOpacity 
+                                        style={styles.homeBtn} 
+                                        onPress={() => navigation.navigate('LiveTracking', { bookingId: createdBooking?.id })}
+                                    >
+                                        <Text style={styles.homeBtnText}>TRACK LIVE</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -721,7 +821,6 @@ const styles = StyleSheet.create({
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
     summaryLabel: { fontSize: 14, color: '#64748b' },
     summaryVal: { fontSize: 14, fontWeight: 'bold', color: '#0f172a' },
-    couponInput: { height: 50, backgroundColor: 'white', borderRadius: 16, paddingHorizontal: 16, fontSize: 12, fontWeight: 'bold', color: '#0f172a', borderWidth: 1, borderColor: '#f1f5f9' },
     paymentMethods: { flexDirection: 'row', gap: 8 },
     paymentBtn: { flex: 1, height: 70, borderRadius: 16, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderColor: '#f1f5f9' },
     paymentBtnActive: { borderColor: '#14b8a6', backgroundColor: '#f0fdfa' },
@@ -745,4 +844,58 @@ const styles = StyleSheet.create({
     continueBtn: { height: 56, backgroundColor: '#0f172a', borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
     continueBtnDisabled: { backgroundColor: '#cbd5e1' },
     continueBtnText: { color: 'white', fontSize: 14, fontWeight: '900', letterSpacing: 1 },
+    couponInput: {
+        backgroundColor: '#f8fafc',
+        borderRadius: 16,
+        padding: 16,
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#0f172a',
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    pointsRedeem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#fff7ed',
+        padding: 16,
+        borderRadius: 20,
+        borderWidth: 1.5,
+        borderColor: '#ffedd5',
+        marginBottom: 16,
+    },
+    pointsRedeemActive: {
+        backgroundColor: '#f97316',
+        borderColor: '#f97316',
+    },
+    pointsInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    pointsTitle: {
+        fontSize: 14,
+        fontWeight: '900',
+        color: '#0f172a',
+    },
+    pointsSubtitle: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#f97316',
+    },
+    redeemToggle: {
+        width: 24,
+        height: 24,
+        borderRadius: 8,
+        backgroundColor: 'white',
+        borderWidth: 1,
+        borderColor: '#ffedd5',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    redeemToggleActive: {
+        borderColor: 'white',
+    },
 });

@@ -24,10 +24,13 @@ import {
     RefreshCcw,
     ShieldCheck,
     Zap,
-    History,
     ArrowRight,
+    Star,
+    Crown,
+    History as HistoryIcon,
 } from 'lucide-react-native';
 import { walletApi } from '../services/wallet.service';
+import { useTheme } from '../theme/ThemeContext';
 import { Wallet as WalletType, WalletTransaction } from '../shared/types';
 
 const { width } = Dimensions.get('window');
@@ -38,7 +41,9 @@ interface WalletProps {
 
 export default function Wallet({ navigation }: WalletProps) {
     const insets = useSafeAreaInsets();
-    const [filter, setFilter] = useState<'all' | 'services' | 'topups' | 'refunds'>('all');
+    const { colors, isDark } = useTheme();
+    const [tab, setTab] = useState<'cash' | 'points'>('cash');
+    const [filter, setFilter] = useState<'all' | 'services' | 'topups' | 'refunds' | 'rewards'>('all');
     const [autoRecharge, setAutoRecharge] = useState(false);
     
     const [wallet, setWallet] = useState<WalletType | null>(null);
@@ -73,38 +78,39 @@ export default function Wallet({ navigation }: WalletProps) {
 
     const getTxVisuals = (type: string) => {
         switch (type) {
-            case 'credit': return { icon: ArrowDownLeft, color: '#14b8a6', bgColor: '#f0fdfa' };
-            case 'debit': return { icon: ArrowUpRight, color: '#f97316', bgColor: '#fff7ed' };
-            case 'refund': return { icon: RefreshCcw, color: '#3b82f6', bgColor: '#eff6ff' };
-            default: return { icon: ArrowUpRight, color: '#64748b', bgColor: '#f1f5f9' };
+            case 'credit': return { icon: ArrowDownLeft, color: colors.primary, bgColor: colors.primaryLight };
+            case 'debit': return { icon: ArrowUpRight, color: colors.accent, bgColor: colors.accentLight };
+            case 'refund': return { icon: RefreshCcw, color: '#3b82f6', bgColor: isDark ? 'rgba(59, 130, 246, 0.1)' : '#eff6ff' };
+            default: return { icon: ArrowUpRight, color: colors.textSecondary, bgColor: colors.surfaceSecondary };
         }
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <View style={styles.container}>
                 {/* Header */}
                 <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
-                    <Text style={styles.headerTitle}>Wallet</Text>
-                    <TouchableOpacity style={styles.headerBtn}>
-                        <Filter size={18} color="#64748b" />
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>Wallet</Text>
+                    <TouchableOpacity style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
+                        <Filter size={18} color={colors.textSecondary} />
                     </TouchableOpacity>
                 </View>
 
                 <ScrollView contentContainerStyle={styles.listScroll} showsVerticalScrollIndicator={false}>
                     {/* Main Card */}
-                    <View style={styles.balanceCard}>
+                    <View style={[styles.balanceCard, { backgroundColor: isDark ? colors.surface : '#0f172a' }]}>
                         <View style={styles.balanceHeader}>
-                            <View>
-                                <Text style={styles.totalBalanceLabel}>TOTAL BALANCE</Text>
-                                {isLoading && !wallet ? (
-                                    <ActivityIndicator size="small" color="white" />
-                                ) : (
-                                    <Text style={styles.balanceAmount}>₹{wallet?.balance?.toFixed(2) || '0.00'}</Text>
-                                )}
+                            <View style={styles.balanceSection}>
+                                <Text style={[styles.totalBalanceLabel, { color: colors.primary }]}>WALLET CASH</Text>
+                                <Text style={styles.balanceAmount}>₹{wallet?.balance?.toFixed(0) || '0'}</Text>
                             </View>
-                            <View style={styles.walletIconBox}>
-                                <WalletIcon size={28} color="#14b8a6" />
+                            <View style={styles.dividerVertical} />
+                            <View style={styles.balanceSection}>
+                                <Text style={[styles.totalBalanceLabel, { color: colors.accent }]}>LOYALTY POINTS</Text>
+                                <View style={styles.pointsRow}>
+                                    <Star size={18} color={colors.accent} fill={colors.accent} />
+                                    <Text style={styles.balanceAmount}>{wallet?.points_balance || '0'}</Text>
+                                </View>
                             </View>
                         </View>
 
@@ -121,49 +127,49 @@ export default function Wallet({ navigation }: WalletProps) {
                     </View>
 
                     {/* Settings Row */}
-                    <View style={styles.rechargeRow}>
+                    <View style={[styles.rechargeRow, { backgroundColor: colors.primaryLight, borderColor: colors.primary + '33' }]}>
                         <View style={styles.rechargeInfo}>
-                            <View style={styles.rechargeIconBox}>
+                            <View style={[styles.rechargeIconBox, { backgroundColor: colors.primary }]}>
                                 <Zap size={24} color="white" />
                             </View>
                             <View>
-                                <Text style={styles.rechargeTitle}>Auto Recharge</Text>
-                                <Text style={styles.rechargeSubtitle}>ACTIVE AT ₹200</Text>
+                                <Text style={[styles.rechargeTitle, { color: colors.text }]}>Auto Recharge</Text>
+                                <Text style={[styles.rechargeSubtitle, { color: colors.primary }]}>ACTIVE AT ₹200</Text>
                             </View>
                         </View>
                         <Switch
                             value={autoRecharge}
                             onValueChange={setAutoRecharge}
-                            trackColor={{ false: '#cbd5e1', true: '#14b8a6' }}
+                            trackColor={{ false: colors.borderSecondary, true: colors.primary }}
                             thumbColor="white"
                         />
                     </View>
 
                     {/* Security Banner */}
-                    <View style={styles.securityBanner}>
-                        <View style={styles.securityIconBox}>
-                            <ShieldCheck size={28} color="#3b82f6" />
+                    <View style={[styles.securityBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                        <View style={[styles.securityIconBox, { backgroundColor: colors.background }]}>
+                            <ShieldCheck size={28} color={isDark ? colors.primary : '#3b82f6'} />
                         </View>
                         <View style={styles.securityTextGroup}>
-                            <Text style={styles.securityTitle}>Safe & Secure</Text>
-                            <Text style={styles.securitySubtitle}>All transactions are encrypted and protected by PetCare Guarantee.</Text>
+                            <Text style={[styles.securityTitle, { color: colors.text }]}>Safe & Secure</Text>
+                            <Text style={[styles.securitySubtitle, { color: colors.textSecondary }]}>All transactions are encrypted and protected by PetCare Guarantee.</Text>
                         </View>
                     </View>
 
                     {/* Transactions Header */}
                     <View style={styles.transactionsHeader}>
-                        <Text style={styles.sectionTitle}>TRANSACTIONS</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>TRANSACTIONS</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-                            {(['all', 'services', 'topups', 'refunds'] as const).map(f => (
+                            {(['all', 'services', 'topups', 'refunds', 'rewards'] as const).map(f => (
                                 <TouchableOpacity
                                     key={f}
                                     onPress={() => {
                                         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                                         setFilter(f);
                                     }}
-                                    style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
+                                    style={[styles.filterBtn, filter === f && styles.filterBtnActive, { backgroundColor: filter === f ? colors.text : colors.surface, borderColor: colors.border }]}
                                 >
-                                    <Text style={[styles.filterBtnText, filter === f && styles.filterBtnTextActive]}>
+                                    <Text style={[styles.filterBtnText, filter === f && styles.filterBtnTextActive, { color: filter === f ? colors.background : colors.textSecondary }]}>
                                         {f.toUpperCase()}
                                     </Text>
                                 </TouchableOpacity>
@@ -182,23 +188,23 @@ export default function Wallet({ navigation }: WalletProps) {
                                 const visuals = getTxVisuals(tx.type);
                                 const isPositive = Number(tx.amount) > 0 || tx.type === 'credit' || tx.type === 'refund';
                                 return (
-                                    <TouchableOpacity key={tx.id} style={styles.txItem}>
+                                    <TouchableOpacity key={tx.id} style={[styles.txItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                         <View style={styles.txLeft}>
                                             <View style={[styles.txIconBox, { backgroundColor: visuals.bgColor }]}>
                                                 <visuals.icon size={20} color={visuals.color} />
                                             </View>
                                             <View>
-                                                <Text style={styles.txTitle}>{tx.description || tx.type}</Text>
-                                                <Text style={styles.txDate}>{new Date(tx.created_at).toLocaleDateString().toUpperCase()}</Text>
+                                                <Text style={[styles.txTitle, { color: colors.text }]}>{tx.description || tx.type}</Text>
+                                                <Text style={[styles.txDate, { color: colors.textMuted }]}>{new Date(tx.created_at).toLocaleDateString().toUpperCase()}</Text>
                                             </View>
                                         </View>
                                         <View style={styles.txRight}>
-                                            <Text style={[styles.txAmount, isPositive && styles.txAmountPositive]}>
+                                            <Text style={[styles.txAmount, isPositive && styles.txAmountPositive, { color: isPositive ? colors.primary : colors.text }]}>
                                                 {isPositive ? '+' : '-'}₹{Math.abs(Number(tx.amount)).toFixed(2)}
                                             </Text>
                                             <View style={styles.receiptRow}>
-                                                <Text style={styles.receiptText}>Receipt</Text>
-                                                <ArrowRight size={10} color="#14b8a6" />
+                                                <Text style={[styles.receiptText, { color: colors.primary }]}>Receipt</Text>
+                                                <ArrowRight size={10} color={colors.primary} />
                                             </View>
                                         </View>
                                     </TouchableOpacity>
@@ -206,7 +212,7 @@ export default function Wallet({ navigation }: WalletProps) {
                             })
                         ) : (
                             <View style={styles.emptyTransactions}>
-                                <History size={40} color="#e2e8f0" />
+                                <HistoryIcon size={40} color="#e2e8f0" />
                                 <Text style={styles.emptyText}>No transactions found</Text>
                             </View>
                         )}
@@ -220,7 +226,6 @@ export default function Wallet({ navigation }: WalletProps) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: 'white',
     },
     container: {
         flex: 1,
@@ -267,16 +272,30 @@ const styles = StyleSheet.create({
         marginBottom: 40,
     },
     totalBalanceLabel: {
-        fontSize: 10,
+        fontSize: 9,
         fontWeight: '900',
         color: '#14b8a6',
-        letterSpacing: 2,
+        letterSpacing: 1.5,
         marginBottom: 8,
     },
     balanceAmount: {
-        fontSize: 32,
-        fontWeight: 'bold',
+        fontSize: 28,
+        fontWeight: '900',
         color: 'white',
+    },
+    balanceSection: {
+        flex: 1,
+    },
+    dividerVertical: {
+        width: 1,
+        height: '80%',
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        marginHorizontal: 20,
+    },
+    pointsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     walletIconBox: {
         width: 52,
