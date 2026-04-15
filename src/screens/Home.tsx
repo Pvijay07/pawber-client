@@ -127,7 +127,7 @@ export default function Home({ navigation }: HomeProps) {
     const banners = homepageContent?.client_home_banners || [];
 
     return (
-        <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={[{ flex: 1 }, { backgroundColor: colors.background }]}>
             <ScrollView 
                 contentContainerStyle={styles.container} 
                 showsVerticalScrollIndicator={false}

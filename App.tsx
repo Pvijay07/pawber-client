@@ -80,8 +80,8 @@ export default function App() {
 
 function AppContent({ session }: { session: Session | null }) {
   const { colors, isDark } = useTheme();
-  const notificationListener = React.useRef<any>();
-  const responseListener = React.useRef<any>();
+  const notificationListener = React.useRef<any>(null);
+  const responseListener = React.useRef<any>(null);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -102,8 +102,8 @@ function AppContent({ session }: { session: Session | null }) {
     });
 
     return () => {
-      if (notificationListener.current) Notifications.removeNotificationSubscription(notificationListener.current);
-      if (responseListener.current) Notifications.removeNotificationSubscription(responseListener.current);
+      if (notificationListener.current) notificationListener.current.remove();
+      if (responseListener.current) responseListener.current.remove();
     };
   }, [session]);
 
@@ -139,7 +139,7 @@ function AppContent({ session }: { session: Session | null }) {
         schema: 'public', 
         table: 'notifications', 
         filter: `user_id=eq.${userId}` 
-      }, (payload) => {
+      }, (payload: any) => {
         // Trigger local notification for in-app events
         Notifications.scheduleNotificationAsync({
           content: {
@@ -155,7 +155,7 @@ function AppContent({ session }: { session: Session | null }) {
         schema: 'public',
         table: 'bookings',
         filter: `user_id=eq.${userId}`
-      }, (payload) => {
+      }, (payload: any) => {
         // Notify user about booking status changes
         if (payload.old.status !== payload.new.status) {
           Notifications.scheduleNotificationAsync({
@@ -207,7 +207,7 @@ function AppContent({ session }: { session: Session | null }) {
   };
 
   return (
-    <NavigationContainer theme={navigationTheme} linking={linking}>
+    <NavigationContainer theme={navigationTheme as any} linking={linking as any}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

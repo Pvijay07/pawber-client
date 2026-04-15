@@ -16,11 +16,11 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const systemColorScheme = useColorScheme();
-    const [theme, setThemeState] = useState<ThemeMode>(systemColorScheme || 'light');
+    const [theme, setThemeState] = useState<ThemeMode>((systemColorScheme === 'dark' ? 'dark' : 'light'));
 
     // Update theme when system preference changes
     useEffect(() => {
-        if (systemColorScheme) {
+        if (systemColorScheme === 'dark' || systemColorScheme === 'light') {
             setThemeState(systemColorScheme);
         }
     }, [systemColorScheme]);
