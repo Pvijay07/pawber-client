@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../shared/constants';
 import { ApiResponse } from '../shared/types';
+import { supabase } from '../lib/supabase';
 
 /**
  * Base API client with error handling, auth headers, and typed responses.
@@ -23,7 +24,14 @@ class ApiClient {
         body?: any,
         options?: RequestInit
     ): Promise<ApiResponse<T>> {
-        const token = this.getToken();
+        let token = this.getToken();
+        if (!token) {
+            const { data } = await supabase.auth.getSession();
+            if (data?.session?.access_token) {
+                token = data.session.access_token;
+            }
+        }
+        
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
             ...(token && { Authorization: `Bearer ${token}` }),

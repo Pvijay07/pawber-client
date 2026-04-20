@@ -15,6 +15,7 @@ import {
     ActivityIndicator,
     Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useTheme } from '../theme/ThemeContext';
@@ -46,10 +47,31 @@ interface Address {
 export default function Addresses({ navigation }: any) {
     const insets = useSafeAreaInsets();
     const { colors, isDark } = useTheme();
-    const [addresses, setAddresses] = useState<Address[]>([
-        { id: '1', type: 'home', label: 'Home', address: '123 Pet Lane, Sunshine Valley, CA 90210', isDefault: true },
-        { id: '2', type: 'work', label: 'Office', address: '456 Tech Park, Innovation Way, CA 90211' },
-    ]);
+    const [addresses, setAddresses] = useState<Address[]>([]);
+
+    React.useEffect(() => {
+        loadAddresses();
+    }, []);
+
+    const loadAddresses = async () => {
+        try {
+            const saved = await AsyncStorage.getItem('@petcare_addresses');
+            if (saved) {
+                setAddresses(JSON.parse(saved));
+            }
+        } catch (e) {
+            console.error('Failed to load addresses', e);
+        }
+    };
+
+    const saveAddresses = async (newAddresses: Address[]) => {
+        try {
+            setAddresses(newAddresses);
+            await AsyncStorage.setItem('@petcare_addresses', JSON.stringify(newAddresses));
+        } catch (e) {
+            console.error('Failed to save addresses', e);
+        }
+    };
 
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -100,7 +122,7 @@ export default function Addresses({ navigation }: any) {
 
     const handleDelete = (id: string) => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setAddresses(addresses.filter(a => a.id !== id));
+        saveAddresses(addresses.filter(a => a.id !== id));
     };
 
     const resetForm = () => {
@@ -123,15 +145,16 @@ export default function Addresses({ navigation }: any) {
     const handleSubmit = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         if (editingId) {
-            setAddresses(addresses.map(a => a.id === editingId ? { ...a, type, label, address: addressValue } : a));
+            saveAddresses(addresses.map(a => a.id === editingId ? { ...a, type, label, address: addressValue } : a));
         } else {
             const newAddr: Address = {
                 id: Math.random().toString(36).substr(2, 9),
                 type,
                 label: label || (type === 'home' ? 'Home' : type === 'work' ? 'Work' : 'Other'),
-                address: addressValue
+                address: addressValue,
+                isDefault: addresses.length === 0,
             };
-            setAddresses([...addresses, newAddr]);
+            saveAddresses([...addresses, newAddr]);
         }
         resetForm();
     };

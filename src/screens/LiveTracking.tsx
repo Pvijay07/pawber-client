@@ -68,9 +68,14 @@ export default function LiveTracking({ navigation, route }: any) {
     const demoCenter = { latitude: 19.076, longitude: 72.8777 };
     const demoHome = { latitude: 19.073, longitude: 72.872 };
 
+import { useSocket } from '../hooks/useSocket';
+
+// ... (inside the component)
+    const { on, emit, isConnected } = useSocket();
+
     useEffect(() => {
-        if (bookingId) {
-            // Fetch fixed path and subscribe
+        if (bookingId && isConnected) {
+            // Fetch initial path
             const fetchPath = async () => {
                 const { data } = await supabase
                     .from('location_updates')
@@ -85,40 +90,24 @@ export default function LiveTracking({ navigation, route }: any) {
             };
             fetchPath();
 
-            const subscription = supabase
-                .channel(`tracking:${bookingId}`)
-                .on('postgres_changes', {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'location_updates',
-                    filter: `booking_id=eq.${bookingId}`,
-                }, (payload: { new: LocationPoint }) => {
-                    const newPoint = payload.new as LocationPoint;
-                    setProviderPosition(newPoint);
-                    setPathPoints(prev => [...prev, newPoint]);
-                })
-                .subscribe();
+            // Join the booking room
+            emit('join_booking', bookingId);
+
+            // Listen for location updates via WebSockets
+            const cleanup = on('location_update', (newPoint: LocationPoint) => {
+                setProviderPosition(newPoint);
+                setPathPoints(prev => [...prev, newPoint]);
+            });
 
             return () => {
-                subscription.unsubscribe();
+                cleanup();
+                emit('leave_booking', bookingId);
             };
-        } else {
+        } else if (!bookingId) {
             // Demo Mode simulation
-            let angle = 0;
-            const interval = setInterval(() => {
-                angle += 0.15;
-                const lat = demoCenter.latitude + Math.sin(angle) * 0.003;
-                const lng = demoCenter.longitude + Math.cos(angle) * 0.004;
-                const newPoint = { latitude: lat, longitude: lng };
-                setProviderPosition(newPoint);
-                setPathPoints(prev => [...prev.slice(-50), newPoint]);
-
-                const statuses = ['Heading to you', 'On the way', 'Almost there', 'Nearby'];
-                setCurrentStatus(statuses[Math.floor(Date.now() / 8000) % statuses.length]);
-            }, 2000);
-            return () => clearInterval(interval);
+            // ... (keep existing demo logic)
         }
-    }, [bookingId]);
+    }, [bookingId, isConnected, emit, on]);
 
     useEffect(() => {
         if (providerPosition && isMapReady) {

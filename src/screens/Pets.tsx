@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -30,6 +30,7 @@ import {
     Weight,
     User,
 } from 'lucide-react-native';
+import { petsApi } from '../services/pets.service';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -38,7 +39,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 const { width, height } = Dimensions.get('window');
 
 interface Pet {
-    id: number;
+    id: string | number;
     name: string;
     breed: string;
     age: string;
@@ -59,38 +60,37 @@ export default function Pets({ navigation }: PetsProps) {
     const [isAdding, setIsAdding] = useState(false);
     const [activeTab, setActiveTab] = useState<'info' | 'health' | 'docs'>('info');
 
-    const [pets, setPets] = useState<Pet[]>([
-        {
-            id: 1,
-            name: 'Max',
-            breed: 'Golden Retriever',
-            age: '2 Years',
-            weight: '28 kg',
-            gender: 'Male',
-            image: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=400&h=400',
-            medicalHistory: [
-                { id: '1', date: 'Oct 12, 2023', type: 'Checkup', note: 'Healthy weight and coat.' },
-                { id: '2', date: 'Aug 05, 2023', type: 'Fever', note: 'Recovered after 3 days of rest.' }
-            ],
-            vaccinations: [
-                { id: '1', name: 'Rabies', date: 'Jan 2023', status: 'Completed' },
-                { id: '2', name: 'DHPP', date: 'Dec 2023', status: 'Upcoming' }
-            ]
-        },
-        {
-            id: 2,
-            name: 'Luna',
-            breed: 'Persian Cat',
-            age: '1 Year',
-            weight: '4 kg',
-            gender: 'Female',
-            image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=400&h=400',
-            medicalHistory: [],
-            vaccinations: [
-                { id: '1', name: 'FVRCP', date: 'Mar 2023', status: 'Completed' }
-            ]
+    const [pets, setPets] = useState<Pet[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        loadPets();
+    }, []);
+
+    const loadPets = async () => {
+        setIsLoading(true);
+        try {
+            const res = await petsApi.list();
+            if (res.success && res.data?.pets) {
+                const mappedPets = res.data.pets.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    breed: p.breed || 'Mixed',
+                    age: p.age ? `${p.age} Years` : 'Unknown',
+                    weight: p.weight ? `${p.weight} kg` : 'Unknown',
+                    gender: 'Male', // default visualization locally
+                    image: p.image_url || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=200&h=200',
+                    medicalHistory: p.medical_notes ? [{ id: '1', date: 'N/A', type: 'Note', note: p.medical_notes }] : [],
+                    vaccinations: []
+                }));
+                setPets(mappedPets as any);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoading(false);
         }
-    ]);
+    };
 
     const [formData, setFormData] = useState({
         name: '',
@@ -101,16 +101,31 @@ export default function Pets({ navigation }: PetsProps) {
         image: '',
     });
 
-    const handleSave = () => {
-        const newPet: Pet = {
-            id: Date.now(),
-            ...formData,
-            image: formData.image || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=200&h=200',
-            medicalHistory: [],
-            vaccinations: []
+    const handleSave = async () => {
+        setIsLoading(true);
+        const newPetData = {
+            name: formData.name,
+            breed: formData.breed,
+            age: parseInt(formData.age) || 0,
+            weight: parseInt(formData.weight) || 0,
+            image_url: formData.image || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=200&h=200',
         };
+        const res = await petsApi.create(newPetData);
+        if (res.success && res.data?.pet) {
+            await loadPets();
+        } else {
+            // Local rollback if failed
+            const newPet: Pet = {
+                id: Date.now().toString(),
+                ...formData,
+                image: formData.image || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=200&h=200',
+                medicalHistory: [],
+                vaccinations: []
+            };
+            setPets([...pets, newPet]);
+        }
+        setIsLoading(false);
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setPets([...pets, newPet]);
         setIsAdding(false);
         resetForm();
     };

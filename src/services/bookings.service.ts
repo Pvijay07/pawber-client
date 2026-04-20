@@ -35,4 +35,7 @@ export const bookingsApi = {
 
     updateStatus: (id: string, status: string) =>
         api.patch<{ booking: Booking }>(`/bookings/${id}/status`, { status }),
+
+    confirmPayment: (id: string) =>
+        api.post<{ success: true; data: { booking: Booking } }>(`/bookings/${id}/confirm`),
 };

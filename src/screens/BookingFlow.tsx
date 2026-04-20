@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -33,11 +33,18 @@ import {
     Star,
     Crown,
     Repeat,
+    Plus,
 } from 'lucide-react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { walletApi } from '../services/wallet.service';
-import { getServiceById } from '../data/services';
+import { servicesApi } from '../services/services.service';
+import { petsApi } from '../services/pets.service';
 import { bookingsApi } from '../services/bookings.service';
 import { supabase } from '../lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSocket } from '../hooks/useSocket';
+import { Animated, Easing } from 'react-native';
+import { ServiceDetail, Pet } from '../shared/types';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -50,17 +57,62 @@ interface BookingFlowProps {
     route: any;
 }
 
+const BookingRadar = () => {
+    const scale1 = useRef(new Animated.Value(0)).current;
+    const opacity1 = useRef(new Animated.Value(1)).current;
+    const scale2 = useRef(new Animated.Value(0)).current;
+    const opacity2 = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        const animate = (scale: any, opacity: any, delay: number) => {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.delay(delay),
+                    Animated.parallel([
+                        Animated.timing(scale, { toValue: 1.5, duration: 2500, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+                        Animated.timing(opacity, { toValue: 0, duration: 2500, easing: Easing.out(Easing.quad), useNativeDriver: true })
+                    ])
+                ])
+            ).start();
+        };
+
+        animate(scale1, opacity1, 0);
+        animate(scale2, opacity2, 1250);
+    }, []);
+
+    return (
+        <View style={radarStyles.container}>
+            <Animated.View style={[radarStyles.circle, { transform: [{ scale: scale1 }], opacity: opacity1 }]} />
+            <Animated.View style={[radarStyles.circle, { transform: [{ scale: scale2 }], opacity: opacity2 }]} />
+            <View style={radarStyles.center}>
+                <Icons.Search size={32} color="white" />
+            </View>
+        </View>
+    );
+};
+
+const radarStyles = StyleSheet.create({
+    container: { width: 200, height: 200, alignItems: 'center', justifyContent: 'center' },
+    circle: { position: 'absolute', width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(20, 184, 166, 0.4)' },
+    center: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#14b8a6', alignItems: 'center', justifyContent: 'center', zIndex: 10, shadowColor: '#14b8a6', shadowOpacity: 0.5, shadowRadius: 15, elevation: 10 }
+});
+
 export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     const serviceId = route?.params?.serviceId || 'grooming';
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    const [selectedPets, setSelectedPets] = useState<number[]>([]);
+    const [serviceData, setServiceData] = useState<ServiceDetail | null>(null);
+    const [pets, setPets] = useState<Pet[]>([]);
+    const [addresses, setAddresses] = useState<any[]>([]);
+    const [isLoadingData, setIsLoadingData] = useState(true);
+
+    const [selectedPets, setSelectedPets] = useState<string[]>([]);
     const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
     const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
     const [serviceLocation, setServiceLocation] = useState<'home' | 'center'>('home');
     
-    const [selectedDate, setSelectedDate] = useState<number | null>(null);
+    const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
     const [recurringType, setRecurringType] = useState<'none' | 'weekly' | 'monthly'>('none');
     
@@ -75,36 +127,62 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     const [createdBooking, setCreatedBooking] = useState<any>(null);
     const [bookingStatus, setBookingStatus] = useState<string>('pending');
 
-    const serviceData = getServiceById(serviceId);
+    const fetchInitialData = useCallback(async (showLoading = true) => {
+        if (showLoading) setIsLoadingData(true);
+        try {
+            const [svcRes, petsRes, addrJson, wallRes] = await Promise.all([
+                servicesApi.getById(serviceId),
+                petsApi.list(),
+                AsyncStorage.getItem('@petcare_addresses'),
+                walletApi.get()
+            ]);
+
+            if (svcRes.success && svcRes.data) setServiceData(svcRes.data.service);
+            if (petsRes.success && petsRes.data) setPets(petsRes.data.pets);
+            if (addrJson) setAddresses(JSON.parse(addrJson));
+            if (wallRes.success && wallRes.data) setPointsBalance(wallRes.data.wallet.points_balance || 0);
+
+        } catch (error) {
+            console.error('Failed to load booking data:', error);
+        } finally {
+            if (showLoading) setIsLoadingData(false);
+        }
+    }, [serviceId]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchInitialData(false); // Silent refresh on focus
+        }, [fetchInitialData])
+    );
 
     useEffect(() => {
-        fetchWalletData();
+        fetchInitialData(true); // Full loading on mount
+    }, [fetchInitialData]);
+
+    useEffect(() => {
         if (step === 2 && holdTimer > 0) {
             const timer = setInterval(() => setHoldTimer(t => t - 1), 1000);
             return () => clearInterval(timer);
         }
     }, [step, holdTimer]);
 
-    const fetchWalletData = async () => {
-        try {
-            const res = await walletApi.get();
-            if (res.success && res.data) {
-                setPointsBalance(res.data.wallet.points_balance || 0);
-            }
-        } catch (e) {}
+    const getNextDates = () => {
+        const dates = [];
+        const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+        for (let i = 0; i < 7; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() + i + 1);
+            dates.push({
+                full: d.toISOString().split('T')[0],
+                day: d.getDate(),
+                month: monthNames[d.getMonth()],
+                label: i === 0 ? 'TOMORROW' : d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
+            });
+        }
+        return dates;
     };
 
-    const pets = [
-        { id: 1, name: 'Max', image: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=200&h=200' },
-        { id: 2, name: 'Luna', image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=200&h=200' }
-    ];
-
-    const addresses = [
-        { id: '1', label: 'Home', address: '123 Pet Lane, Mumbai 400001' },
-        { id: '2', label: 'Office', address: 'PetCare HQ, BKC, Mumbai 400051' }
-    ];
-
-    const dates = [12, 13, 14, 15, 16];
+    const dates = getNextDates();
     const times = [
         { time: '09:00 AM', available: true },
         { time: '10:30 AM', available: false },
@@ -113,7 +191,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         { time: '05:00 PM', available: true }
     ];
 
-    const togglePet = (id: number) => {
+    const togglePet = (id: string) => {
         setSelectedPets(prev =>
             prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
         );
@@ -126,11 +204,12 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     };
 
     const calculateTotal = () => {
-        const pkg = serviceData.packages.find(p => p.id === selectedPackage);
+        if (!serviceData) return 0;
+        const pkg = serviceData.packages?.find(p => p.id === selectedPackage);
         let base = (pkg?.price || 0) * selectedPets.length;
 
         selectedAddons.forEach(id => {
-            const addon = serviceData.addons.find(a => a.id === id);
+            const addon = serviceData.addons?.find(a => a.id === id);
             if (addon) base += addon.price * selectedPets.length;
         });
 
@@ -162,12 +241,12 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 service_id: serviceId,
                 package_id: selectedPackage!,
                 booking_type: 'scheduled',
-                pet_ids: selectedPets.map(id => String(id)),
-                booking_date: '2026-04-12', // Simplified for now
+                pet_ids: selectedPets,
+                booking_date: selectedDate!,
                 address: addresses.find(a => a.id === selectedAddress)?.address,
                 notes: instructions,
                 coupon_code: couponCode,
-                points_to_use: usePoints ? Math.min(pointsBalance, calculateTotal() + (usePoints ? Math.min(pointsBalance, calculateTotal() * 2) : 0)) : 0 // Simplified: Backend checks limit
+                points_to_use: usePoints ? Math.min(pointsBalance, calculateTotal()) : 0
             });
 
             if (res.success && res.data) {
@@ -183,11 +262,14 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         }
     };
 
+    const { on } = useSocket();
+
     useEffect(() => {
         if (!createdBooking?.id) return;
 
-        console.log('📡 Tracking Booking Status:', createdBooking.id);
+        console.log('📡 Tracking Booking Status (Socket + DB):', createdBooking.id);
         
+        // 1. Database Subscription (Fallback)
         const channel = supabase
             .channel(`booking_status:${createdBooking.id}`)
             .on('postgres_changes', {
@@ -196,15 +278,44 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 table: 'bookings',
                 filter: `id=eq.${createdBooking.id}`
             }, (payload: any) => {
-                console.log('🔄 Booking Status Updated:', payload.new.status);
+                console.log('🔄 Booking Status Updated (DB):', payload.new.status);
                 setBookingStatus(payload.new.status);
             })
             .subscribe();
 
+        // 2. Real-time Socket Listener (Uber-style)
+        const unsubAccepted = on('BOOKING_ACCEPTED', (data: any) => {
+            console.log('✨ Booking Accepted by Provider!', data);
+            setBookingStatus('accepted');
+            setCreatedBooking(data.booking);
+            // Optional: Vibrate
+        });
+
+        const unsubTimeout = on('booking_timeout', (data: any) => {
+            console.log('❌ Booking expansion timed out');
+            setBookingStatus('timeout');
+        });
+
         return () => {
             supabase.removeChannel(channel);
+            unsubAccepted();
+            unsubTimeout();
         };
-    }, [createdBooking]);
+    }, [createdBooking, on]);
+
+    const handlePay = async () => {
+        setIsSubmitting(true);
+        try {
+            const res = await bookingsApi.confirmPayment(createdBooking.id);
+            if (res.success) {
+                setBookingStatus('confirmed');
+            }
+        } catch (error) {
+            alert('Payment failed. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const handleBack = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -223,6 +334,17 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         const sec = s % 60;
         return `${min}:${sec.toString().padStart(2, '0')}`;
     };
+
+    if (isLoadingData) {
+        return (
+            <SafeAreaView style={styles.safeArea}>
+                <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                    <ActivityIndicator size="large" color="#14b8a6" />
+                    <Text style={{ marginTop: 10, fontWeight: 'bold', color: '#64748b' }}>Loading Service Details...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -276,7 +398,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                                 style={[styles.petCard, selectedPets.includes(pet.id) && styles.petCardActive]}
                                             >
                                                 <View style={styles.petImageWrapper}>
-                                                    <Image source={{ uri: pet.image }} style={styles.petImage} />
+                                                    <Image source={{ uri: pet.image_url || 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=200&h=200' }} style={styles.petImage} />
                                                 </View>
                                                 <Text style={[styles.petName, selectedPets.includes(pet.id) && styles.petNameActive]}>{pet.name}</Text>
                                                 {selectedPets.includes(pet.id) && (
@@ -286,6 +408,15 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                                 )}
                                             </TouchableOpacity>
                                         ))}
+                                        <TouchableOpacity
+                                            onPress={() => navigation.navigate('Pets')}
+                                            style={[styles.petCard, styles.petCardAdd]}
+                                        >
+                                            <View style={styles.addIconCircle}>
+                                                <Plus size={20} color="#14b8a6" />
+                                            </View>
+                                            <Text style={styles.addText}>ADD PET</Text>
+                                        </TouchableOpacity>
                                     </ScrollView>
                                 </View>
 
@@ -332,6 +463,15 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                                 </View>
                                             </TouchableOpacity>
                                         ))}
+                                        <TouchableOpacity
+                                            onPress={() => navigation.navigate('Addresses')}
+                                            style={[styles.addressCard, styles.addressCardAdd]}
+                                        >
+                                            <View style={styles.addIconBox}>
+                                                <Plus size={18} color="#14b8a6" />
+                                            </View>
+                                            <Text style={styles.addTextSmall}>ADD NEW ADDRESS</Text>
+                                        </TouchableOpacity>
                                     </View>
                                 </View>
 
@@ -339,17 +479,17 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                 <View style={styles.sectionBlock}>
                                     <Text style={styles.sectionTitle}>THE PLAN</Text>
                                     <View style={styles.packageList}>
-                                        {serviceData.packages.map(pkg => (
+                                        {serviceData?.packages?.map(pkg => (
                                             <TouchableOpacity
                                                 key={pkg.id}
                                                 onPress={() => setSelectedPackage(pkg.id)}
                                                 style={[styles.packageCard, selectedPackage === pkg.id && styles.packageCardActive]}
                                             >
                                                 <View style={styles.packageHeader}>
-                                                    <Text style={[styles.packageName, selectedPackage === pkg.id && styles.textWhite]}>{pkg.name}</Text>
+                                                    <Text style={[styles.packageName, selectedPackage === pkg.id && styles.textWhite]}>{pkg.package_name}</Text>
                                                     <Text style={[styles.packagePrice, selectedPackage === pkg.id && styles.textPrimary]}>₹{pkg.price}</Text>
                                                 </View>
-                                                <Text style={[styles.packageDesc, selectedPackage === pkg.id && styles.textWhiteMuted]}>{pkg.features.join(' • ')}</Text>
+                                                <Text style={[styles.packageDesc, selectedPackage === pkg.id && styles.textWhiteMuted]}>{pkg.features?.join(' • ') || (pkg as any).duration}</Text>
                                             </TouchableOpacity>
                                         ))}
                                     </View>
@@ -385,12 +525,12 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateList}>
                                     {dates.map(d => (
                                         <TouchableOpacity
-                                            key={d}
-                                            onPress={() => setSelectedDate(d)}
-                                            style={[styles.dateCard, selectedDate === d && styles.dateCardActive]}
+                                            key={d.full}
+                                            onPress={() => setSelectedDate(d.full)}
+                                            style={[styles.dateCard, selectedDate === d.full && styles.dateCardActive]}
                                         >
-                                            <Text style={[styles.dateMonth, selectedDate === d && styles.textWhite]}>OCT</Text>
-                                            <Text style={[styles.dateDay, selectedDate === d && styles.textWhite]}>{d}</Text>
+                                            <Text style={[styles.dateMonth, selectedDate === d.full && styles.textWhite]}>{d.month}</Text>
+                                            <Text style={[styles.dateDay, selectedDate === d.full && styles.textWhite]}>{d.day}</Text>
                                         </TouchableOpacity>
                                     ))}
                                 </ScrollView>
@@ -434,7 +574,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                 {/* Addons */}
                                 <Text style={styles.sectionTitle}>ADDONS</Text>
                                 <View style={styles.addonList}>
-                                    {serviceData.addons.map(addon => (
+                                    {serviceData?.addons?.map(addon => (
                                         <TouchableOpacity
                                             key={addon.id}
                                             onPress={() => toggleAddon(addon.id)}
@@ -442,7 +582,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         >
                                             <View style={styles.addonInfo}>
                                                 <Text style={styles.addonTitle}>{addon.name}</Text>
-                                                <Text style={styles.addonMeta}>₹{addon.price} • {addon.duration}</Text>
+                                                <Text style={styles.addonMeta}>₹{addon.price} • {addon.duration_minutes || (addon as any).duration}m</Text>
                                             </View>
                                             <View style={[styles.radioCircle, selectedAddons.includes(addon.id) && styles.radioCircleActive]}>
                                                 {selectedAddons.includes(addon.id) && <Check size={14} color="white" />}
@@ -479,7 +619,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                     <View style={styles.summaryHeader}>
                                         <Receipt size={24} color="#14b8a6" />
                                         <View>
-                                            <Text style={styles.summaryTitle}>{serviceData.name} ({selectedPets.length} Pets)</Text>
+                                            <Text style={styles.summaryTitle}>{serviceData?.name} ({selectedPets.length} Pets)</Text>
                                             <Text style={styles.summaryMeta}>Oct {selectedDate}, {selectedTime}</Text>
                                         </View>
                                     </View>
@@ -555,34 +695,85 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
 
                         {step === 5 && (
                             <View style={styles.successView}>
-                                <View style={styles.successIconOuter}>
-                                    <View style={styles.successIconInner}>
-                                        {bookingStatus === 'confirmed' ? (
-                                            <CheckCircle2 size={64} color="#14b8a6" strokeWidth={2.5} />
-                                        ) : (
-                                            <ActivityIndicator size="large" color="#14b8a6" />
-                                        )}
+                                {bookingStatus === 'pending' ? (
+                                    <View style={{ alignItems: 'center' }}>
+                                        <BookingRadar />
+                                        <Text style={styles.successTitle}>Finding Your Expert...</Text>
+                                        <Text style={styles.successSubtitle}>
+                                            Broadcasting your request to professionals within 20km. This usually takes 2-5 minutes.
+                                        </Text>
+                                        <TouchableOpacity 
+                                            style={[styles.trackBtn, { marginTop: 40, backgroundColor: '#f1f5f9' }]} 
+                                            onPress={() => navigation.navigate('Home')}
+                                        >
+                                            <Text style={[styles.trackBtnText, { color: '#0f172a' }]}>WAIT IN BACKGROUND</Text>
+                                        </TouchableOpacity>
                                     </View>
-                                </View>
-                                <Text style={styles.successTitle}>
-                                    {bookingStatus === 'confirmed' ? 'Expert Assigned!' : 'Finding Expert...'}
-                                </Text>
-                                <Text style={styles.successSubtitle}>
-                                    {bookingStatus === 'confirmed' 
-                                        ? 'Your booking is confirmed. You can track status in the bookings tab.' 
-                                        : 'We are matching you with the best available professional.'}
-                                </Text>
-                                <View style={styles.successButtons}>
-                                    <TouchableOpacity style={styles.trackBtn} onPress={() => navigation.navigate('Home')}>
-                                        <Text style={styles.trackBtnText}>BACK TO HOME</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity 
-                                        style={styles.homeBtn} 
-                                        onPress={() => navigation.navigate('LiveTracking', { bookingId: createdBooking?.id })}
-                                    >
-                                        <Text style={styles.homeBtnText}>TRACK LIVE</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                ) : bookingStatus === 'accepted' ? (
+                                    <View style={{ alignItems: 'center' }}>
+                                        <View style={styles.providerMatchCard}>
+                                            <Image 
+                                                source={{ uri: createdBooking?.provider?.user?.avatar_url || 'https://i.pravatar.cc/100' }} 
+                                                style={styles.providerAvatar} 
+                                            />
+                                            <Text style={styles.matchTitle}>Expert Found!</Text>
+                                            <Text style={styles.providerName}>{createdBooking?.provider?.business_name}</Text>
+                                            <View style={styles.ratingRow}>
+                                                <Icons.Star size={14} color="#f97316" fill="#f97316" />
+                                                <Text style={styles.ratingText}>{createdBooking?.provider?.rating || '4.9'}</Text>
+                                            </View>
+                                        </View>
+                                        <Text style={styles.successSubtitle}>
+                                            Please confirm payment to finalize the booking. Your expert is ready to start!
+                                        </Text>
+                                        <TouchableOpacity 
+                                            style={[styles.continueBtn, { width: '100%', marginTop: 30 }]} 
+                                            onPress={handlePay}
+                                            disabled={isSubmitting}
+                                        >
+                                            <Text style={styles.continueBtnText}>
+                                                {isSubmitting ? 'PROCESSING...' : `CONFIRM & PAY ₹${createdBooking?.total_amount}`}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : bookingStatus === 'timeout' ? (
+                                    <View style={{ alignItems: 'center' }}>
+                                        <Icons.AlertTriangle size={64} color="#ef4444" />
+                                        <Text style={styles.successTitle}>No Experts Found</Text>
+                                        <Text style={styles.successSubtitle}>
+                                            We couldn't find a professional nearby at this time. Please try scheduling for later.
+                                        </Text>
+                                        <TouchableOpacity 
+                                            style={[styles.trackBtn, { marginTop: 40 }]} 
+                                            onPress={() => setStep(2)}
+                                        >
+                                            <Text style={styles.trackBtnText}>CHANGE SLOT</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : (
+                                    <View style={{ alignItems: 'center' }}>
+                                        <View style={styles.successIconOuter}>
+                                            <View style={styles.successIconInner}>
+                                                <CheckCircle2 size={64} color="#14b8a6" strokeWidth={2.5} />
+                                            </View>
+                                        </View>
+                                        <Text style={styles.successTitle}>Booking Confirmed!</Text>
+                                        <Text style={styles.successSubtitle}>
+                                            Your dedicated expert is now assigned. Get ready for premium care!
+                                        </Text>
+                                        <View style={styles.successButtons}>
+                                            <TouchableOpacity 
+                                                style={styles.homeBtn} 
+                                                onPress={() => navigation.navigate('LiveTracking', { bookingId: createdBooking?.id })}
+                                            >
+                                                <Text style={styles.homeBtnText}>TRACK LIVE</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={styles.trackBtn} onPress={() => navigation.navigate('Home')}>
+                                                <Text style={styles.trackBtnText}>BACK TO HOME</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
                             </View>
                         )}
                     </ScrollView>
@@ -712,6 +903,27 @@ const styles = StyleSheet.create({
     petImage: { width: '100%', height: '100%' },
     petName: { fontSize: 11, fontWeight: 'bold', color: '#94a3b8' },
     petNameActive: { color: '#0f172a' },
+    petCardAdd: {
+        borderStyle: 'dashed',
+        borderWidth: 2,
+        borderColor: '#e2e8f0',
+        backgroundColor: 'transparent',
+    },
+    addIconCircle: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#f0fdfa',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 8,
+    },
+    addText: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: '#14b8a6',
+        letterSpacing: 1,
+    },
     checkIcon: {
         position: 'absolute',
         top: 6,
@@ -750,6 +962,29 @@ const styles = StyleSheet.create({
         elevation: 1,
     },
     addressCardActive: { borderColor: '#14b8a6', backgroundColor: '#f0fdfa' },
+    addressCardAdd: {
+        borderStyle: 'dashed',
+        borderWidth: 2,
+        borderColor: '#e2e8f0',
+        backgroundColor: 'transparent',
+        justifyContent: 'center',
+        paddingVertical: 14,
+    },
+    addIconBox: {
+        width: 36,
+        height: 36,
+        borderRadius: 12,
+        backgroundColor: '#f0fdfa',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    addTextSmall: {
+        fontSize: 12,
+        fontWeight: '900',
+        color: '#14b8a6',
+        letterSpacing: 1,
+    },
     addrIconBox: { 
         width: 44, 
         height: 44, 
@@ -896,6 +1131,52 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     redeemToggleActive: {
-        borderColor: 'white',
+        borderColor: white,
+    },
+    providerMatchCard: {
+        backgroundColor: 'white',
+        borderRadius: 32,
+        padding: 30,
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#14b8a6',
+        shadowColor: '#14b8a6',
+        shadowOpacity: 0.1,
+        shadowRadius: 15,
+        elevation: 5,
+        marginBottom: 20,
+    },
+    providerAvatar: {
+        width: 80,
+        height: 80,
+        borderRadius: 30,
+        marginBottom: 15,
+    },
+    matchTitle: {
+        fontSize: 12,
+        fontWeight: '900',
+        color: '#14b8a6',
+        letterSpacing: 2,
+        marginBottom: 5,
+    },
+    providerName: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#0f172a',
+        marginBottom: 8,
+    },
+    ratingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#fff7ed',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 10,
+    },
+    ratingText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#f97316',
     },
 });

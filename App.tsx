@@ -176,8 +176,10 @@ function AppContent({ session }: { session: Session | null }) {
   };
 
   const navigationTheme = {
+    ...DefaultTheme,
     dark: isDark,
     colors: {
+      ...DefaultTheme.colors,
       primary: colors.primary,
       background: colors.background,
       card: colors.surface,
@@ -193,9 +195,9 @@ function AppContent({ session }: { session: Session | null }) {
       screens: {
         Main: {
           screens: {
-            Home: 'home',
-            Bookings: 'bookings',
-            Wallet: 'wallet',
+            HomeTab: 'home',
+            BookingsTab: 'bookings',
+            WalletTab: 'wallet',
           },
         },
         BookingFlow: 'booking/:serviceId',

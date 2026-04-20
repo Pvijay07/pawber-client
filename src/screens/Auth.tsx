@@ -13,6 +13,8 @@ import {
     StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import {
     Mail,
     Lock,
@@ -24,6 +26,8 @@ import {
     PawPrint,
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
+
+WebBrowser.maybeCompleteAuthSession();
 
 interface AuthProps {
     navigation: any;
@@ -104,11 +108,49 @@ export default function Auth({ navigation }: AuthProps) {
     const handleOAuth = async (provider: 'google' | 'github') => {
         try {
             setIsLoading(true);
-            const { error } = await supabase.auth.signInWithOAuth({
+            setError(null);
+
+            const redirectUrl = Linking.createURL('/auth/callback');
+            
+            const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: provider,
+                options: {
+                    redirectTo: redirectUrl,
+                    skipBrowserRedirect: false, // Set to false to allow browser redirect or handle via AuthSession
+                }
             });
+
             if (error) throw error;
+
+            if (data?.url) {
+                const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+                
+                if (result.type === 'success' && result.url) {
+                    // Extract tokens from URL (Supabase appends them as fragments)
+                    const getParam = (str: string, label: string) => {
+                        const match = str.match(new RegExp(`[#&?]${label}=([^&]+)`));
+                        return match ? decodeURIComponent(match[1]) : null;
+                    };
+
+                    const access_token = getParam(result.url, 'access_token');
+                    const refresh_token = getParam(result.url, 'refresh_token');
+
+                    if (access_token && refresh_token) {
+                        const { error: sessionError } = await supabase.auth.setSession({ 
+                            access_token, 
+                            refresh_token 
+                        });
+                        
+                        if (sessionError) throw sessionError;
+                        
+                        // User is now logged in. The App.tsx listener will handle navigation.
+                    } else {
+                        throw new Error('Authentication failed: No tokens received');
+                    }
+                }
+            }
         } catch (err: any) {
+            console.error(`OAuth error (${provider}):`, err);
             setError(err.message || 'An error occurred during authentication');
         } finally {
             setIsLoading(false);

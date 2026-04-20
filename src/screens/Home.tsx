@@ -40,6 +40,11 @@ import { petsApi as petsService } from '../services/pets.service';
 import { authApi } from '../services/auth.service';
 import { loyaltyApi, LoyaltyStatus } from '../services/loyalty.service';
 import { useTheme } from '../theme/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from '../services/api';
+import { servicesApi } from '../services/services.service';
+import { bookingsApi } from '../services/bookings.service';
+import { ServiceCategory } from '../shared/types';
 
 const { width } = Dimensions.get('window');
 
@@ -64,13 +69,19 @@ export default function Home({ navigation }: HomeProps) {
         ? (width - 48 - 24) / serviceColumns
         : (width - 48 - 48) / serviceColumns;
 
-    const [services] = useState([
-        { id: 'grooming', name: 'Grooming', icon: 'Scissors', color: '#f97316', bgColor: '#fff7ed' },
-        { id: 'vet', name: 'Vet Visit', icon: 'Stethoscope', color: '#14b8a6', bgColor: '#f0fdfa' },
-        { id: 'boarding', name: 'Boarding', icon: 'Home', color: '#3b82f6', bgColor: '#eff6ff' },
-        { id: 'walking', name: 'Walking', icon: 'MapPin', color: '#a855f7', bgColor: '#faf5ff' },
-        { id: 'training', name: 'Training', icon: 'GraduationCap', color: '#f59e0b', bgColor: '#fffbeb' },
-    ]);
+    const [services, setServices] = useState<ServiceCategory[]>([]);
+    const [upcomingBooking, setUpcomingBooking] = useState<any>(null);
+    const [currentAddress, setCurrentAddress] = useState('Set your location');
+
+    const getServiceVisuals = (catName: string): { icon: string; color: string; bgColor: string } => {
+        const name = catName.toLowerCase();
+        if (name.includes('groom')) return { icon: 'Scissors', color: '#f97316', bgColor: '#fff7ed' };
+        if (name.includes('vet') || name.includes('medic')) return { icon: 'Stethoscope', color: '#14b8a6', bgColor: '#f0fdfa' };
+        if (name.includes('board') || name.includes('hostel')) return { icon: 'Home', color: '#3b82f6', bgColor: '#eff6ff' };
+        if (name.includes('walk')) return { icon: 'MapPin', color: '#a855f7', bgColor: '#faf5ff' };
+        if (name.includes('train')) return { icon: 'GraduationCap', color: '#f59e0b', bgColor: '#fffbeb' };
+        return { icon: 'Sparkles', color: '#6366f1', bgColor: '#f5f3ff' };
+    };
 
     useEffect(() => {
         fetchData();
@@ -78,12 +89,14 @@ export default function Home({ navigation }: HomeProps) {
 
     const fetchData = async () => {
         try {
-            const [content, wallet, pets, profile, loyalty] = await Promise.all([
+            const [content, wallet, pets, profile, loyalty, categoriesRes, bookingsRes] = await Promise.all([
                 contentService.getHomepageContent(),
                 walletService.get(),
                 petsService.list(),
                 authApi.getProfile(),
-                loyaltyApi.getStatus()
+                loyaltyApi.getStatus(),
+                servicesApi.listCategories(),
+                bookingsApi.list({ status: 'confirmed,in_progress', limit: 1 })
             ]);
 
             if ((content as any)?.content) setHomepageContent((content as any).content);
@@ -91,6 +104,27 @@ export default function Home({ navigation }: HomeProps) {
             if (pets?.success && pets.data) setPetsCount(pets.data.pets.length);
             if (profile?.data?.user) setUser(profile.data.user);
             if (loyalty?.success && loyalty.data) setLoyaltyStatus(loyalty.data);
+            
+            // Handle Categories (Final Dynamic Services)
+            if ((categoriesRes as any)?.success && (categoriesRes as any).data?.categories) {
+                setServices((categoriesRes as any).data.categories);
+            }
+
+            // Handle Upcoming Booking
+            if ((bookingsRes as any)?.success && (bookingsRes as any).data?.bookings?.[0]) {
+                setUpcomingBooking((bookingsRes as any).data.bookings[0]);
+            }
+
+            // Load Address from AsyncStorage
+            const savedAddresses = await AsyncStorage.getItem('@petcare_addresses');
+            if (savedAddresses) {
+                const parsed = JSON.parse(savedAddresses);
+                if (parsed.length > 0) {
+                    const active = parsed.find((a: any) => a.isDefault) || parsed[0];
+                    setCurrentAddress(active.label || active.address);
+                }
+            }
+
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
@@ -146,7 +180,7 @@ export default function Home({ navigation }: HomeProps) {
                             <View style={[styles.pinBg, { backgroundColor: colors.primaryLight }]}>
                                 <MapPin size={10} color={colors.primary} fill={colors.primary} fillOpacity={0.1} />
                             </View>
-                            <Text style={[styles.addressText, { color: colors.textMuted }]} numberOfLines={1}>123 Pet Lane, Mumbai 400001</Text>
+                            <Text style={[styles.addressText, { color: colors.textMuted }]} numberOfLines={1}>{currentAddress}</Text>
                             <ChevronRight size={12} color={colors.textMuted} />
                         </TouchableOpacity>
                     </View>
@@ -254,18 +288,21 @@ export default function Home({ navigation }: HomeProps) {
                 </View>
 
                 <View style={styles.servicesGrid}>
-                    {services.map((service) => (
-                        <TouchableOpacity
-                            key={service.id}
-                            style={[styles.serviceItem, { width: serviceItemWidth }]}
-                            onPress={() => navigation.navigate('BookingFlow', { serviceId: service.id })}
-                        >
-                            <View style={[styles.serviceIcon, { backgroundColor: isDark ? colors.surface : service.bgColor }]}>
-                                {renderIcon(service.icon, 28, service.color)}
-                            </View>
-                            <Text style={[styles.serviceName, { color: colors.textSecondary }]}>{service.name}</Text>
-                        </TouchableOpacity>
-                    ))}
+                    {services.map((service) => {
+                        const visuals = getServiceVisuals(service.name);
+                        return (
+                            <TouchableOpacity
+                                key={service.id}
+                                style={[styles.serviceItem, { width: serviceItemWidth }]}
+                                onPress={() => navigation.navigate('BookingFlow', { serviceId: service.id })}
+                            >
+                                <View style={[styles.serviceIcon, { backgroundColor: isDark ? colors.surface : visuals.bgColor }]}>
+                                    {renderIcon(visuals.icon, 28, visuals.color)}
+                                </View>
+                                <Text style={[styles.serviceName, { color: colors.textSecondary }]}>{service.name}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
                 </View>
 
                 {/* How It Works Section */}
@@ -299,27 +336,30 @@ export default function Home({ navigation }: HomeProps) {
                     </View>
                 </View>
 
-                {/* Upcoming */}
-                <View style={styles.upcomingSection}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={[styles.sectionTitle, { color: colors.text }]}>UPCOMING SESSION</Text>
-                        <View style={[styles.timeTag, { backgroundColor: colors.primaryLight }]}>
-                            <Clock size={12} color={colors.primary} />
-                            <Text style={[styles.timeTagText, { color: colors.primary }]}>Today • 11:30 AM</Text>
+                {upcomingBooking && (
+                    <View style={styles.upcomingSection}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>UPCOMING SESSION</Text>
+                            <View style={[styles.timeTag, { backgroundColor: colors.primaryLight }]}>
+                                <Clock size={12} color={colors.primary} />
+                                <Text style={[styles.timeTagText, { color: colors.primary }]}>
+                                    {new Date(upcomingBooking.booking_date).toLocaleDateString()} • {new Date(upcomingBooking.booking_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </Text>
+                            </View>
                         </View>
-                    </View>
 
-                    <TouchableOpacity style={[styles.appointmentCard, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Bookings')}>
-                        <View style={[styles.appointmentIcon, { backgroundColor: isDark ? colors.surfaceSecondary : '#fff7ed' }]}>
-                            <Sparkles size={22} color={colors.accent} />
-                        </View>
-                        <View style={styles.appointmentInfo}>
-                            <Text style={[styles.appointmentTitle, { color: colors.text }]}>Spa & Grooming</Text>
-                            <Text style={styles.appointmentDate}>Max • Sector 14, Mumbai</Text>
-                        </View>
-                        <ChevronRight size={18} color={colors.textMuted} />
-                    </TouchableOpacity>
-                </View>
+                        <TouchableOpacity style={[styles.appointmentCard, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Bookings')}>
+                            <View style={[styles.appointmentIcon, { backgroundColor: isDark ? colors.surfaceSecondary : '#fff7ed' }]}>
+                                <Sparkles size={22} color={colors.accent} />
+                            </View>
+                            <View style={styles.appointmentInfo}>
+                                <Text style={[styles.appointmentTitle, { color: colors.text }]}>{upcomingBooking.service?.name || 'Pet Service'}</Text>
+                                <Text style={styles.appointmentDate}>{upcomingBooking.booking_pets?.[0]?.pet?.name || 'Your Pet'} • {upcomingBooking.address || 'Your Location'}</Text>
+                            </View>
+                            <ChevronRight size={18} color={colors.textMuted} />
+                        </TouchableOpacity>
+                    </View>
+                )}
             </ScrollView>
 
             {/* Floating AI Assistant Button */}

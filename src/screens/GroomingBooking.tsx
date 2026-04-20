@@ -16,17 +16,18 @@ import {
   Scissors,
   ChevronRight,
 } from 'lucide-react-native';
-import { getServiceById } from '../data/services';
-
-const { width } = Dimensions.get('window');
-
 export default function GroomingBooking({ navigation }: any) {
   const [visitType, setVisitType] = useState<'home' | 'center'>('home');
-  const [selectedPets, setSelectedPets] = useState<number[]>([]);
+  const [selectedPets, setSelectedPets] = useState<any[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
 
-  const serviceData = getServiceById('grooming');
+  const serviceData = {
+    packages: [
+      { id: 'bath', name: 'Bath & Brush', price: 500, features: ['Cleaning', 'Brushing'] },
+      { id: 'full', name: 'Full Grooming', price: 1200, features: ['Haircut', 'Nails', 'Bath'] }
+    ]
+  };
 
   const pets = [
     { id: 1, name: 'Max', image: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=200&h=200' },
