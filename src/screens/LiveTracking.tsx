@@ -40,6 +40,7 @@ import {
     MapPin,
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
+import { useSocket } from '../hooks/useSocket';
 
 const { width, height } = Dimensions.get('window');
 
@@ -68,9 +69,6 @@ export default function LiveTracking({ navigation, route }: any) {
     const demoCenter = { latitude: 19.076, longitude: 72.8777 };
     const demoHome = { latitude: 19.073, longitude: 72.872 };
 
-import { useSocket } from '../hooks/useSocket';
-
-// ... (inside the component)
     const { on, emit, isConnected } = useSocket();
 
     useEffect(() => {
