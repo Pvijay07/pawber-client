@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -14,7 +14,10 @@ import {
     StatusBar,
     ActivityIndicator,
     Alert,
+    KeyboardAvoidingView,
+    Image,
 } from 'react-native';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
@@ -28,29 +31,75 @@ import {
     Home,
     Briefcase,
     Map as MapIcon,
+    Search,
+    Crosshair,
+    Check,
+    Navigation,
+    Info,
+    ArrowLeft,
+    X,
 } from 'lucide-react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+
+// Brand color from screenshot
+const BRAND_PINK = '#FF1B5E';
 
 interface Address {
     id: string;
     type: 'home' | 'work' | 'other';
     label: string;
     address: string;
+    details?: {
+        houseNo: string;
+        building: string;
+        landmark: string;
+    };
     isDefault?: boolean;
+    latitude?: number;
+    longitude?: number;
 }
+
+type ViewState = 'list' | 'map-picker' | 'details-form';
 
 export default function Addresses({ navigation }: any) {
     const insets = useSafeAreaInsets();
     const { colors, isDark } = useTheme();
+    const [viewState, setViewState] = useState<ViewState>('list');
     const [addresses, setAddresses] = useState<Address[]>([]);
 
-    React.useEffect(() => {
+    // Map State
+    const mapRef = useRef<MapView>(null);
+    const [region, setRegion] = useState({
+        latitude: 19.0760,
+        longitude: 72.8777,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+    });
+    const [isLocating, setIsLocating] = useState(false);
+    const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
+    const [selectedFullAddress, setSelectedFullAddress] = useState('');
+    const [locationSummary, setLocationSummary] = useState({ main: '', sub: '' });
+
+    // Search State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+
+    // Form State
+    const [type, setType] = useState<'home' | 'work' | 'other'>('home');
+    const [label, setLabel] = useState('');
+    const [houseNo, setHouseNo] = useState('');
+    const [building, setBuilding] = useState('');
+    const [landmark, setLandmark] = useState('');
+    const [editingId, setEditingId] = useState<string | null>(null);
+
+    useEffect(() => {
         loadAddresses();
+        getUserLocationInitial();
     }, []);
 
     const loadAddresses = async () => {
@@ -73,289 +122,425 @@ export default function Addresses({ navigation }: any) {
         }
     };
 
-    const [isAdding, setIsAdding] = useState(false);
-    const [editingId, setEditingId] = useState<string | null>(null);
-
-    // Form State
-    const [type, setType] = useState<'home' | 'work' | 'other'>('home');
-    const [label, setLabel] = useState('');
-    const [addressValue, setAddressValue] = useState('');
-    const [isLocating, setIsLocating] = useState(false);
-
-    const handleUseCurrentLocation = async () => {
-        setIsLocating(true);
+    const getUserLocationInitial = async () => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                Alert.alert('Permission Denied', 'Please enable location permissions to use this feature.');
-                return;
+            if (status === 'granted') {
+                const location = await Location.getCurrentPositionAsync({});
+                const newRegion = {
+                    ...region,
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude,
+                };
+                setRegion(newRegion);
+                reverseGeocode(location.coords.latitude, location.coords.longitude);
             }
+        } catch (e) {}
+    };
 
-            const location = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.Balanced,
-            });
-
-            // Use Nominatim (OSM) as a free alternative to the removed Expo Geocoding API
+    const reverseGeocode = async (lat: number, lon: number) => {
+        setIsReverseGeocoding(true);
+        try {
             const response = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${location.coords.latitude}&lon=${location.coords.longitude}`,
-                {
-                    headers: {
-                        'User-Agent': 'PawberPetCareApp' // Required by Nominatim policy
-                    }
-                }
+                `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`,
+                { headers: { 'User-Agent': 'PawberPetCareApp' } }
             );
             const data = await response.json();
-
             if (data && data.address) {
-                const {
-                    road,
-                    suburb,
-                    city,
-                    town,
-                    village,
-                    state,
-                    postcode,
-                    house_number
-                } = data.address;
-
+                const { road, suburb, city, town, village, house_number, state, postcode } = data.address;
+                const main = road || suburb || city || 'Unknown Road';
                 const cityName = city || town || village || '';
-                const mainAddr = [house_number, road].filter(Boolean).join(' ');
-                const secondary = [suburb, cityName].filter(Boolean).join(', ');
+                const sub = [suburb, cityName, state, postcode].filter(Boolean).join(', ');
                 
-                const addrStr = [mainAddr, secondary, state, postcode].filter(Boolean).join(', ');
+                const full = [house_number, road, suburb, cityName, state, postcode].filter(Boolean).join(', ');
                 
-                setAddressValue(addrStr);
-                if (!label) setLabel(suburb || cityName || '');
+                setLocationSummary({ main, sub });
+                setSelectedFullAddress(full);
             }
         } catch (error) {
-            console.error('Location error:', error);
-            Alert.alert('Error', 'Could not fetch your current location.');
+            console.error('Reverse Geocode Error:', error);
+        } finally {
+            setIsReverseGeocoding(false);
+        }
+    };
+
+    const handleSearch = async (query: string) => {
+        setSearchQuery(query);
+        if (query.length < 3) {
+            setSearchResults([]);
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`,
+                { headers: { 'User-Agent': 'PawberPetCareApp' } }
+            );
+            const data = await response.json();
+            setSearchResults(data);
+        } catch (e) {}
+    };
+
+    const selectSearchResult = (result: any) => {
+        const lat = parseFloat(result.lat);
+        const lon = parseFloat(result.lon);
+        const newRegion = { ...region, latitude: lat, longitude: lon };
+        setRegion(newRegion);
+        mapRef.current?.animateToRegion(newRegion, 1000);
+        setSearchQuery('');
+        setSearchResults([]);
+        reverseGeocode(lat, lon);
+    };
+
+    const handleUseMyLocation = async () => {
+        setIsLocating(true);
+        try {
+            const location = await Location.getCurrentPositionAsync({});
+            const newRegion = { ...region, latitude: location.coords.latitude, longitude: location.coords.longitude };
+            setRegion(newRegion);
+            mapRef.current?.animateToRegion(newRegion, 1000);
+            reverseGeocode(location.coords.latitude, location.coords.longitude);
         } finally {
             setIsLocating(false);
         }
     };
 
-    const handleDelete = (id: string) => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        saveAddresses(addresses.filter(a => a.id !== id));
+    const handleRegionChangeComplete = (newRegion: any) => {
+        setRegion(newRegion);
+        reverseGeocode(newRegion.latitude, newRegion.longitude);
     };
 
-    const resetForm = () => {
-        setType('home');
-        setLabel('');
-        setAddressValue('');
+    const resetFlow = () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setViewState('list');
         setEditingId(null);
-        setIsAdding(false);
-    };
-
-    const handleEdit = (addr: Address) => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setType(addr.type);
-        setLabel(addr.label);
-        setAddressValue(addr.address);
-        setEditingId(addr.id);
-        setIsAdding(true);
+        setHouseNo('');
+        setBuilding('');
+        setLandmark('');
+        setLabel('');
     };
 
     const handleSubmit = () => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        const fullAddress = [houseNo, building, selectedFullAddress].filter(Boolean).join(', ');
+        
         if (editingId) {
-            saveAddresses(addresses.map(a => a.id === editingId ? { ...a, type, label, address: addressValue } : a));
+            saveAddresses(addresses.map(a => a.id === editingId ? { 
+                ...a, 
+                type, 
+                label: label || (type === 'home' ? 'Home' : type === 'work' ? 'Work' : 'Other'),
+                address: fullAddress,
+                details: { houseNo, building, landmark }
+            } : a));
         } else {
             const newAddr: Address = {
                 id: Math.random().toString(36).substr(2, 9),
                 type,
                 label: label || (type === 'home' ? 'Home' : type === 'work' ? 'Work' : 'Other'),
-                address: addressValue,
+                address: fullAddress,
+                details: { houseNo, building, landmark },
                 isDefault: addresses.length === 0,
+                latitude: region.latitude,
+                longitude: region.longitude
             };
             saveAddresses([...addresses, newAddr]);
         }
-        resetForm();
+        resetFlow();
     };
 
-    const getIcon = (addrType: string) => {
-        switch (addrType) {
-            case 'home': return Home;
-            case 'work': return Briefcase;
-            default: return MapIcon;
-        }
-    };
+    const renderHeader = (title: string, backAction: () => void) => (
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10, backgroundColor: colors.background }]}>
+            <TouchableOpacity onPress={backAction} style={styles.backBtn}>
+                <ChevronLeft size={24} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{title}</Text>
+        </View>
+    );
 
-    return (
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-            <View style={styles.container}>
-                {/* Header */}
-                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10, borderBottomColor: colors.border }]}>
+    // --- VIEW 1: ADDRESS LIST ---
+    const renderList = () => (
+        <View style={styles.flexOne}>
+            {renderHeader("My Addresses", () => navigation.goBack())}
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <View style={styles.listContainer}>
+                    {addresses.map((addr) => (
+                        <View key={addr.id} style={[styles.addressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <View style={[styles.iconBox, { backgroundColor: colors.primaryLight }]}>
+                                {addr.type === 'home' ? <Home size={20} color={colors.primary} /> : 
+                                 addr.type === 'work' ? <Briefcase size={20} color={colors.primary} /> : 
+                                 <MapIcon size={20} color={colors.primary} />}
+                            </View>
+                            <View style={styles.addressInfo}>
+                                <View style={styles.labelRow}>
+                                    <Text style={[styles.addressLabel, { color: colors.text }]}>{addr.label}</Text>
+                                    {addr.isDefault && (
+                                        <View style={[styles.defaultBadge, { backgroundColor: colors.primaryLight }]}>
+                                            <Text style={[styles.defaultText, { color: colors.primary }]}>DEFAULT</Text>
+                                        </View>
+                                    )}
+                                </View>
+                                <Text style={[styles.addressTextList, { color: colors.textSecondary }]} numberOfLines={2}>{addr.address}</Text>
+                                <View style={styles.cardActions}>
+                                    <TouchableOpacity onPress={() => {
+                                        setEditingId(addr.id);
+                                        setType(addr.type);
+                                        setLabel(addr.label);
+                                        setHouseNo(addr.details?.houseNo || '');
+                                        setBuilding(addr.details?.building || '');
+                                        setLandmark(addr.details?.landmark || '');
+                                        // Navigate to map to confirm location or skip to details
+                                        setViewState('map-picker');
+                                    }} style={styles.actionBtn}>
+                                        <Edit2 size={12} color={colors.primary} />
+                                        <Text style={[styles.actionBtnText, { color: colors.primary }]}>EDIT</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => {
+                                        saveAddresses(addresses.filter(a => a.id !== addr.id));
+                                    }} style={styles.actionBtn}>
+                                        <Trash2 size={12} color={colors.danger} />
+                                        <Text style={[styles.actionBtnText, { color: colors.danger }]}>DELETE</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    ))}
+
                     <TouchableOpacity
-                        onPress={() => isAdding ? resetForm() : navigation.goBack()}
-                        style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                        onPress={() => {
+                            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                            setViewState('map-picker');
+                        }}
+                        style={[styles.addNewBtn, { borderColor: colors.border }]}
                     >
-                        <ChevronLeft size={24} color={colors.text} />
+                        <Plus size={20} color={colors.primary} />
+                        <Text style={[styles.addNewText, { color: colors.primary }]}>Add New Address</Text>
                     </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: colors.text }]}>My Addresses</Text>
+                </View>
+            </ScrollView>
+        </View>
+    );
+
+    // --- VIEW 2: MAP PICKER ---
+    const renderMapPicker = () => (
+        <View style={styles.flexOne}>
+            <View style={styles.absoluteHeader}>
+                <View style={[styles.headerFloating, { marginTop: Math.max(insets.top, 20) }]}>
+                    <TouchableOpacity onPress={() => setViewState('list')} style={styles.backBtnRound}>
+                        <ArrowLeft size={20} color={colors.text} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitleMap}>Select Your Location</Text>
                 </View>
 
-                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    {!isAdding ? (
-                        <View style={styles.listContainer}>
-                            {addresses.map((addr) => {
-                                const Icon = getIcon(addr.type);
-                                return (
-                                    <View key={addr.id} style={[styles.addressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                                        <View style={[styles.iconBox, { backgroundColor: colors.primaryLight }]}>
-                                            <Icon size={20} color={colors.primary} />
-                                        </View>
-                                        <View style={styles.addressInfo}>
-                                            <View style={styles.labelRow}>
-                                                <Text style={[styles.addressLabel, { color: colors.text }]}>{addr.label}</Text>
-                                                {addr.isDefault && (
-                                                    <View style={[styles.defaultBadge, { backgroundColor: colors.primaryLight }]}>
-                                                        <Text style={[styles.defaultText, { color: colors.primary }]}>DEFAULT</Text>
-                                                    </View>
-                                                )}
-                                            </View>
-                                            <Text style={[styles.addressText, { color: colors.textSecondary }]}>{addr.address}</Text>
-
-                                            <View style={styles.cardActions}>
-                                                <TouchableOpacity
-                                                    onPress={() => handleEdit(addr)}
-                                                    style={styles.actionBtn}
-                                                >
-                                                    <Edit2 size={12} color={colors.primary} />
-                                                    <Text style={[styles.actionBtnText, { color: colors.primary }]}>EDIT</Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity
-                                                    onPress={() => handleDelete(addr.id)}
-                                                    style={[styles.actionBtn, styles.deleteBtn]}
-                                                >
-                                                    <Trash2 size={12} color={colors.danger} />
-                                                    <Text style={[styles.actionBtnText, { color: colors.danger }]}>DELETE</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        </View>
-                                    </View>
-                                );
-                            })}
-
-                            <TouchableOpacity
-                                onPress={() => {
-                                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                                    setIsAdding(true);
-                                }}
-                                style={[styles.addNewBtn, { borderColor: colors.border }]}
-                            >
-                                <Plus size={20} color={colors.textSecondary} />
-                                <Text style={[styles.addNewText, { color: colors.textSecondary }]}>Add New Address</Text>
+                {/* Search Overlay */}
+                <View style={styles.searchOverlay}>
+                    <View style={[styles.searchBar, { backgroundColor: colors.background }]}>
+                        <Search size={18} color={colors.textMuted} />
+                        <TextInput
+                            placeholder="Search for apartment, street name..."
+                            style={[styles.searchField, { color: colors.text }]}
+                            placeholderTextColor={colors.textMuted}
+                            value={searchQuery}
+                            onChangeText={handleSearch}
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                <X size={18} color={colors.textMuted} />
                             </TouchableOpacity>
-                        </View>
-                    ) : (
-                        <View style={[styles.formContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                            <Text style={[styles.formTitle, { color: colors.text }]}>
-                                {editingId ? 'Edit Address' : 'Add New Address'}
-                            </Text>
-
-                            <View style={styles.typeSelector}>
-                                {(['home', 'work', 'other'] as const).map((t) => (
-                                    <TouchableOpacity
-                                        key={t}
-                                        onPress={() => setType(t)}
-                                        style={[styles.typeBtn, type === t && styles.typeBtnActive, { backgroundColor: colors.background, borderColor: type === t ? colors.primary : 'transparent' }]}
-                                    >
-                                        <Text style={[styles.typeBtnText, type === t && styles.typeBtnTextActive, { color: type === t ? colors.primary : colors.textSecondary }]}>
-                                            {t.toUpperCase()}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-
-                            {/* Location Shortcut */}
-                            {!editingId && (
+                        )}
+                    </View>
+                    {searchResults.length > 0 && (
+                        <View style={[styles.searchResultsContainer, { backgroundColor: colors.background }]}>
+                            {searchResults.map((res: any, idx: number) => (
                                 <TouchableOpacity 
-                                    style={[styles.locationShortcut, { backgroundColor: colors.primaryLight, borderColor: colors.primary + '22' }]}
-                                    onPress={handleUseCurrentLocation}
-                                    disabled={isLocating}
+                                    key={idx} 
+                                    style={[styles.searchResultItem, { borderBottomColor: colors.border }]}
+                                    onPress={() => selectSearchResult(res)}
                                 >
-                                    {isLocating ? (
-                                        <ActivityIndicator size="small" color={colors.primary} />
-                                    ) : (
-                                        <MapPin size={18} color={colors.primary} />
-                                    )}
-                                    <Text style={[styles.locationShortcutText, { color: colors.primary }]}>
-                                        {isLocating ? 'Locating...' : 'Use Current Location'}
-                                    </Text>
+                                    <MapPin size={16} color={colors.textMuted} />
+                                    <Text style={[styles.searchResultText, { color: colors.text }]} numberOfLines={1}>{res.display_name}</Text>
                                 </TouchableOpacity>
-                            )}
-
-                            <View style={styles.inputGroup}>
-                                <Text style={[styles.inputLabel, { color: colors.textMuted }]}>LABEL (OPTIONAL)</Text>
-                                <TextInput
-                                    style={[styles.input, { backgroundColor: colors.background, color: colors.text }]}
-                                    placeholder="e.g. Grandma's House"
-                                    value={label}
-                                    onChangeText={setLabel}
-                                    placeholderTextColor={colors.textMuted}
-                                />
-                            </View>
-
-                            <View style={styles.inputGroup}>
-                                <Text style={[styles.inputLabel, { color: colors.textMuted }]}>FULL ADDRESS</Text>
-                                <TextInput
-                                    style={[styles.input, styles.textArea, { backgroundColor: colors.background, color: colors.text }]}
-                                    placeholder="Enter street name, building, city..."
-                                    value={addressValue}
-                                    onChangeText={setAddressValue}
-                                    multiline
-                                    numberOfLines={4}
-                                    placeholderTextColor={colors.textMuted}
-                                />
-                            </View>
-
-                            <View style={styles.formFooter}>
-                                <TouchableOpacity
-                                    onPress={resetForm}
-                                    style={[styles.cancelActionBtn, { backgroundColor: colors.surfaceSecondary }]}
-                                >
-                                    <Text style={[styles.cancelActionText, { color: colors.textSecondary }]}>CANCEL</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={handleSubmit}
-                                    style={[styles.saveActionBtn, { backgroundColor: colors.primary, shadowColor: colors.primary }]}
-                                >
-                                    <Text style={styles.saveActionText}>
-                                        {editingId ? 'SAVE CHANGES' : 'SAVE ADDRESS'}
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
+                            ))}
                         </View>
                     )}
-                </ScrollView>
+                </View>
             </View>
-        </SafeAreaView>
+
+            <MapView
+                ref={mapRef}
+                style={styles.map}
+                initialRegion={region}
+                onRegionChangeComplete={handleRegionChangeComplete}
+                showsUserLocation={true}
+                showsMyLocationButton={false}
+                provider={PROVIDER_GOOGLE}
+            />
+
+            {/* Fixed Center Pin */}
+            <View style={styles.centerPinContainer} pointerEvents="none">
+                <View style={styles.pinTooltip}>
+                    <Text style={styles.pinTooltipText}>Order will be delivered here</Text>
+                    <Text style={styles.pinTooltipSubtext}>Place the pin to your exact location</Text>
+                </View>
+                <View style={styles.pinIconContainer}>
+                    <View style={styles.pinDot} />
+                    <View style={styles.pinLine} />
+                    <MapPin size={32} color={BRAND_PINK} fill={BRAND_PINK} fillOpacity={0.4} />
+                </View>
+            </View>
+
+            {/* Floating Actions */}
+            <TouchableOpacity 
+                style={[styles.myLocationBtn, { bottom: 180 }]}
+                onPress={handleUseMyLocation}
+            >
+                {isLocating ? <ActivityIndicator color={BRAND_PINK} /> : <Crosshair size={22} color={BRAND_PINK} />}
+            </TouchableOpacity>
+
+            {/* Bottom Address Summary */}
+            <View style={[styles.mapFooter, { paddingBottom: Math.max(insets.bottom, 20) + 10 }]}>
+                <View style={styles.locationInfo}>
+                    <Text style={[styles.locationMain, { color: colors.text }]}>
+                        {isReverseGeocoding ? 'Fetching address...' : locationSummary.main}
+                    </Text>
+                    <Text style={[styles.locationSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                        {locationSummary.sub}
+                    </Text>
+                </View>
+                <TouchableOpacity 
+                    style={styles.confirmBtn}
+                    onPress={() => setViewState('details-form')}
+                >
+                    <Text style={styles.confirmBtnText}>Confirm Location</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+
+    // --- VIEW 3: DETAILS FORM ---
+    const renderForm = () => (
+        <View style={styles.flexOne}>
+            {renderHeader("Add Address Details", () => setViewState('map-picker'))}
+            <ScrollView style={styles.flexOne} showsVerticalScrollIndicator={false}>
+                {/* Map Preview */}
+                <View style={styles.mapPreviewContainer}>
+                    <MapView
+                        style={styles.mapPreview}
+                        region={region}
+                        liteMode={true}
+                        scrollEnabled={false}
+                        zoomEnabled={false}
+                    >
+                        <Marker coordinate={region} pinColor={BRAND_PINK} />
+                    </MapView>
+                    <View style={styles.previewAddressRow}>
+                        <View style={styles.flexOne}>
+                            <Text style={[styles.previewMain, { color: colors.text }]}>{locationSummary.main}</Text>
+                            <Text style={[styles.previewSub, { color: colors.textSecondary }]} numberOfLines={1}>{locationSummary.sub}</Text>
+                        </View>
+                        <TouchableOpacity style={styles.changeBtn} onPress={() => setViewState('map-picker')}>
+                            <Text style={styles.changeBtnText}>Change</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                <View style={styles.formSection}>
+                    <Text style={styles.formSectionLabel}>Add Address</Text>
+                    <View style={styles.inputStack}>
+                        <View style={styles.formInputGroup}>
+                            <Text style={styles.fieldLabel}>House No. & Floor *</Text>
+                            <TextInput
+                                style={[styles.formInput, { backgroundColor: colors.surface }]}
+                                value={houseNo}
+                                onChangeText={setHouseNo}
+                                placeholder="e.g. 402, 4th Floor"
+                            />
+                        </View>
+                        <View style={styles.formInputGroup}>
+                            <Text style={styles.fieldLabel}>Building & Block No. (Optional)</Text>
+                            <TextInput
+                                style={[styles.formInput, { backgroundColor: colors.surface }]}
+                                value={building}
+                                onChangeText={setBuilding}
+                                placeholder="e.g. Sunrise Apartments"
+                            />
+                        </View>
+                        <View style={styles.formInputGroup}>
+                            <Text style={styles.fieldLabel}>Landmark & Area Name (Optional)</Text>
+                            <TextInput
+                                style={[styles.formInput, { backgroundColor: colors.surface }]}
+                                value={landmark}
+                                onChangeText={setLandmark}
+                                placeholder="e.g. Near St. Pauls School"
+                            />
+                        </View>
+                    </View>
+
+                    <Text style={[styles.formSectionLabel, { marginTop: 30 }]}>Add Address Label</Text>
+                    <View style={styles.labelChips}>
+                        {(['home', 'work', 'other'] as const).map((chip) => (
+                            <TouchableOpacity 
+                                key={chip}
+                                style={[
+                                    styles.chip, 
+                                    type === chip && styles.chipActive,
+                                    { borderColor: type === chip ? BRAND_PINK : colors.border }
+                                ]}
+                                onPress={() => setType(chip)}
+                            >
+                                <Text style={[
+                                    styles.chipText,
+                                    type === chip && styles.chipTextActive,
+                                    { color: type === chip ? BRAND_PINK : colors.textSecondary }
+                                ]}>
+                                    {chip.toUpperCase()}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    {type === 'other' && (
+                        <TextInput
+                            style={[styles.formInput, { marginTop: 12, backgroundColor: colors.surface }]}
+                            placeholder="e.g. Grandma's House"
+                            value={label}
+                            onChangeText={setLabel}
+                        />
+                    )}
+
+                    <TouchableOpacity 
+                        style={[
+                            styles.saveBtnBig, 
+                            { 
+                                marginTop: 40, 
+                                marginBottom: 50,
+                                backgroundColor: houseNo ? BRAND_PINK : '#f3f4f6' 
+                            }
+                        ]}
+                        onPress={handleSubmit}
+                        disabled={!houseNo}
+                    >
+                        <Text style={[
+                            styles.saveBtnTextBig, 
+                            { color: houseNo ? 'white' : '#9ca3af' }
+                        ]}>SAVE ADDRESS</Text>
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
+        </View>
+    );
+
+    return (
+        <View style={styles.container}>
+            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+            {viewState === 'list' && renderList()}
+            {viewState === 'map-picker' && renderMapPicker()}
+            {viewState === 'details-form' && renderForm()}
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-    },
-    locationShortcut: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 24,
-        borderWidth: 1,
-        borderStyle: 'dashed',
-    },
-    locationShortcutText: {
-        fontSize: 14,
-        fontWeight: 'bold',
-    },
-    container: {
-        flex: 1,
-    },
+    flexOne: { flex: 1 },
+    container: { flex: 1, backgroundColor: 'white' },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -366,220 +551,95 @@ const styles = StyleSheet.create({
     backBtn: {
         width: 44,
         height: 44,
-        borderRadius: 14,
-        backgroundColor: 'white',
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderRadius: 22,
+        backgroundColor: '#f8fafc',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#0f172a',
-    },
-    scrollContent: {
-        paddingHorizontal: 24,
-        paddingTop: 16,
-        paddingBottom: 40,
-    },
-    listContainer: {
-        gap: 16,
-    },
+    headerTitle: { fontSize: 20, fontWeight: 'bold' },
+    scrollContent: { padding: 24 },
+    listContainer: { gap: 16 },
     addressCard: {
-        backgroundColor: 'white',
-        borderRadius: 24,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-        flexDirection: 'row',
-        gap: 16,
-        shadowColor: '#000',
-        shadowOpacity: 0.02,
-        shadowOffset: { width: 0, height: 4 },
+        borderRadius: 24, padding: 20, borderWidth: 1, flexDirection: 'row', gap: 16,
+        shadowColor: '#000', shadowOpacity: 0.02, shadowOffset: { width: 0, height: 4 },
     },
-    iconBox: {
-        width: 48,
-        height: 48,
-        borderRadius: 16,
-        backgroundColor: '#f0fdfa',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    addressInfo: {
-        flex: 1,
-    },
-    labelRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 4,
-    },
-    addressLabel: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#0f172a',
-    },
-    defaultBadge: {
-        backgroundColor: '#f0fdfa',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 8,
-    },
-    defaultText: {
-        fontSize: 8,
-        fontWeight: '900',
-        color: '#14b8a6',
-        letterSpacing: 0.5,
-    },
-    addressText: {
-        fontSize: 13,
-        color: '#64748b',
-        lineHeight: 18,
-        marginBottom: 16,
-        fontWeight: '500',
-    },
-    cardActions: {
-        flexDirection: 'row',
-        gap: 20,
-    },
-    actionBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    deleteBtn: {
-        opacity: 0.9,
-    },
-    actionBtnText: {
-        fontSize: 11,
-        fontWeight: '900',
-        color: '#14b8a6',
-        letterSpacing: 1,
-    },
-    deleteBtnText: {
-        color: '#ef4444',
-    },
+    iconBox: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    addressInfo: { flex: 1 },
+    labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+    addressLabel: { fontSize: 16, fontWeight: 'bold' },
+    defaultBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+    defaultText: { fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
+    addressTextList: { fontSize: 13, lineHeight: 18, marginBottom: 16, fontWeight: '500' },
+    cardActions: { flexDirection: 'row', gap: 20 },
+    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    actionBtnText: { fontSize: 11, fontWeight: '900', letterSpacing: 1 },
     addNewBtn: {
-        height: 60,
-        borderRadius: 20,
-        borderWidth: 2,
-        borderColor: '#f1f5f9',
-        borderStyle: 'dashed',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'row',
-        gap: 8,
-        marginTop: 8,
+        height: 60, borderRadius: 20, borderWidth: 2, borderStyle: 'dashed',
+        alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 8,
     },
-    addNewText: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: '#64748b',
+    addNewText: { fontSize: 14, fontWeight: 'bold' },
+
+    // Map Specific
+    absoluteHeader: { position: 'absolute', top: 0, width: '100%', zIndex: 10 },
+    headerFloating: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, gap: 12 },
+    backBtnRound: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', elevation: 4 },
+    headerTitleMap: { fontSize: 18, fontWeight: 'bold', color: '#1f2937' },
+    searchOverlay: { paddingHorizontal: 24, marginTop: 16 },
+    searchBar: {
+        flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 56,
+        borderRadius: 16, elevation: 8, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10,
     },
-    formContainer: {
-        backgroundColor: 'white',
-        borderRadius: 32,
-        padding: 24,
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowOffset: { width: 0, height: 10 },
+    searchField: { flex: 1, marginLeft: 12, fontSize: 14, fontWeight: '500' },
+    searchResultsContainer: { marginTop: 4, borderRadius: 12, overflow: 'hidden', elevation: 8 },
+    searchResultItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1 },
+    searchResultText: { marginLeft: 12, fontSize: 13, fontWeight: '500' },
+
+    map: { flex: 1 },
+    centerPinContainer: { position: 'absolute', top: '50%', left: '50%', marginTop: -60, marginLeft: -100, width: 200, alignItems: 'center' },
+    pinTooltip: { 
+        backgroundColor: '#111827', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, 
+        alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8
     },
-    formTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#0f172a',
-        marginBottom: 24,
+    pinTooltipText: { color: 'white', fontSize: 12, fontWeight: 'bold' },
+    pinTooltipSubtext: { color: 'rgba(255,255,255,0.7)', fontSize: 10, marginTop: 2 },
+    pinIconContainer: { marginTop: 4, alignItems: 'center' },
+    pinDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.2)', marginBottom: 2 },
+    pinLine: { width: 2, height: 15, backgroundColor: BRAND_PINK },
+    
+    myLocationBtn: { 
+        position: 'absolute', right: 24, width: 50, height: 50, borderRadius: 25, 
+        backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', elevation: 6 
     },
-    typeSelector: {
-        flexDirection: 'row',
-        gap: 10,
-        marginBottom: 24,
+    mapFooter: { 
+        position: 'absolute', bottom: 0, width: '100%', backgroundColor: 'white', 
+        borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, elevation: 20,
+        shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20
     },
-    typeBtn: {
-        flex: 1,
-        height: 48,
-        borderRadius: 16,
-        backgroundColor: '#f8fafc',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: 'transparent',
-    },
-    typeBtnActive: {
-        backgroundColor: '#f0fdfa',
-        borderColor: '#14b8a6',
-    },
-    typeBtnText: {
-        fontSize: 10,
-        fontWeight: '900',
-        color: '#64748b',
-        letterSpacing: 1,
-    },
-    typeBtnTextActive: {
-        color: '#14b8a6',
-    },
-    inputGroup: {
-        marginBottom: 20,
-        gap: 8,
-    },
-    inputLabel: {
-        fontSize: 10,
-        fontWeight: '900',
-        color: '#94a3b8',
-        letterSpacing: 1.5,
-        marginLeft: 4,
-    },
-    input: {
-        height: 56,
-        backgroundColor: '#f8fafc',
-        borderRadius: 16,
-        paddingHorizontal: 16,
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#0f172a',
-    },
-    textArea: {
-        height: 120,
-        textAlignVertical: 'top',
-        paddingTop: 16,
-    },
-    formFooter: {
-        flexDirection: 'row',
-        gap: 12,
-        marginTop: 12,
-    },
-    cancelActionBtn: {
-        flex: 1,
-        height: 56,
-        borderRadius: 16,
-        backgroundColor: '#f1f5f9',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cancelActionText: {
-        fontSize: 12,
-        fontWeight: '900',
-        color: '#64748b',
-        letterSpacing: 1,
-    },
-    saveActionBtn: {
-        flex: 2,
-        height: 56,
-        borderRadius: 16,
-        backgroundColor: '#14b8a6',
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#14b8a6',
-        shadowOpacity: 0.2,
-        shadowOffset: { width: 0, height: 4 },
-    },
-    saveActionText: {
-        fontSize: 12,
-        fontWeight: '900',
-        color: 'white',
-        letterSpacing: 1,
-    },
+    locationInfo: { marginBottom: 20 },
+    locationMain: { fontSize: 18, fontWeight: 'bold' },
+    locationSub: { fontSize: 13, marginTop: 4 },
+    confirmBtn: { backgroundColor: BRAND_PINK, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    confirmBtnText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+
+    // Form Specific
+    mapPreviewContainer: { padding: 24, backgroundColor: '#f8fafc' },
+    mapPreview: { height: 160, borderRadius: 20, marginBottom: 16 },
+    previewAddressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+    previewMain: { fontSize: 16, fontWeight: 'bold' },
+    previewSub: { fontSize: 12, marginTop: 2 },
+    changeBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#d1d5db' },
+    changeBtnText: { fontSize: 12, fontWeight: 'bold', color: '#374151' },
+    formSection: { padding: 24 },
+    formSectionLabel: { fontSize: 16, fontWeight: '900', color: '#111827', marginBottom: 16 },
+    inputStack: { gap: 20 },
+    formInputGroup: { gap: 8 },
+    fieldLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
+    formInput: { height: 56, borderRadius: 12, paddingHorizontal: 16, fontSize: 14, fontWeight: '500' },
+    labelChips: { flexDirection: 'row', gap: 12 },
+    chip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, pointerEvents: 'auto' },
+    chipActive: { backgroundColor: '#fff1f2' },
+    chipText: { fontSize: 12, fontWeight: '800' },
+    chipTextActive: { color: BRAND_PINK },
+    saveBtnBig: { backgroundColor: '#f3f4f6', height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+    saveBtnTextBig: { color: '#9ca3af', fontSize: 15, fontWeight: '900', letterSpacing: 1 },
 });
