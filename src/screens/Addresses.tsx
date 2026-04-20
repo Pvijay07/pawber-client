@@ -95,22 +95,37 @@ export default function Addresses({ navigation }: any) {
                 accuracy: Location.Accuracy.Balanced,
             });
 
-            const [place] = await Location.reverseGeocodeAsync({
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-            });
+            // Use Nominatim (OSM) as a free alternative to the removed Expo Geocoding API
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${location.coords.latitude}&lon=${location.coords.longitude}`,
+                {
+                    headers: {
+                        'User-Agent': 'PawberPetCareApp' // Required by Nominatim policy
+                    }
+                }
+            );
+            const data = await response.json();
 
-            if (place) {
-                const addrStr = [
-                    place.name,
-                    place.street,
-                    place.district,
-                    place.city,
-                    place.region,
-                    place.postalCode
-                ].filter(Boolean).join(', ');
+            if (data && data.address) {
+                const {
+                    road,
+                    suburb,
+                    city,
+                    town,
+                    village,
+                    state,
+                    postcode,
+                    house_number
+                } = data.address;
+
+                const cityName = city || town || village || '';
+                const mainAddr = [house_number, road].filter(Boolean).join(' ');
+                const secondary = [suburb, cityName].filter(Boolean).join(', ');
+                
+                const addrStr = [mainAddr, secondary, state, postcode].filter(Boolean).join(', ');
+                
                 setAddressValue(addrStr);
-                if (!label) setLabel(place.district || place.city || '');
+                if (!label) setLabel(suburb || cityName || '');
             }
         } catch (error) {
             console.error('Location error:', error);
