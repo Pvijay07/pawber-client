@@ -34,6 +34,8 @@ import {
     Crown,
     Repeat,
     Plus,
+    Search,
+    AlertTriangle,
 } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { walletApi } from '../services/wallet.service';
@@ -85,7 +87,7 @@ const BookingRadar = () => {
             <Animated.View style={[radarStyles.circle, { transform: [{ scale: scale1 }], opacity: opacity1 }]} />
             <Animated.View style={[radarStyles.circle, { transform: [{ scale: scale2 }], opacity: opacity2 }]} />
             <View style={radarStyles.center}>
-                <Icons.Search size={32} color="white" />
+                <Search size={32} color="white" />
             </View>
         </View>
     );
@@ -719,7 +721,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                             <Text style={styles.matchTitle}>Expert Found!</Text>
                                             <Text style={styles.providerName}>{createdBooking?.provider?.business_name}</Text>
                                             <View style={styles.ratingRow}>
-                                                <Icons.Star size={14} color="#f97316" fill="#f97316" />
+                                                <Star size={14} color="#f97316" fill="#f97316" />
                                                 <Text style={styles.ratingText}>{createdBooking?.provider?.rating || '4.9'}</Text>
                                             </View>
                                         </View>
@@ -738,7 +740,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                     </View>
                                 ) : bookingStatus === 'timeout' ? (
                                     <View style={{ alignItems: 'center' }}>
-                                        <Icons.AlertTriangle size={64} color="#ef4444" />
+                                        <AlertTriangle size={64} color="#ef4444" />
                                         <Text style={styles.successTitle}>No Experts Found</Text>
                                         <Text style={styles.successSubtitle}>
                                             We couldn't find a professional nearby at this time. Please try scheduling for later.
@@ -1131,7 +1133,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     redeemToggleActive: {
-        borderColor: white,
+        borderColor: 'white',
     },
     providerMatchCard: {
         backgroundColor: 'white',
