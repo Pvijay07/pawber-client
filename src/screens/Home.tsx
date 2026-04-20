@@ -209,7 +209,7 @@ export default function Home({ navigation }: HomeProps) {
                             <TouchableOpacity 
                                 key={index} 
                                 style={[styles.bannerCard, { width: width - 48 }]}
-                                onPress={() => navigation.navigate(banner.action, { serviceId: banner.serviceId })}
+                                onPress={() => navigation.navigate('PackageSelection', { serviceId: banner.serviceId })}
                             >
                                 <Image source={{ uri: banner.image }} style={styles.bannerImage} />
                                 <View style={styles.bannerOverlay}>
@@ -233,7 +233,7 @@ export default function Home({ navigation }: HomeProps) {
                 <View style={styles.quickActions}>
                     <TouchableOpacity
                         style={[styles.quickActionBtn, { backgroundColor: '#fef2f2', borderColor: '#fee2e2' }]}
-                        onPress={() => navigation.navigate('BookingFlow', { serviceId: 'vet' })}
+                        onPress={() => navigation.navigate('PackageSelection', { categoryId: 'vet' })}
                     >
                         <View style={[styles.quickActionIcon, { backgroundColor: '#ef4444' }]}>
                             <ShieldAlert size={20} color="white" />
@@ -294,7 +294,7 @@ export default function Home({ navigation }: HomeProps) {
                             <TouchableOpacity
                                 key={service.id}
                                 style={[styles.serviceItem, { width: serviceItemWidth }]}
-                                onPress={() => navigation.navigate('BookingFlow', { serviceId: service.id })}
+                                onPress={() => navigation.navigate('PackageSelection', { categoryId: service.id })}
                             >
                                 <View style={[styles.serviceIcon, { backgroundColor: isDark ? colors.surface : visuals.bgColor }]}>
                                     {renderIcon(visuals.icon, 28, visuals.color)}

@@ -26,7 +26,8 @@ import { ServiceDetail } from '../shared/types';
 const { width } = Dimensions.get('window');
 
 export default function PackageSelection({ navigation, route }: any) {
-    const serviceId = route?.params?.serviceId || 'grooming';
+    const serviceId = route?.params?.serviceId;
+    const categoryId = route?.params?.categoryId;
     
     const [service, setService] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -42,7 +43,21 @@ export default function PackageSelection({ navigation, route }: any) {
         const fetchDynamicData = async () => {
             setLoading(true);
             try {
-                const response = await servicesApi.getById(serviceId);
+                let targetServiceId = serviceId;
+
+                // If we only have a category, fetch the first service in that category
+                if (!targetServiceId && categoryId) {
+                    const servicesRes = await servicesApi.list(categoryId);
+                    if (servicesRes.success && servicesRes.data?.services?.length > 0) {
+                        targetServiceId = servicesRes.data.services[0].id;
+                    }
+                }
+
+                if (!targetServiceId) {
+                    throw new Error('No service specified');
+                }
+
+                const response = await servicesApi.getById(targetServiceId);
                 if (response.success && response.data?.service) {
                     const svc = response.data.service;
                     const mappedSvc = {
@@ -71,13 +86,14 @@ export default function PackageSelection({ navigation, route }: any) {
                 }
             } catch (err) {
                 console.error('Failed to fetch dynamic service data:', err);
+                // Handle fallback or error UI
             } finally {
                 setLoading(false);
             }
         };
 
         fetchDynamicData();
-    }, [serviceId]);
+    }, [serviceId, categoryId]);
 
     const toggleAddon = (id: string) => {
         setSelectedAddons(prev =>
