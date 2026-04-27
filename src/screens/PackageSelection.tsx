@@ -19,6 +19,7 @@ import {
     Zap,
     Calendar as CalendarIcon,
     Info,
+    AlertCircle
 } from 'lucide-react-native';
 import { servicesApi } from '../services/services.service';
 import { ServiceDetail } from '../shared/types';
@@ -119,10 +120,19 @@ export default function PackageSelection({ navigation, route }: any) {
 
     return (
         <View style={styles.container}>
-            {(loading || !service) ? (
+            {loading ? (
                 <View style={styles.loadingOverlay}>
                     <ActivityIndicator size="large" color="#f97316" />
                     <Text style={{ marginTop: 12, fontWeight: 'bold', color: '#64748b' }}>Loading Service...</Text>
+                </View>
+            ) : !service ? (
+                <View style={styles.errorContainer}>
+                    <AlertCircle size={48} color="#94a3b8" />
+                    <Text style={styles.errorTitle}>Service Not Available</Text>
+                    <Text style={styles.errorSub}>This service is coming soon to your area.</Text>
+                    <TouchableOpacity style={styles.backBtnError} onPress={() => navigation.goBack()}>
+                        <Text style={styles.backBtnText}>Go Back</Text>
+                    </TouchableOpacity>
                 </View>
             ) : (
                 <>
@@ -293,10 +303,42 @@ const styles = StyleSheet.create({
     },
     loadingOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(255, 255, 255, 0.7)',
-        zIndex: 100,
-        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.9)',
         justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 100
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 40,
+        backgroundColor: '#fff'
+    },
+    errorTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#1e293b',
+        marginTop: 16
+    },
+    errorSub: {
+        fontSize: 15,
+        color: '#64748b',
+        textAlign: 'center',
+        marginTop: 8,
+        lineHeight: 22
+    },
+    backBtnError: {
+        marginTop: 24,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        backgroundColor: '#f97316',
+        borderRadius: 12
+    },
+    backBtnText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 16
     },
     bannerContainer: {
         height: 280,

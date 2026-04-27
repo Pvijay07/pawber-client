@@ -113,7 +113,7 @@ export default function ServiceBidding({ navigation, route }: any) {
                 {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                        <ArrowLeft size={20} color="#0f172a" />
+                        <ArrowLeft size={20} color="#1A1612" />
                     </TouchableOpacity>
                     <View style={styles.headerTitleContainer}>
                         <Text style={styles.headerTitle}>LIVE BIDDING</Text>
@@ -123,7 +123,7 @@ export default function ServiceBidding({ navigation, route }: any) {
                         </View>
                     </View>
                     <TouchableOpacity style={styles.infoBtn}>
-                        <Info size={18} color="#94a3b8" />
+                        <Info size={18} color="#B09080" />
                     </TouchableOpacity>
                 </View>
 
@@ -131,9 +131,9 @@ export default function ServiceBidding({ navigation, route }: any) {
                     {isSearching ? (
                         <View style={styles.searchingContainer}>
                             <View style={styles.loaderWrapper}>
-                                <ActivityIndicator size="large" color="#14b8a6" />
+                                <ActivityIndicator size="large" color="#FF7A3D" />
                                 <View style={styles.searchIconOverlay}>
-                                    <Search size={14} color="#14b8a6" />
+                                    <Search size={14} color="#FF7A3D" />
                                 </View>
                             </View>
                             <Text style={styles.searchingTitle}>Finding Experts</Text>
@@ -145,12 +145,12 @@ export default function ServiceBidding({ navigation, route }: any) {
                                 <Text style={styles.bidsCount}>RECEIVED BIDS ({bids.length})</Text>
                                 <TouchableOpacity style={styles.filterBtn}>
                                     <Text style={styles.filterText}>COMPARE ALL</Text>
-                                    <Filter size={12} color="#14b8a6" />
+                                    <Filter size={12} color="#FF7A3D" />
                                 </TouchableOpacity>
                             </View>
 
                             {bids.map((bid) => (
-                                <View key={bid.id} style={[styles.bidCard, isLocking === bid.id && styles.bidCardLocked]}>
+                                <View key={bid.id} style={StyleSheet.flatten([styles.bidCard, isLocking === bid.id && styles.bidCardLocked])}>
                                     {bid.is_gold && (
                                         <View style={styles.goldBadge}>
                                             <Text style={styles.goldBadgeText}>GOLD PARTNER</Text>
@@ -163,7 +163,7 @@ export default function ServiceBidding({ navigation, route }: any) {
                                             <View style={styles.providerNameRow}>
                                                 <Text style={styles.providerName}>{bid.provider_name}</Text>
                                                 <View style={styles.ratingBox}>
-                                                    <Star size={10} color="#f97316" fill="#f97316" />
+                                                    <Star size={10} color="#1D9E86" fill="#1D9E86" />
                                                     <Text style={styles.ratingText}>{bid.rating}</Text>
                                                 </View>
                                             </View>
@@ -183,8 +183,8 @@ export default function ServiceBidding({ navigation, route }: any) {
                                         <View style={styles.statBox}>
                                             <Text style={styles.statLabel}>TOOLS</Text>
                                             <View style={styles.statValueRow}>
-                                                <Text style={[styles.statValue, { color: '#14b8a6' }]}>Pro</Text>
-                                                <ShieldCheck size={10} color="#14b8a6" />
+                                                <Text style={StyleSheet.flatten([styles.statValue, { color: '#FF7A3D' }])}>Pro</Text>
+                                                <ShieldCheck size={10} color="#FF7A3D" />
                                             </View>
                                         </View>
                                     </View>
@@ -193,11 +193,11 @@ export default function ServiceBidding({ navigation, route }: any) {
                                         <TouchableOpacity
                                             onPress={() => handleAccept(bid.id)}
                                             disabled={isLocking !== null}
-                                            style={[
+                                            style={StyleSheet.flatten([
                                                 styles.acceptBtn,
                                                 isLocking === bid.id && styles.acceptBtnLocked,
                                                 isLocking !== null && isLocking !== bid.id && styles.acceptBtnDisabled
-                                            ]}
+                                            ])}
                                         >
                                             {isLocking === bid.id ? (
                                                 <>
@@ -212,7 +212,7 @@ export default function ServiceBidding({ navigation, route }: any) {
                                             )}
                                         </TouchableOpacity>
                                         <TouchableOpacity style={styles.messageBtn}>
-                                            <MessageSquare size={18} color="#0f172a" />
+                                            <MessageSquare size={18} color="#1A1612" />
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -220,7 +220,7 @@ export default function ServiceBidding({ navigation, route }: any) {
 
                             <View style={styles.infoCard}>
                                 <View style={styles.infoIconBox}>
-                                    <TrendingUp size={20} color="#14b8a6" />
+                                    <TrendingUp size={20} color="#FF7A3D" />
                                 </View>
                                 <View style={styles.infoContent}>
                                     <Text style={styles.infoTitle}>Better prices coming?</Text>
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         paddingVertical: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#f8fafc',
+        borderBottomColor: '#FFF9F5',
     },
     backBtn: {
         width: 44,
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         backgroundColor: 'white',
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 12,
         fontWeight: '900',
-        color: '#0f172a',
+        color: '#1A1612',
         letterSpacing: 2,
     },
     statusRow: {
@@ -291,19 +291,19 @@ const styles = StyleSheet.create({
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: '#14b8a6',
+        backgroundColor: '#FF7A3D',
     },
     statusText: {
         fontSize: 9,
         fontWeight: 'bold',
-        color: '#14b8a6',
+        color: '#FF7A3D',
         letterSpacing: 0.5,
     },
     infoBtn: {
         width: 44,
         height: 44,
         borderRadius: 14,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
     loaderWrapper: {
         width: 96,
         height: 96,
-        backgroundColor: '#f0fdfa',
+        backgroundColor: '#FFF3EC',
         borderRadius: 48,
         alignItems: 'center',
         justifyContent: 'center',
@@ -339,17 +339,17 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowOffset: { width: 0, height: 4 },
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
     },
     searchingTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         marginBottom: 8,
     },
     searchingSub: {
         fontSize: 14,
-        color: '#64748b',
+        color: '#7A5540',
         textAlign: 'center',
         maxWidth: 240,
         lineHeight: 20,
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     bidsCount: {
         fontSize: 10,
         fontWeight: '900',
-        color: '#0f172a',
+        color: '#1A1612',
         letterSpacing: 1.5,
     },
     filterBtn: {
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     filterText: {
         fontSize: 10,
         fontWeight: '900',
-        color: '#14b8a6',
+        color: '#FF7A3D',
         letterSpacing: 1,
     },
     bidCard: {
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
         borderRadius: 32,
         padding: 24,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         shadowColor: '#000',
         shadowOpacity: 0.05,
         shadowOffset: { width: 0, height: 10 },
@@ -393,13 +393,13 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     bidCardLocked: {
-        borderColor: '#14b8a6',
+        borderColor: '#FF7A3D',
     },
     goldBadge: {
         position: 'absolute',
         top: 0,
         right: 0,
-        backgroundColor: '#f97316',
+        backgroundColor: '#1D9E86',
         paddingHorizontal: 16,
         paddingVertical: 6,
         borderBottomLeftRadius: 16,
@@ -435,13 +435,13 @@ const styles = StyleSheet.create({
     providerName: {
         fontSize: 14,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
     },
     ratingBox: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 2,
-        backgroundColor: '#fff7ed',
+        backgroundColor: '#E0F5F0',
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 6,
@@ -449,11 +449,11 @@ const styles = StyleSheet.create({
     ratingText: {
         fontSize: 10,
         fontWeight: '900',
-        color: '#f97316',
+        color: '#1D9E86',
     },
     bidMessage: {
         fontSize: 11,
-        color: '#64748b',
+        color: '#7A5540',
         fontStyle: 'italic',
         fontWeight: '500',
         lineHeight: 16,
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     },
     statBox: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         borderRadius: 20,
         padding: 12,
         alignItems: 'center',
@@ -474,13 +474,13 @@ const styles = StyleSheet.create({
     statLabel: {
         fontSize: 8,
         fontWeight: '900',
-        color: '#94a3b8',
+        color: '#B09080',
         letterSpacing: 1,
     },
     statValue: {
         fontSize: 12,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
     },
     statValueRow: {
         flexDirection: 'row',
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
     acceptBtn: {
         flex: 1,
         height: 56,
-        backgroundColor: '#0f172a',
+        backgroundColor: '#1A1612',
         borderRadius: 18,
         flexDirection: 'row',
         alignItems: 'center',
@@ -505,10 +505,10 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
     },
     acceptBtnLocked: {
-        backgroundColor: '#14b8a6',
+        backgroundColor: '#FF7A3D',
     },
     acceptBtnDisabled: {
-        backgroundColor: '#f1f5f9',
+        backgroundColor: '#F5E6D8',
         shadowOpacity: 0,
     },
     acceptBtnText: {
@@ -520,20 +520,20 @@ const styles = StyleSheet.create({
     messageBtn: {
         width: 56,
         height: 56,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         borderRadius: 18,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
     },
     infoCard: {
         flexDirection: 'row',
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         borderRadius: 32,
         padding: 24,
         borderWidth: 2,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         borderStyle: 'dashed',
         gap: 16,
     },
@@ -554,12 +554,12 @@ const styles = StyleSheet.create({
     infoTitle: {
         fontSize: 12,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         marginBottom: 2,
     },
     infoSub: {
         fontSize: 10,
-        color: '#64748b',
+        color: '#7A5540',
         fontWeight: '500',
         lineHeight: 14,
     },
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: '#14b8a6',
+        backgroundColor: '#FF7A3D',
         paddingHorizontal: 32,
         paddingVertical: 24,
         borderTopLeftRadius: 36,
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        shadowColor: '#14b8a6',
+        shadowColor: '#FF7A3D',
         shadowOpacity: 0.3,
         shadowOffset: { width: 0, height: -10 },
     },

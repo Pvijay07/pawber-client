@@ -36,7 +36,7 @@ export default function GroomingBooking({ navigation }: any) {
 
   const addresses = [
     { id: '1', label: 'Home', address: '123 Pet Lane, Mumbai 400001' },
-    { id: '2', label: 'Office', address: 'PetCare HQ, BKC, Mumbai 400051' }
+    { id: '2', label: 'Office', address: 'Pawber HQ, BKC, Mumbai 400051' }
   ];
 
   const togglePet = (id: number) => {
@@ -63,7 +63,7 @@ export default function GroomingBooking({ navigation }: any) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <ArrowLeft size={20} color="#0f172a" />
+            <ArrowLeft size={20} color="#1A1612" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>GROOMING</Text>
           <View style={{ width: 44 }} />
@@ -75,15 +75,15 @@ export default function GroomingBooking({ navigation }: any) {
           <View style={styles.visitTabs}>
             <TouchableOpacity
               onPress={() => setVisitType('home')}
-              style={[styles.visitTab, visitType === 'home' && styles.visitTabActive]}
+              style={StyleSheet.flatten([styles.visitTab, visitType === 'home' && styles.visitTabActive])}
             >
-              <Text style={[styles.visitTabText, visitType === 'home' && styles.visitTabTextActive]}>AT HOME</Text>
+              <Text style={StyleSheet.flatten([styles.visitTabText, visitType === 'home' && styles.visitTabTextActive])}>AT HOME</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setVisitType('center')}
-              style={[styles.visitTab, visitType === 'center' && styles.visitTabActive]}
+              style={StyleSheet.flatten([styles.visitTab, visitType === 'center' && styles.visitTabActive])}
             >
-              <Text style={[styles.visitTabText, visitType === 'center' && styles.visitTabTextActive]}>AT CENTER</Text>
+              <Text style={StyleSheet.flatten([styles.visitTabText, visitType === 'center' && styles.visitTabTextActive])}>AT CENTER</Text>
             </TouchableOpacity>
           </View>
 
@@ -94,10 +94,10 @@ export default function GroomingBooking({ navigation }: any) {
               <TouchableOpacity
                 key={pet.id}
                 onPress={() => togglePet(pet.id)}
-                style={[styles.petCard, selectedPets.includes(pet.id) && styles.petCardActive]}
+                style={StyleSheet.flatten([styles.petCard, selectedPets.includes(pet.id) && styles.petCardActive])}
               >
                 <Image source={{ uri: pet.image }} style={styles.petImage} />
-                <Text style={[styles.petName, selectedPets.includes(pet.id) && styles.petNameActive]}>{pet.name}</Text>
+                <Text style={StyleSheet.flatten([styles.petName, selectedPets.includes(pet.id) && styles.petNameActive])}>{pet.name}</Text>
                 {selectedPets.includes(pet.id) && (
                   <View style={styles.checkIcon}>
                     <Check size={12} color="white" strokeWidth={3} />
@@ -114,13 +114,13 @@ export default function GroomingBooking({ navigation }: any) {
               <TouchableOpacity
                 key={pkg.id}
                 onPress={() => setSelectedPackage(pkg.id)}
-                style={[styles.packageCard, selectedPackage === pkg.id && styles.packageCardActive]}
+                style={StyleSheet.flatten([styles.packageCard, selectedPackage === pkg.id && styles.packageCardActive])}
               >
                 <View style={styles.packageInfo}>
-                  <Text style={[styles.packageName, selectedPackage === pkg.id && styles.textWhite]}>{pkg.name}</Text>
-                  <Text style={[styles.packageDesc, selectedPackage === pkg.id && styles.textWhiteMuted]}>{pkg.features.join(' • ')}</Text>
+                  <Text style={StyleSheet.flatten([styles.packageName, selectedPackage === pkg.id && styles.textWhite])}>{pkg.name}</Text>
+                  <Text style={StyleSheet.flatten([styles.packageDesc, selectedPackage === pkg.id && styles.textWhiteMuted])}>{pkg.features.join(' • ')}</Text>
                 </View>
-                <Text style={[styles.packagePrice, selectedPackage === pkg.id && styles.textWhite]}>₹{pkg.price}</Text>
+                <Text style={StyleSheet.flatten([styles.packagePrice, selectedPackage === pkg.id && styles.textWhite])}>₹{pkg.price}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -134,14 +134,14 @@ export default function GroomingBooking({ navigation }: any) {
                   <TouchableOpacity
                     key={addr.id}
                     onPress={() => setSelectedAddress(addr.id)}
-                    style={[styles.addressCard, selectedAddress === addr.id && styles.addressCardActive]}
+                    style={StyleSheet.flatten([styles.addressCard, selectedAddress === addr.id && styles.addressCardActive])}
                   >
-                    <MapPin size={20} color={selectedAddress === addr.id ? '#14b8a6' : '#94a3b8'} />
+                    <MapPin size={20} color={selectedAddress === addr.id ? '#FF7A3D' : '#B09080'} />
                     <View style={styles.addrInfo}>
                       <Text style={styles.addrLabel}>{addr.label}</Text>
                       <Text style={styles.addrText} numberOfLines={1}>{addr.address}</Text>
                     </View>
-                    <View style={[styles.radio, selectedAddress === addr.id && styles.radioActive]}>
+                    <View style={StyleSheet.flatten([styles.radio, selectedAddress === addr.id && styles.radioActive])}>
                       {selectedAddress === addr.id && <View style={styles.radioInner} />}
                     </View>
                   </TouchableOpacity>
@@ -156,7 +156,7 @@ export default function GroomingBooking({ navigation }: any) {
           <TouchableOpacity
             onPress={handleConfirm}
             disabled={!isFormValid}
-            style={[styles.confirmBtn, !isFormValid && styles.confirmBtnDisabled]}
+            style={StyleSheet.flatten([styles.confirmBtn, !isFormValid && styles.confirmBtnDisabled])}
           >
             <Text style={styles.confirmBtnText}>CONFIRM BOOKING</Text>
             <ChevronRight size={20} color="white" />
@@ -181,44 +181,44 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FFF9F5',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { fontSize: 16, fontWeight: '900', color: '#0f172a', letterSpacing: 2 },
+  headerTitle: { fontSize: 16, fontWeight: '900', color: '#1A1612', letterSpacing: 2 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#94a3b8',
+    color: '#B09080',
     letterSpacing: 1.5,
     marginTop: 24,
     marginBottom: 16,
   },
   visitTabs: {
     flexDirection: 'row',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#F5E6D8',
     padding: 4,
     borderRadius: 16,
     gap: 4,
   },
   visitTab: { flex: 1, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   visitTabActive: { backgroundColor: 'white', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
-  visitTabText: { fontSize: 11, fontWeight: '900', color: '#64748b' },
-  visitTabTextActive: { color: '#14b8a6' },
+  visitTabText: { fontSize: 11, fontWeight: '900', color: '#7A5540' },
+  visitTabTextActive: { color: '#FF7A3D' },
   petList: { flexDirection: 'row', gap: 12 },
   petCard: {
     width: 100,
     alignItems: 'center',
     padding: 12,
     borderRadius: 24,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FFF9F5',
     marginRight: 12,
   },
-  petCardActive: { backgroundColor: '#f0fdfa', borderWidth: 1, borderColor: '#14b8a6' },
+  petCardActive: { backgroundColor: '#FFF3EC', borderWidth: 1, borderColor: '#FF7A3D' },
   petImage: { width: 60, height: 60, borderRadius: 30, marginBottom: 8 },
-  petName: { fontSize: 12, fontWeight: 'bold', color: '#64748b' },
-  petNameActive: { color: '#0f172a' },
+  petName: { fontSize: 12, fontWeight: 'bold', color: '#7A5540' },
+  petNameActive: { color: '#1A1612' },
   checkIcon: {
     position: 'absolute',
     top: 8,
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#14b8a6',
+    backgroundColor: '#FF7A3D',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -235,15 +235,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 16,
     borderRadius: 20,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FFF9F5',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  packageCardActive: { backgroundColor: '#0f172a' },
+  packageCardActive: { backgroundColor: '#1A1612' },
   packageInfo: { flex: 1, marginRight: 16 },
-  packageName: { fontSize: 16, fontWeight: 'bold', color: '#0f172a' },
-  packageDesc: { fontSize: 11, color: '#64748b', marginTop: 2 },
-  packagePrice: { fontSize: 18, fontWeight: '900', color: '#14b8a6' },
+  packageName: { fontSize: 16, fontWeight: 'bold', color: '#1A1612' },
+  packageDesc: { fontSize: 11, color: '#7A5540', marginTop: 2 },
+  packagePrice: { fontSize: 18, fontWeight: '900', color: '#FF7A3D' },
   textWhite: { color: 'white' },
   textWhiteMuted: { color: 'rgba(255,255,255,0.6)' },
   addressList: { gap: 12 },
@@ -251,21 +251,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 16,
     borderRadius: 20,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FFF9F5',
     alignItems: 'center',
     gap: 12,
   },
-  addressCardActive: { backgroundColor: '#f0fdfa', borderWidth: 1, borderColor: '#14b8a6' },
+  addressCardActive: { backgroundColor: '#FFF3EC', borderWidth: 1, borderColor: '#FF7A3D' },
   addrInfo: { flex: 1 },
-  addrLabel: { fontSize: 14, fontWeight: 'bold', color: '#0f172a' },
-  addrText: { fontSize: 12, color: '#64748b' },
+  addrLabel: { fontSize: 14, fontWeight: 'bold', color: '#1A1612' },
+  addrText: { fontSize: 12, color: '#7A5540' },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center' },
-  radioActive: { borderColor: '#14b8a6' },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#14b8a6' },
-  footer: { padding: 20, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  radioActive: { borderColor: '#FF7A3D' },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FF7A3D' },
+  footer: { padding: 20, borderTopWidth: 1, borderTopColor: '#F5E6D8' },
   confirmBtn: {
     height: 56,
-    backgroundColor: '#14b8a6',
+    backgroundColor: '#FF7A3D',
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -46,6 +46,7 @@ import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSocket } from '../hooks/useSocket';
 import { Animated, Easing } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ServiceDetail, Pet } from '../shared/types';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -84,8 +85,8 @@ const BookingRadar = () => {
 
     return (
         <View style={radarStyles.container}>
-            <Animated.View style={[radarStyles.circle, { transform: [{ scale: scale1 }], opacity: opacity1 }]} />
-            <Animated.View style={[radarStyles.circle, { transform: [{ scale: scale2 }], opacity: opacity2 }]} />
+            <Animated.View style={StyleSheet.flatten([radarStyles.circle, { transform: [{ scale: scale1 }], opacity: opacity1 }])} />
+            <Animated.View style={StyleSheet.flatten([radarStyles.circle, { transform: [{ scale: scale2 }], opacity: opacity2 }])} />
             <View style={radarStyles.center}>
                 <Search size={32} color="white" />
             </View>
@@ -96,7 +97,7 @@ const BookingRadar = () => {
 const radarStyles = StyleSheet.create({
     container: { width: 200, height: 200, alignItems: 'center', justifyContent: 'center' },
     circle: { position: 'absolute', width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(20, 184, 166, 0.4)' },
-    center: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#14b8a6', alignItems: 'center', justifyContent: 'center', zIndex: 10, shadowColor: '#14b8a6', shadowOpacity: 0.5, shadowRadius: 15, elevation: 10 }
+    center: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FF7A3D', alignItems: 'center', justifyContent: 'center', zIndex: 10, shadowColor: '#FF7A3D', shadowOpacity: 0.5, shadowRadius: 15, elevation: 10 }
 });
 
 export default function BookingFlow({ navigation, route }: BookingFlowProps) {
@@ -111,14 +112,14 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
 
     const [selectedPets, setSelectedPets] = useState<string[]>([]);
     const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
-    const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+    const [selectedPackage, setSelectedPackage] = useState<string | null>(route?.params?.packageId || null);
     const [serviceLocation, setServiceLocation] = useState<'home' | 'center'>('home');
     
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
     const [recurringType, setRecurringType] = useState<'none' | 'weekly' | 'monthly'>('none');
     
-    const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+    const [selectedAddons, setSelectedAddons] = useState<string[]>(route?.params?.addonIds || []);
     const [instructions, setInstructions] = useState('');
     
     const [paymentMode, setPaymentMode] = useState<'wallet' | 'gateway' | 'split'>('wallet');
@@ -135,7 +136,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
             const [svcRes, petsRes, addrJson, wallRes] = await Promise.all([
                 servicesApi.getById(serviceId),
                 petsApi.list(),
-                AsyncStorage.getItem('@petcare_addresses'),
+                AsyncStorage.getItem('@pawber_addresses'),
                 walletApi.get()
             ]);
 
@@ -340,9 +341,9 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     if (isLoadingData) {
         return (
             <SafeAreaView style={styles.safeArea}>
-                <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                    <ActivityIndicator size="large" color="#14b8a6" />
-                    <Text style={{ marginTop: 10, fontWeight: 'bold', color: '#64748b' }}>Loading Service Details...</Text>
+                <View style={StyleSheet.flatten([styles.container, { justifyContent: 'center', alignItems: 'center' }])}>
+                    <ActivityIndicator size="large" color="#FF7A3D" />
+                    <Text style={{ marginTop: 10, fontWeight: 'bold', color: '#7A5540' }}>Loading Service Details...</Text>
                 </View>
             </SafeAreaView>
         );
@@ -354,21 +355,26 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-                        <ArrowLeft size={20} color="#0f172a" />
+                        <ArrowLeft size={20} color="#1A1612" />
                     </TouchableOpacity>
                     <View style={styles.headerTitles}>
                         <Text style={styles.headerTitle}>{step === 5 ? 'CONFIRMED' : 'BOOKING'}</Text>
                         {step < 5 && <Text style={styles.stepIndicator}>Step {step} of 4</Text>}
                     </View>
                     <TouchableOpacity style={styles.infoBtn}>
-                        <Info size={20} color="#64748b" />
+                        <Info size={20} color="#7A5540" />
                     </TouchableOpacity>
                 </View>
 
                 {/* Progress Bar */}
                 {step < 5 && (
-                    <View style={styles.progressContainer}>
-                        <View style={[styles.progressBase, { width: `${(step / 4) * 100}%` } ]} />
+                    <View style={styles.progressTrack}>
+                        <LinearGradient
+                            colors={['#FF7A3D', '#FFB088']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={StyleSheet.flatten([styles.progressBar, { width: `${(step / 4) * 100}%` }])}
+                        />
                     </View>
                 )}
 
@@ -392,30 +398,30 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         <Text style={styles.sectionTitle}>WHICH PETS?</Text>
                                         <Text style={styles.selectionCount}>{selectedPets.length} Selected</Text>
                                     </View>
-                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.petScroll}>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.petScroll} contentContainerStyle={{ paddingRight: 24 }}>
                                         {pets.map(pet => (
                                             <TouchableOpacity
                                                 key={pet.id}
                                                 onPress={() => togglePet(pet.id)}
-                                                style={[styles.petCard, selectedPets.includes(pet.id) && styles.petCardActive]}
+                                                style={StyleSheet.flatten([styles.petCard, selectedPets.includes(pet.id) && styles.petCardActive])}
                                             >
                                                 <View style={styles.petImageWrapper}>
-                                                    <Image source={{ uri: pet.image_url || 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=200&h=200' }} style={styles.petImage} />
+                                                    <Image source={{ uri: pet.image_url || 'https://i.pravatar.cc/100?img=12' }} style={styles.petImage} />
                                                 </View>
-                                                <Text style={[styles.petName, selectedPets.includes(pet.id) && styles.petNameActive]}>{pet.name}</Text>
+                                                <Text style={StyleSheet.flatten([styles.petName, selectedPets.includes(pet.id) && styles.petNameActive])}>{pet.name}</Text>
                                                 {selectedPets.includes(pet.id) && (
-                                                    <View style={styles.checkIcon}>
-                                                        <Check size={10} color="white" strokeWidth={4} />
+                                                    <View style={styles.petCheckBadge}>
+                                                        <Check size={8} color="white" strokeWidth={5} />
                                                     </View>
                                                 )}
                                             </TouchableOpacity>
                                         ))}
                                         <TouchableOpacity
-                                            onPress={() => navigation.navigate('Pets')}
-                                            style={[styles.petCard, styles.petCardAdd]}
+                                            onPress={() => navigation.navigate('Pets', { forceAdd: true })}
+                                            style={styles.petCardAdd}
                                         >
                                             <View style={styles.addIconCircle}>
-                                                <Plus size={20} color="#14b8a6" />
+                                                <Plus size={24} color="#FF7A3D" />
                                             </View>
                                             <Text style={styles.addText}>ADD PET</Text>
                                         </TouchableOpacity>
@@ -429,71 +435,51 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         <View style={styles.locationTabs}>
                                             <TouchableOpacity
                                                 onPress={() => setServiceLocation('home')}
-                                                style={[styles.locationTab, serviceLocation === 'home' && styles.locationTabActive]}
+                                                style={StyleSheet.flatten([styles.locationTab, serviceLocation === 'home' && styles.locationTabActive])}
                                             >
-                                                <Text style={[styles.locationTabText, serviceLocation === 'home' && styles.locationTabTextActive]}>AT HOME</Text>
+                                                <Text style={StyleSheet.flatten([styles.locationTabText, serviceLocation === 'home' && styles.locationTabTextActive])}>AT HOME</Text>
                                             </TouchableOpacity>
                                             <TouchableOpacity
                                                 onPress={() => setServiceLocation('center')}
-                                                style={[styles.locationTab, serviceLocation === 'center' && styles.locationTabActive]}
+                                                style={StyleSheet.flatten([styles.locationTab, serviceLocation === 'center' && styles.locationTabActive])}
                                             >
-                                                <Text style={[styles.locationTabText, serviceLocation === 'center' && styles.locationTabTextActive]}>AT CENTER</Text>
+                                                <Text style={StyleSheet.flatten([styles.locationTabText, serviceLocation === 'center' && styles.locationTabTextActive])}>AT CENTER</Text>
                                             </TouchableOpacity>
                                         </View>
                                     </View>
                                 )}
 
+
+
                                 {/* Address Selection */}
                                 <View style={styles.sectionBlock}>
                                     <Text style={styles.sectionTitle}>ADDRESS</Text>
-                                    <View style={styles.addressList}>
+                                     <View style={styles.addressList}>
                                         {addresses.map(addr => (
                                             <TouchableOpacity
                                                 key={addr.id}
                                                 onPress={() => setSelectedAddress(addr.id)}
-                                                style={[styles.addressCard, selectedAddress === addr.id && styles.addressCardActive]}
+                                                style={StyleSheet.flatten([styles.addressCard, selectedAddress === addr.id && styles.addressCardActive])}
                                             >
-                                                <View style={[styles.addrIconBox, selectedAddress === addr.id && styles.addrIconBoxActive]}>
-                                                    <MapPin size={18} color={selectedAddress === addr.id ? "white" : "#cbd5e1"} />
+                                                <View style={StyleSheet.flatten([styles.addrIconCircle, selectedAddress === addr.id && styles.addrIconCircleActive])}>
+                                                    <MapPin size={18} color={selectedAddress === addr.id ? "white" : "#94A3B8"} />
                                                 </View>
                                                 <View style={styles.addrInfo}>
-                                                    <Text style={styles.addrLabel}>{addr.label}</Text>
+                                                    <Text style={StyleSheet.flatten([styles.addrLabel, selectedAddress === addr.id && { color: '#1D9E86' }])}>{addr.label}</Text>
                                                     <Text style={styles.addrText} numberOfLines={1}>{addr.address}</Text>
                                                 </View>
-                                                <View style={[styles.radioCircle, selectedAddress === addr.id && styles.radioCircleActive]}>
-                                                    {selectedAddress === addr.id && <Check size={12} color="white" />}
+                                                <View style={StyleSheet.flatten([styles.selectionCircle, selectedAddress === addr.id && styles.selectionCircleActive])}>
+                                                    {selectedAddress === addr.id && <Check size={12} color="white" strokeWidth={4} />}
                                                 </View>
                                             </TouchableOpacity>
                                         ))}
                                         <TouchableOpacity
                                             onPress={() => navigation.navigate('Addresses')}
-                                            style={[styles.addressCard, styles.addressCardAdd]}
+                                            style={styles.addressAddBtn}
                                         >
-                                            <View style={styles.addIconBox}>
-                                                <Plus size={18} color="#14b8a6" />
-                                            </View>
-                                            <Text style={styles.addTextSmall}>ADD NEW ADDRESS</Text>
+                                            <Plus size={18} color="#FF7A3D" />
+                                            <Text style={styles.addressAddBtnText}>ADD NEW ADDRESS</Text>
                                         </TouchableOpacity>
-                                    </View>
-                                </View>
-
-                                {/* Package Selection */}
-                                <View style={styles.sectionBlock}>
-                                    <Text style={styles.sectionTitle}>THE PLAN</Text>
-                                    <View style={styles.packageList}>
-                                        {serviceData?.packages?.map(pkg => (
-                                            <TouchableOpacity
-                                                key={pkg.id}
-                                                onPress={() => setSelectedPackage(pkg.id)}
-                                                style={[styles.packageCard, selectedPackage === pkg.id && styles.packageCardActive]}
-                                            >
-                                                <View style={styles.packageHeader}>
-                                                    <Text style={[styles.packageName, selectedPackage === pkg.id && styles.textWhite]}>{pkg.package_name}</Text>
-                                                    <Text style={[styles.packagePrice, selectedPackage === pkg.id && styles.textPrimary]}>₹{pkg.price}</Text>
-                                                </View>
-                                                <Text style={[styles.packageDesc, selectedPackage === pkg.id && styles.textWhiteMuted]}>{pkg.features?.join(' • ') || (pkg as any).duration}</Text>
-                                            </TouchableOpacity>
-                                        ))}
                                     </View>
                                 </View>
                             </View>
@@ -513,9 +499,9 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         <TouchableOpacity
                                             key={t}
                                             onPress={() => setRecurringType(t)}
-                                            style={[styles.freqTab, recurringType === t && styles.freqTabActive]}
+                                            style={StyleSheet.flatten([styles.freqTab, recurringType === t && styles.freqTabActive])}
                                         >
-                                            <Text style={[styles.freqTabText, recurringType === t && styles.freqTabTextActive]}>
+                                            <Text style={StyleSheet.flatten([styles.freqTabText, recurringType === t && styles.freqTabTextActive])}>
                                                 {t === 'none' ? 'ONCE' : t.toUpperCase()}
                                             </Text>
                                         </TouchableOpacity>
@@ -529,10 +515,10 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         <TouchableOpacity
                                             key={d.full}
                                             onPress={() => setSelectedDate(d.full)}
-                                            style={[styles.dateCard, selectedDate === d.full && styles.dateCardActive]}
+                                            style={StyleSheet.flatten([styles.dateCard, selectedDate === d.full && styles.dateCardActive])}
                                         >
-                                            <Text style={[styles.dateMonth, selectedDate === d.full && styles.textWhite]}>{d.month}</Text>
-                                            <Text style={[styles.dateDay, selectedDate === d.full && styles.textWhite]}>{d.day}</Text>
+                                            <Text style={StyleSheet.flatten([styles.dateMonth, selectedDate === d.full && styles.textWhite])}>{d.month}</Text>
+                                            <Text style={StyleSheet.flatten([styles.dateDay, selectedDate === d.full && styles.textWhite])}>{d.day}</Text>
                                         </TouchableOpacity>
                                     ))}
                                 </ScrollView>
@@ -545,20 +531,20 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                             key={t.time}
                                             onPress={() => t.available && setSelectedTime(t.time)}
                                             disabled={!t.available}
-                                            style={[
+                                            style={StyleSheet.flatten([
                                                 styles.timeBtn,
                                                 !t.available && styles.timeBtnDisabled,
                                                 selectedTime === t.time && styles.timeBtnActive
-                                            ]}
+                                            ])}
                                         >
-                                            <Text style={[styles.timeText, selectedTime === t.time && styles.textWhite]}>{t.time}</Text>
+                                            <Text style={StyleSheet.flatten([styles.timeText, selectedTime === t.time && styles.textWhite])}>{t.time}</Text>
                                         </TouchableOpacity>
                                     ))}
                                 </View>
 
                                 <View style={styles.timerBanner}>
                                     <View style={styles.timerLeft}>
-                                        <Timer size={18} color="#f97316" />
+                                        <Timer size={18} color="#1D9E86" />
                                         <Text style={styles.timerLabel}>Slot Held For</Text>
                                     </View>
                                     <Text style={styles.timerValue}>{formatTimer(holdTimer)}</Text>
@@ -580,13 +566,13 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         <TouchableOpacity
                                             key={addon.id}
                                             onPress={() => toggleAddon(addon.id)}
-                                            style={[styles.addonCard, selectedAddons.includes(addon.id) && styles.addonCardActive]}
+                                            style={StyleSheet.flatten([styles.addonCard, selectedAddons.includes(addon.id) && styles.addonCardActive])}
                                         >
                                             <View style={styles.addonInfo}>
                                                 <Text style={styles.addonTitle}>{addon.name}</Text>
                                                 <Text style={styles.addonMeta}>₹{addon.price} • {addon.duration_minutes || (addon as any).duration}m</Text>
                                             </View>
-                                            <View style={[styles.radioCircle, selectedAddons.includes(addon.id) && styles.radioCircleActive]}>
+                                            <View style={StyleSheet.flatten([styles.radioCircle, selectedAddons.includes(addon.id) && styles.radioCircleActive])}>
                                                 {selectedAddons.includes(addon.id) && <Check size={14} color="white" />}
                                             </View>
                                         </TouchableOpacity>
@@ -596,7 +582,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                 {/* Instructions */}
                                 <Text style={styles.sectionTitle}>SPECIAL INSTRUCTIONS</Text>
                                 <View style={styles.instructionBox}>
-                                    <MessageSquare size={20} color="#94a3b8" style={styles.instructionIcon} />
+                                    <MessageSquare size={20} color="#B09080" style={styles.instructionIcon} />
                                     <TextInput
                                         placeholder="Tell us about your pet's temperament, specific needs, or where to find the key..."
                                         style={styles.instructionInput}
@@ -604,7 +590,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         numberOfLines={4}
                                         value={instructions}
                                         onChangeText={setInstructions}
-                                        placeholderTextColor="#94a3b8"
+                                        placeholderTextColor="#B09080"
                                     />
                                 </View>
                             </View>
@@ -619,7 +605,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
 
                                 <View style={styles.summaryCard}>
                                     <View style={styles.summaryHeader}>
-                                        <Receipt size={24} color="#14b8a6" />
+                                        <Receipt size={24} color="#FF7A3D" />
                                         <View>
                                             <Text style={styles.summaryTitle}>{serviceData?.name} ({selectedPets.length} Pets)</Text>
                                             <Text style={styles.summaryMeta}>Oct {selectedDate}, {selectedTime}</Text>
@@ -648,18 +634,18 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
 
                                     {pointsBalance > 0 && (
                                         <TouchableOpacity 
-                                            style={[styles.pointsRedeem, usePoints && styles.pointsRedeemActive]} 
+                                            style={StyleSheet.flatten([styles.pointsRedeem, usePoints && styles.pointsRedeemActive])} 
                                             onPress={() => setUsePoints(!usePoints)}
                                         >
                                             <View style={styles.pointsInfo}>
-                                                <Star size={20} color={usePoints ? 'white' : '#f97316'} fill={usePoints ? 'white' : '#f97316'} />
+                                                <Star size={20} color={usePoints ? 'white' : '#1D9E86'} fill={usePoints ? 'white' : '#1D9E86'} />
                                                 <View>
-                                                    <Text style={[styles.pointsTitle, usePoints && { color: 'white' }]}>Use Loyalty Points</Text>
-                                                    <Text style={[styles.pointsSubtitle, usePoints && { color: 'rgba(255,255,255,0.8)' }]}>Balance: {pointsBalance} pts (₹1 = 1 pt)</Text>
+                                                    <Text style={StyleSheet.flatten([styles.pointsTitle, usePoints && { color: 'white' }])}>Use Loyalty Points</Text>
+                                                    <Text style={StyleSheet.flatten([styles.pointsSubtitle, usePoints && { color: 'rgba(255,255,255,0.8)' }])}>Balance: {pointsBalance} pts (₹1 = 1 pt)</Text>
                                                 </View>
                                             </View>
-                                            <View style={[styles.redeemToggle, usePoints && styles.redeemToggleActive]}>
-                                                {usePoints && <Check size={12} color="#14b8a6" />}
+                                            <View style={StyleSheet.flatten([styles.redeemToggle, usePoints && styles.redeemToggleActive])}>
+                                                {usePoints && <Check size={12} color="#FF7A3D" />}
                                             </View>
                                         </TouchableOpacity>
                                     )}
@@ -673,10 +659,10 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                             <TouchableOpacity
                                                 key={mode.id}
                                                 onPress={() => setPaymentMode(mode.id as any)}
-                                                style={[styles.paymentBtn, paymentMode === mode.id && styles.paymentBtnActive]}
+                                                style={StyleSheet.flatten([styles.paymentBtn, paymentMode === mode.id && styles.paymentBtnActive])}
                                             >
-                                                <mode.icon size={20} color={paymentMode === mode.id ? "#14b8a6" : "#64748b"} />
-                                                <Text style={[styles.paymentLabelText, paymentMode === mode.id && styles.textPrimary]}>{mode.label}</Text>
+                                                <mode.icon size={20} color={paymentMode === mode.id ? "#FF7A3D" : "#7A5540"} />
+                                                <Text style={StyleSheet.flatten([styles.paymentLabelText, paymentMode === mode.id && styles.textPrimary])}>{mode.label}</Text>
                                             </TouchableOpacity>
                                         ))}
                                     </View>
@@ -705,10 +691,10 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                             Broadcasting your request to professionals within 20km. This usually takes 2-5 minutes.
                                         </Text>
                                         <TouchableOpacity 
-                                            style={[styles.trackBtn, { marginTop: 40, backgroundColor: '#f1f5f9' }]} 
+                                            style={StyleSheet.flatten([styles.trackBtn, { marginTop: 40, backgroundColor: '#F5E6D8' }])} 
                                             onPress={() => navigation.navigate('Home')}
                                         >
-                                            <Text style={[styles.trackBtnText, { color: '#0f172a' }]}>WAIT IN BACKGROUND</Text>
+                                            <Text style={StyleSheet.flatten([styles.trackBtnText, { color: '#1A1612' }])}>WAIT IN BACKGROUND</Text>
                                         </TouchableOpacity>
                                     </View>
                                 ) : bookingStatus === 'accepted' ? (
@@ -721,7 +707,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                             <Text style={styles.matchTitle}>Expert Found!</Text>
                                             <Text style={styles.providerName}>{createdBooking?.provider?.business_name}</Text>
                                             <View style={styles.ratingRow}>
-                                                <Star size={14} color="#f97316" fill="#f97316" />
+                                                <Star size={14} color="#1D9E86" fill="#1D9E86" />
                                                 <Text style={styles.ratingText}>{createdBooking?.provider?.rating || '4.9'}</Text>
                                             </View>
                                         </View>
@@ -729,7 +715,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                             Please confirm payment to finalize the booking. Your expert is ready to start!
                                         </Text>
                                         <TouchableOpacity 
-                                            style={[styles.continueBtn, { width: '100%', marginTop: 30 }]} 
+                                            style={StyleSheet.flatten([styles.continueBtn, { width: '100%', marginTop: 30 }])} 
                                             onPress={handlePay}
                                             disabled={isSubmitting}
                                         >
@@ -746,7 +732,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                             We couldn't find a professional nearby at this time. Please try scheduling for later.
                                         </Text>
                                         <TouchableOpacity 
-                                            style={[styles.trackBtn, { marginTop: 40 }]} 
+                                            style={StyleSheet.flatten([styles.trackBtn, { marginTop: 40 }])} 
                                             onPress={() => setStep(2)}
                                         >
                                             <Text style={styles.trackBtnText}>CHANGE SLOT</Text>
@@ -756,7 +742,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                     <View style={{ alignItems: 'center' }}>
                                         <View style={styles.successIconOuter}>
                                             <View style={styles.successIconInner}>
-                                                <CheckCircle2 size={64} color="#14b8a6" strokeWidth={2.5} />
+                                                <CheckCircle2 size={64} color="#FF7A3D" strokeWidth={2.5} />
                                             </View>
                                         </View>
                                         <Text style={styles.successTitle}>Booking Confirmed!</Text>
@@ -787,10 +773,10 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                         <TouchableOpacity
                             onPress={handleNext}
                             disabled={isNextDisabled() || isSubmitting}
-                            style={[
+                            style={StyleSheet.flatten([
                                 styles.continueBtn,
                                 isNextDisabled() && styles.continueBtnDisabled
-                            ]}
+                            ])}
                         >
                             {isSubmitting ? (
                                 <ActivityIndicator color="white" />
@@ -811,374 +797,149 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: 'white' },
-    container: { flex: 1 },
-    header: {
-        paddingHorizontal: 20,
-        paddingTop: 10,
-        paddingBottom: 20,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    backBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        backgroundColor: 'white',
-        borderWidth: 1.5,
-        borderColor: '#f1f5f9',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+    safeArea: { flex: 1, backgroundColor: '#FFF9F5' },
+    container: { flex: 1, backgroundColor: '#FFF9F5' },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20, paddingBottom: 15 },
+    backBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#F5E6D8', alignItems: 'center', justifyContent: 'center' },
     headerTitles: { alignItems: 'center' },
-    headerTitle: { fontSize: 13, fontWeight: '900', color: '#0f172a', letterSpacing: 2 },
-    stepIndicator: { fontSize: 10, fontWeight: 'bold', color: '#94a3b8', letterSpacing: 1 },
-    infoBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        backgroundColor: '#f8fafc',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    progressContainer: {
-        height: 6,
-        backgroundColor: '#f1f5f9',
-        marginHorizontal: 20,
-        borderRadius: 3,
-        overflow: 'hidden',
-        marginBottom: 10,
-    },
-    progressBase: { height: '100%', backgroundColor: '#14b8a6', borderRadius: 3 },
-    scrollContainer: {
-        flex: 1, // Crucial for taking up available space
-    },
-    scrollView: {
-        flex: 1,
-    },
-    scrollContent: { 
-        paddingHorizontal: 20, 
-        paddingBottom: 40, // Reduced from 100 to avoid excessive empty space after layout fix
-        flexGrow: 1,
-    },
-    stepView: { paddingVertical: 10 },
-    textGroup: { marginBottom: 24, gap: 4 },
-    title: { fontSize: 30, fontWeight: 'bold', color: '#0f172a', lineHeight: 38 },
-    italic: { color: '#14b8a6', fontStyle: 'italic' },
-    subtitle: { fontSize: 14, color: '#64748b', fontWeight: '500' },
-    sectionBlock: { marginBottom: 28 },
-    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-    sectionTitle: {
-        fontSize: 11,
-        fontWeight: '900',
-        color: '#94a3b8',
-        letterSpacing: 2,
-    },
-    selectionCount: { fontSize: 10, fontWeight: 'bold', color: '#14b8a6' },
-    petScroll: { flexDirection: 'row', gap: 12 },
-    petCard: {
-        width: 82, // Further decreased size for better alignment
-        backgroundColor: 'white',
-        borderRadius: 20,
-        padding: 10,
-        borderWidth: 2,
-        borderColor: '#f8fafc',
-        alignItems: 'center',
-        marginRight: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.03,
-        shadowRadius: 10,
-        elevation: 1,
-    },
-    petCardActive: { borderColor: '#14b8a6', backgroundColor: '#f0fdfa' },
-    petImageWrapper: { 
-        width: 48, // Compact profile size
-        height: 48, 
-        borderRadius: 24, 
-        overflow: 'hidden', 
-        marginBottom: 8,
-        borderWidth: 2,
-        borderColor: 'white',
-    },
-    petImage: { width: '100%', height: '100%' },
-    petName: { fontSize: 11, fontWeight: 'bold', color: '#94a3b8' },
-    petNameActive: { color: '#0f172a' },
-    petCardAdd: {
-        borderStyle: 'dashed',
-        borderWidth: 2,
-        borderColor: '#e2e8f0',
-        backgroundColor: 'transparent',
-    },
-    addIconCircle: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#f0fdfa',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 8,
-    },
-    addText: {
-        fontSize: 10,
-        fontWeight: '900',
-        color: '#14b8a6',
-        letterSpacing: 1,
-    },
-    checkIcon: {
-        position: 'absolute',
-        top: 6,
-        right: 6,
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: '#14b8a6',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    locationTabs: {
-        flexDirection: 'row',
-        backgroundColor: '#f1f5f9',
-        padding: 4,
-        borderRadius: 16,
-    },
-    locationTab: { flex: 1, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-    locationTabActive: { backgroundColor: 'white', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 },
-    locationTabText: { fontSize: 11, fontWeight: '900', color: '#64748b' },
-    locationTabTextActive: { color: '#14b8a6' },
-    addressList: { gap: 12 },
-    addressCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 18,
-        borderRadius: 22,
-        backgroundColor: 'white',
-        borderWidth: 2,
-        borderColor: '#f8fafc',
-        gap: 14,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.03,
-        shadowRadius: 10,
-        elevation: 1,
-    },
-    addressCardActive: { borderColor: '#14b8a6', backgroundColor: '#f0fdfa' },
-    addressCardAdd: {
-        borderStyle: 'dashed',
-        borderWidth: 2,
-        borderColor: '#e2e8f0',
-        backgroundColor: 'transparent',
-        justifyContent: 'center',
-        paddingVertical: 14,
-    },
-    addIconBox: {
-        width: 36,
-        height: 36,
-        borderRadius: 12,
-        backgroundColor: '#f0fdfa',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
-    addTextSmall: {
-        fontSize: 12,
-        fontWeight: '900',
-        color: '#14b8a6',
-        letterSpacing: 1,
-    },
-    addrIconBox: { 
-        width: 44, 
-        height: 44, 
-        borderRadius: 14, 
-        backgroundColor: '#f8fafc', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
-    },
-    addrIconBoxActive: { backgroundColor: '#14b8a6' },
+    headerTitle: { fontSize: 13, fontWeight: '900', color: '#B09080', letterSpacing: 2 },
+    stepIndicator: { fontSize: 18, fontWeight: '900', color: '#1A1612', marginTop: 2 },
+    infoBtn: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+ 
+    progressTrack: { height: 6, backgroundColor: '#F5E6D8', marginHorizontal: 24, borderRadius: 3, overflow: 'hidden', marginBottom: 20 },
+    progressBar: { height: '100%', borderRadius: 3 },
+ 
+    scrollContainer: { flex: 1 },
+    scrollView: { flex: 1 },
+    scrollContent: { paddingBottom: 120 },
+    stepView: { paddingHorizontal: 24, paddingTop: 10 },
+    textGroup: { marginBottom: 32 },
+    title: { fontSize: 32, fontWeight: '900', color: '#1A1612', letterSpacing: -1 },
+    italic: { color: '#FF7A3D', fontStyle: 'italic' },
+    subtitle: { fontSize: 15, color: '#7A5540', fontWeight: '600', marginTop: 8 },
+ 
+    sectionBlock: { marginBottom: 36 },
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    sectionTitle: { fontSize: 12, fontWeight: '900', color: '#B09080', letterSpacing: 1.5 },
+    selectionCount: { fontSize: 12, fontWeight: '800', color: '#FF7A3D' },
+ 
+    petScroll: { marginHorizontal: -24, paddingLeft: 24 },
+    petCard: { width: 90, alignItems: 'center', marginRight: 16, paddingVertical: 12, borderRadius: 24, backgroundColor: 'white', borderWidth: 2, borderColor: 'transparent' },
+    petCardActive: { borderColor: '#FF7A3D', shadowColor: '#FF7A3D', shadowOpacity: 0.1, shadowRadius: 10, elevation: 2 },
+    petImageWrapper: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#F5E6D8', padding: 3, marginBottom: 8, borderWidth: 1, borderColor: '#F5E6D8' },
+    petImage: { width: '100%', height: '100%', borderRadius: 32 },
+    petName: { fontSize: 12, fontWeight: '800', color: '#7A5540' },
+    petNameActive: { color: '#FF7A3D' },
+    petCheckBadge: { position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, backgroundColor: '#FF7A3D', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' },
+    petCardAdd: { width: 90, height: 110, alignItems: 'center', justifyContent: 'center', marginRight: 16, borderRadius: 24, backgroundColor: '#FFF3EC', borderStyle: 'dashed', borderWidth: 2, borderColor: '#FFB088' },
+    addIconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+    addText: { fontSize: 9, fontWeight: '900', color: '#FF7A3D' },
+ 
+    locationTabs: { flexDirection: 'row', gap: 12, marginTop: 12 },
+    locationTab: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F5E6D8', alignItems: 'center', justifyContent: 'center' },
+    locationTabActive: { backgroundColor: '#1A1612' },
+    locationTabText: { fontSize: 11, fontWeight: '900', color: '#7A5540', letterSpacing: 1 },
+    locationTabTextActive: { color: 'white' },
+ 
+    addressList: { gap: 12, marginTop: 4 },
+    addressCard: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: 'white', borderRadius: 20, borderWidth: 2, borderColor: 'transparent' },
+    addressCardActive: { borderColor: '#1D9E86', shadowColor: '#1D9E86', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+    addrIconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+    addrIconCircleActive: { backgroundColor: '#1D9E86' },
     addrInfo: { flex: 1 },
-    addrLabel: { fontSize: 14, fontWeight: 'bold', color: '#0f172a', marginBottom: 2 },
-    addrText: { fontSize: 12, color: '#64748b' },
-    radioCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center' },
-    radioCircleActive: { backgroundColor: '#14b8a6', borderColor: '#14b8a6' },
-    packageList: { gap: 12 },
-    packageCard: {
-        padding: 22,
-        borderRadius: 28,
-        backgroundColor: 'white',
-        borderWidth: 2,
-        borderColor: '#f8fafc',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.03,
-        shadowRadius: 10,
-        elevation: 1,
-    },
-    packageCardActive: { backgroundColor: '#0f172a', borderColor: '#0f172a' },
-    packageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-    packageName: { fontSize: 16, fontWeight: 'bold', color: '#0f172a' },
-    packagePrice: { fontSize: 18, fontWeight: '900', color: '#0f172a' },
-    packageDesc: { fontSize: 11, color: '#64748b', lineHeight: 16 },
-    textPrimary: { color: '#14b8a6' },
-    textWhite: { color: 'white' },
-    textWhiteMuted: { color: 'rgba(255,255,255,0.6)' },
-    frequencyTabs: { flexDirection: 'row', backgroundColor: '#f1f5f9', padding: 4, borderRadius: 16, gap: 4 },
-    freqTab: { flex: 1, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-    freqTabActive: { backgroundColor: 'white', elevation: 2 },
-    freqTabText: { fontSize: 11, fontWeight: '900', color: '#64748b' },
-    freqTabTextActive: { color: '#14b8a6' },
-    dateList: { flexDirection: 'row', paddingVertical: 8 },
-    dateCard: { width: 70, height: 90, borderRadius: 20, backgroundColor: '#f8fafc', alignItems: 'center', justifyContent: 'center', marginRight: 12, borderWidth: 1, borderColor: '#f1f5f9' },
-    dateCardActive: { backgroundColor: '#0f172a', borderColor: '#0f172a' },
-    dateMonth: { fontSize: 10, fontWeight: 'bold', color: '#64748b' },
-    dateDay: { fontSize: 20, fontWeight: '900', color: '#0f172a' },
-    timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    timeBtn: { width: (width - 60) / 3, height: 44, borderRadius: 12, backgroundColor: '#f8fafc', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#f1f5f9' },
-    timeBtnActive: { backgroundColor: '#14b8a6', borderColor: '#14b8a6' },
-    timeBtnDisabled: { opacity: 0.3 },
-    timeText: { fontSize: 11, fontWeight: 'bold', color: '#0f172a' },
-    timerBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff7ed', padding: 12, borderRadius: 16, marginTop: 24 },
-    timerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    timerLabel: { fontSize: 12, fontWeight: 'bold', color: '#9a3412' },
-    timerValue: { fontSize: 12, fontWeight: '900', color: '#c2410c' },
-    addonList: { gap: 12 },
-    addonCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, backgroundColor: '#f8fafc', gap: 12 },
-    addonCardActive: { backgroundColor: '#f0fdfa', borderWidth: 1, borderColor: '#14b8a6' },
+    addrLabel: { fontSize: 15, fontWeight: '900', color: '#1A1612', marginBottom: 2 },
+    addrText: { fontSize: 12, fontWeight: '600', color: '#94A3B8' },
+    selectionCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+    selectionCircleActive: { backgroundColor: '#1D9E86', borderColor: '#1D9E86' },
+    addressAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 20, backgroundColor: '#FFF3EC', borderStyle: 'dashed', borderWidth: 2, borderColor: '#FFB088', marginTop: 4 },
+    addressAddBtnText: { fontSize: 12, fontWeight: '900', color: '#FF7A3D', letterSpacing: 0.5 },
+ 
+    packageList: { gap: 12, marginTop: 4 },
+    planCard: { padding: 20, backgroundColor: 'white', borderRadius: 24, borderWidth: 2, borderColor: 'transparent' },
+    planCardActive: { borderColor: '#1D9E86', backgroundColor: '#FAFFFE' },
+    planHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    planTitleBox: { flex: 1, marginRight: 16 },
+    planName: { fontSize: 17, fontWeight: '900', color: '#1A1612', marginBottom: 4 },
+    planFeatures: { fontSize: 12, color: '#94A3B8', fontWeight: '600' },
+    planPrice: { fontSize: 22, fontWeight: '900', color: '#1A1612' },
+    planSelectionIndicator: { position: 'absolute', top: -10, right: 20, width: 24, height: 24, borderRadius: 12, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' },
+    planSelectionIndicatorActive: { backgroundColor: '#1D9E86' },
+ 
+    footer: { position: 'absolute', bottom: 0, width: '100%', paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, paddingTop: 16, backgroundColor: 'rgba(255,255,255,0.9)' },
+    continueBtn: { height: 64, borderRadius: 24, backgroundColor: '#1D9E86', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, shadowColor: '#1D9E86', shadowOpacity: 0.3, shadowRadius: 15, elevation: 8 },
+    continueBtnDisabled: { backgroundColor: '#cbd5e1', shadowOpacity: 0 },
+    continueBtnText: { color: 'white', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
+ 
+    frequencyTabs: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+    freqTab: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F5E6D8', alignItems: 'center' },
+    freqTabActive: { backgroundColor: '#1A1612' },
+    freqTabText: { fontSize: 11, fontWeight: '900', color: '#7A5540' },
+    freqTabTextActive: { color: 'white' },
+    dateList: { marginHorizontal: -24, paddingLeft: 24, marginBottom: 24 },
+    dateCard: { width: 70, height: 90, borderRadius: 20, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginRight: 12, borderWidth: 2, borderColor: 'transparent' },
+    dateCardActive: { backgroundColor: '#1A1612', borderColor: '#1A1612' },
+    dateMonth: { fontSize: 10, fontWeight: '900', color: '#B09080' },
+    dateDay: { fontSize: 24, fontWeight: '900', color: '#1A1612', marginTop: 2 },
+    timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 30 },
+    timeBtn: { width: (width - 68) / 3, paddingVertical: 14, borderRadius: 16, backgroundColor: 'white', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
+    timeBtnActive: { backgroundColor: '#1A1612', borderColor: '#1A1612' },
+    timeBtnDisabled: { opacity: 0.4 },
+    timeText: { fontSize: 12, fontWeight: '800', color: '#1A1612' },
+    timerBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#E0F5F0', borderRadius: 20 },
+    timerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    timerLabel: { fontSize: 13, fontWeight: '800', color: '#1D9E86' },
+    timerValue: { fontSize: 18, fontWeight: '900', color: '#1D9E86' },
+    addonList: { gap: 12, marginBottom: 24 },
+    addonCard: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: 'white', borderRadius: 20, borderWidth: 2, borderColor: 'transparent' },
+    addonCardActive: { borderColor: '#1D9E86', backgroundColor: '#FAFFFE' },
     addonInfo: { flex: 1 },
-    addonTitle: { fontSize: 14, fontWeight: 'bold', color: '#0f172a' },
-    addonMeta: { fontSize: 12, color: '#64748b' },
-    instructionBox: { flexDirection: 'row', backgroundColor: '#f8fafc', borderRadius: 20, padding: 16, gap: 12 },
-    instructionIcon: { marginTop: 4 },
-    instructionInput: { flex: 1, fontSize: 14, color: '#0f172a', textAlignVertical: 'top' },
-    summaryCard: { padding: 20, borderRadius: 24, backgroundColor: '#f8fafc', gap: 16 },
-    summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    summaryTitle: { fontSize: 16, fontWeight: 'bold', color: '#0f172a' },
-    summaryMeta: { fontSize: 12, color: '#64748b' },
-    summaryDetails: { gap: 8, paddingVertical: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#f1f5f9' },
+    addonTitle: { fontSize: 15, fontWeight: '800', color: '#1A1612', marginBottom: 4 },
+    addonMeta: { fontSize: 12, fontWeight: '600', color: '#94A3B8' },
+    instructionBox: { flexDirection: 'row', padding: 16, backgroundColor: 'white', borderRadius: 20, borderWidth: 2, borderColor: '#F5E6D8' },
+    instructionIcon: { marginTop: 4, marginRight: 12 },
+    instructionInput: { flex: 1, fontSize: 14, color: '#1A1612', fontWeight: '500', height: 80, textAlignVertical: 'top' },
+    summaryCard: { padding: 24, backgroundColor: 'white', borderRadius: 28, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 20, elevation: 4 },
+    summaryHeader: { flexDirection: 'row', gap: 16, marginBottom: 24 },
+    summaryTitle: { fontSize: 17, fontWeight: '900', color: '#1A1612' },
+    summaryMeta: { fontSize: 13, color: '#B09080', fontWeight: '700', marginTop: 2 },
+    summaryDetails: { borderTopWidth: 1.5, borderTopColor: '#F5E6D8', paddingTop: 20, gap: 12, marginBottom: 20 },
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
-    summaryLabel: { fontSize: 14, color: '#64748b' },
-    summaryVal: { fontSize: 14, fontWeight: 'bold', color: '#0f172a' },
-    paymentMethods: { flexDirection: 'row', gap: 8 },
-    paymentBtn: { flex: 1, height: 70, borderRadius: 16, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderColor: '#f1f5f9' },
-    paymentBtnActive: { borderColor: '#14b8a6', backgroundColor: '#f0fdfa' },
-    paymentLabelText: { fontSize: 10, fontWeight: 'bold', color: '#64748b' },
-    totalBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1e293b', padding: 20, borderRadius: 24, marginTop: 24 },
-    totalLabel: { fontSize: 10, fontWeight: 'bold', color: '#14b8a6' },
-    totalValue: { fontSize: 24, fontWeight: 'bold', color: 'white' },
-    gstLabel: { fontSize: 9, color: 'rgba(255,255,255,0.5)' },
-    gstStatus: { fontSize: 10, fontWeight: 'bold', color: '#14b8a6' },
+    summaryLabel: { fontSize: 14, color: '#7A5540', fontWeight: '600' },
+    summaryVal: { fontSize: 14, color: '#1A1612', fontWeight: '800' },
+    couponInput: { height: 54, backgroundColor: '#F8FAFC', borderRadius: 16, paddingHorizontal: 20, fontSize: 12, fontWeight: '900', color: '#1A1612', letterSpacing: 1, marginBottom: 20, borderWidth: 1.5, borderColor: '#E2E8F0' },
+    pointsRedeem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#E0F5F0', borderRadius: 20, marginBottom: 24 },
+    pointsRedeemActive: { backgroundColor: '#1D9E86' },
+    pointsInfo: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+    pointsTitle: { fontSize: 14, fontWeight: '900', color: '#1D9E86' },
+    pointsSubtitle: { fontSize: 11, fontWeight: '700', color: 'rgba(29, 158, 134, 0.7)' },
+    redeemToggle: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' },
+    redeemToggleActive: { backgroundColor: 'white' },
+    paymentMethods: { flexDirection: 'row', gap: 10 },
+    paymentBtn: { flex: 1, height: 70, backgroundColor: '#F8FAFC', borderRadius: 18, alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: '#E2E8F0' },
+    paymentBtnActive: { backgroundColor: 'white', borderColor: '#FF7A3D', shadowColor: '#FF7A3D', shadowOpacity: 0.1, shadowRadius: 10, elevation: 2 },
+    paymentLabelText: { fontSize: 10, fontWeight: '900', color: '#7A5540', letterSpacing: 0.5 },
+    totalBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4, marginTop: 32 },
+    totalLabel: { fontSize: 10, fontWeight: '900', color: '#B09080', letterSpacing: 1.5 },
+    totalValue: { fontSize: 32, fontWeight: '900', color: '#1A1612' },
+    gstLabel: { fontSize: 9, fontWeight: '900', color: '#B09080' },
+    gstStatus: { fontSize: 11, fontWeight: '900', color: '#1D9E86', marginTop: 2 },
     successView: { alignItems: 'center', paddingTop: 40 },
-    successIconOuter: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#f0fdfa', alignItems: 'center', justifyContent: 'center' },
-    successIconInner: { width: 90, height: 90, borderRadius: 45, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' },
-    successTitle: { fontSize: 24, fontWeight: 'bold', color: '#0f172a', marginTop: 24 },
-    successSubtitle: { fontSize: 14, color: '#64748b', textAlign: 'center', marginTop: 12, paddingHorizontal: 40 },
-    successButtons: { width: '100%', gap: 12, marginTop: 40 },
-    trackBtn: { height: 56, backgroundColor: '#0f172a', borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-    trackBtnText: { color: 'white', fontSize: 14, fontWeight: '900' },
-    homeBtn: { height: 56, backgroundColor: '#f8fafc', borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-    homeBtnText: { color: '#0f172a', fontSize: 14, fontWeight: '900' },
-    footer: { padding: 20, borderTopWidth: 1, borderTopColor: '#f1f5f9', backgroundColor: 'white' },
-    continueBtn: { height: 56, backgroundColor: '#0f172a', borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
-    continueBtnDisabled: { backgroundColor: '#cbd5e1' },
-    continueBtnText: { color: 'white', fontSize: 14, fontWeight: '900', letterSpacing: 1 },
-    couponInput: {
-        backgroundColor: '#f8fafc',
-        borderRadius: 16,
-        padding: 16,
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#0f172a',
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-    },
-    pointsRedeem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: '#fff7ed',
-        padding: 16,
-        borderRadius: 20,
-        borderWidth: 1.5,
-        borderColor: '#ffedd5',
-        marginBottom: 16,
-    },
-    pointsRedeemActive: {
-        backgroundColor: '#f97316',
-        borderColor: '#f97316',
-    },
-    pointsInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    pointsTitle: {
-        fontSize: 14,
-        fontWeight: '900',
-        color: '#0f172a',
-    },
-    pointsSubtitle: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#f97316',
-    },
-    redeemToggle: {
-        width: 24,
-        height: 24,
-        borderRadius: 8,
-        backgroundColor: 'white',
-        borderWidth: 1,
-        borderColor: '#ffedd5',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    redeemToggleActive: {
-        borderColor: 'white',
-    },
-    providerMatchCard: {
-        backgroundColor: 'white',
-        borderRadius: 32,
-        padding: 30,
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#14b8a6',
-        shadowColor: '#14b8a6',
-        shadowOpacity: 0.1,
-        shadowRadius: 15,
-        elevation: 5,
-        marginBottom: 20,
-    },
-    providerAvatar: {
-        width: 80,
-        height: 80,
-        borderRadius: 30,
-        marginBottom: 15,
-    },
-    matchTitle: {
-        fontSize: 12,
-        fontWeight: '900',
-        color: '#14b8a6',
-        letterSpacing: 2,
-        marginBottom: 5,
-    },
-    providerName: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#0f172a',
-        marginBottom: 8,
-    },
-    ratingRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: '#fff7ed',
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 10,
-    },
-    ratingText: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: '#f97316',
-    },
+    successIconOuter: { width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255, 122, 61, 0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 32 },
+    successIconInner: { width: 100, height: 100, borderRadius: 50, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', shadowColor: '#FF7A3D', shadowOpacity: 0.2, shadowRadius: 20, elevation: 10 },
+    successTitle: { fontSize: 26, fontWeight: '900', color: '#1A1612', textAlign: 'center' },
+    successSubtitle: { fontSize: 15, color: '#7A5540', textAlign: 'center', lineHeight: 24, marginTop: 12, paddingHorizontal: 20 },
+    successButtons: { width: '100%', gap: 12, marginTop: 48 },
+    homeBtn: { height: 64, borderRadius: 24, backgroundColor: '#1A1612', alignItems: 'center', justifyContent: 'center' },
+    homeBtnText: { color: 'white', fontSize: 15, fontWeight: '900', letterSpacing: 1 },
+    trackBtn: { height: 60, borderRadius: 24, borderWidth: 2, borderColor: '#F5E6D8', alignItems: 'center', justifyContent: 'center' },
+    trackBtnText: { color: '#B09080', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
+    providerMatchCard: { width: '100%', padding: 24, backgroundColor: 'white', borderRadius: 32, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 20, elevation: 4, marginBottom: 24 },
+    providerAvatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F5E6D8', marginBottom: 16 },
+    matchTitle: { fontSize: 12, fontWeight: '900', color: '#1D9E86', letterSpacing: 1.5, marginBottom: 8 },
+    providerName: { fontSize: 20, fontWeight: '900', color: '#1A1612', marginBottom: 6 },
+    ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    ratingText: { fontSize: 14, fontWeight: '800', color: '#1A1612' },
+    textWhite: { color: 'white' },
+    textWhiteMuted: { color: 'rgba(255,255,255,0.7)' },
+    textPrimary: { color: '#FF7A3D' },
 });

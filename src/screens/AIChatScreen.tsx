@@ -44,6 +44,8 @@ export default function AIChatScreen({ navigation }: any) {
     const [isTyping, setIsTyping] = useState(false);
     const flatListRef = useRef<FlatList>(null);
 
+    const [isHandoverMode, setIsHandoverMode] = useState(false);
+
     const handleSend = async (text: string) => {
         if (!text.trim()) return;
 
@@ -58,7 +60,37 @@ export default function AIChatScreen({ navigation }: any) {
         setInput('');
         setIsTyping(true);
 
+        // Check for handover keywords
+        const lowerText = text.toLowerCase();
+        const needsHandover = lowerText.includes('human') || lowerText.includes('agent') || lowerText.includes('person') || lowerText.includes('real human');
+
         try {
+            if (needsHandover) {
+                setTimeout(() => {
+                    const handoverMsg: Message = {
+                        id: (Date.now() + 1).toString(),
+                        text: "I understand. I'm connecting you to a live Pet Expert right now. Please stay on the line. 🐾",
+                        sender: 'ai',
+                        timestamp: new Date(),
+                    };
+                    setMessages(prev => [...prev, handoverMsg]);
+                    setIsTyping(false);
+                    
+                    // Simulate connection delay
+                    setTimeout(() => {
+                        setIsHandoverMode(true);
+                        const agentMsg: Message = {
+                            id: (Date.now() + 2).toString(),
+                            text: "Hi there! I'm Rahul from the Pawber Support Team. I've seen your query. How can I help you personally today?",
+                            sender: 'ai',
+                            timestamp: new Date(),
+                        };
+                        setMessages(prev => [...prev, agentMsg]);
+                    }, 3000);
+                }, 1000);
+                return;
+            }
+
             const response = await aiApi.chat(text);
             if (response.success && response.data) {
                 const aiMsg: Message = {
@@ -72,29 +104,39 @@ export default function AIChatScreen({ navigation }: any) {
             }
         } catch (error) {
             console.error('Chat error:', error);
+            // Fallback response
+            const aiMsg: Message = {
+                id: (Date.now() + 1).toString(),
+                text: "I'm having a bit of trouble connecting to my brain. Would you like to speak to a real human instead?",
+                sender: 'ai',
+                timestamp: new Date(),
+                suggestions: ["Connect to Agent", "Try again"]
+            };
+            setMessages(prev => [...prev, aiMsg]);
         } finally {
             setIsTyping(false);
         }
     };
 
     const renderMessage = ({ item }: { item: Message }) => (
-        <View style={[
+        <View style={StyleSheet.flatten([
             styles.messageWrapper,
             item.sender === 'user' ? styles.userMessageWrapper : styles.aiMessageWrapper
-        ]}>
+        ])}>
             {item.sender === 'ai' && (
-                <View style={styles.aiAvatar}>
-                    <Bot size={16} color="white" />
+                <View style={[styles.aiAvatar, isHandoverMode && { backgroundColor: '#10B981' }]}>
+                    {isHandoverMode ? <User size={16} color="white" /> : <Bot size={16} color="white" />}
                 </View>
             )}
-            <View style={[
+            <View style={StyleSheet.flatten([
                 styles.messageBubble,
-                item.sender === 'user' ? styles.userBubble : styles.aiBubble
-            ]}>
-                <Text style={[
+                item.sender === 'user' ? styles.userBubble : styles.aiBubble,
+                item.sender === 'ai' && { backgroundColor: colors.surface }
+            ])}>
+                <Text style={StyleSheet.flatten([
                     styles.messageText,
-                    item.sender === 'user' ? styles.userText : styles.aiText
-                ]}>
+                    item.sender === 'user' ? styles.userText : { color: colors.text }
+                ])}>
                     {item.text}
                 </Text>
             </View>
@@ -102,18 +144,22 @@ export default function AIChatScreen({ navigation }: any) {
     );
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-            <View style={[styles.header, { paddingTop: Math.max(insets.top, 16), backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: colors.surfaceSecondary }]}>
+        <SafeAreaView style={StyleSheet.flatten([styles.container, { backgroundColor: colors.background }])}>
+            <View style={StyleSheet.flatten([styles.header, { paddingTop: Math.max(insets.top, 16), backgroundColor: colors.surface, borderBottomColor: colors.border }])}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={StyleSheet.flatten([styles.backBtn, { backgroundColor: colors.surfaceSecondary }])}>
                     <ArrowLeft size={24} color={colors.text} />
                 </TouchableOpacity>
                 <View style={styles.headerInfo}>
-                    <View style={styles.aiStatusIcon}>
-                        <Bot size={18} color="white" />
+                    <View style={[styles.aiStatusIcon, isHandoverMode && { backgroundColor: '#10B981' }]}>
+                        {isHandoverMode ? <User size={18} color="white" /> : <Bot size={18} color="white" />}
                     </View>
                     <View>
-                        <Text style={[styles.headerTitle, { color: colors.text }]}>Pet Concierge</Text>
-                        <Text style={[styles.headerSubtitle, { color: colors.primary }]}>AI Support • Online</Text>
+                        <Text style={StyleSheet.flatten([styles.headerTitle, { color: colors.text }])}>
+                            {isHandoverMode ? 'Rahul (Support Agent)' : 'Pet Concierge'}
+                        </Text>
+                        <Text style={StyleSheet.flatten([styles.headerSubtitle, { color: isHandoverMode ? '#10B981' : colors.primary }])}>
+                            {isHandoverMode ? 'Live Agent • Active' : 'AI Support • Online'}
+                        </Text>
                     </View>
                 </View>
             </View>
@@ -129,21 +175,26 @@ export default function AIChatScreen({ navigation }: any) {
 
             {isTyping && (
                 <View style={styles.typingIndicator}>
-                    <ActivityIndicator size="small" color="#14b8a6" />
-                    <Text style={styles.typingText}>Concierge is thinking...</Text>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={[styles.typingText, { color: colors.textSecondary }]}>
+                        {isHandoverMode ? 'Rahul is typing...' : 'Concierge is thinking...'}
+                    </Text>
                 </View>
             )}
 
             {/* Suggestions */}
-            {messages[messages.length - 1]?.sender === 'ai' && messages[messages.length - 1]?.suggestions && (
-                <View style={[styles.suggestionsContainer, { backgroundColor: 'transparent' }]}>
+            {!isHandoverMode && messages[messages.length - 1]?.sender === 'ai' && messages[messages.length - 1]?.suggestions && (
+                <View style={StyleSheet.flatten([styles.suggestionsContainer, { backgroundColor: 'transparent' }])}>
                     <FlatList
                         horizontal
                         showsHorizontalScrollIndicator={false}
                         data={messages[messages.length - 1].suggestions}
                         renderItem={({ item }) => (
-                            <TouchableOpacity style={[styles.suggestionBtn, { backgroundColor: colors.surface, borderColor: colors.primary }]} onPress={() => handleSend(item)}>
-                                <Text style={[styles.suggestionText, { color: colors.primary }]}>{item}</Text>
+                            <TouchableOpacity 
+                                style={StyleSheet.flatten([styles.suggestionBtn, { backgroundColor: colors.surface, borderColor: colors.primary }])} 
+                                onPress={() => handleSend(item)}
+                            >
+                                <Text style={StyleSheet.flatten([styles.suggestionText, { color: colors.primary }])}>{item}</Text>
                                 <ChevronRight size={14} color={colors.primary} />
                             </TouchableOpacity>
                         )}
@@ -157,18 +208,18 @@ export default function AIChatScreen({ navigation }: any) {
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
-                <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 16) + 8, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-                    <View style={[styles.inputWrapper, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <View style={StyleSheet.flatten([styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 16) + 8, backgroundColor: colors.surface, borderTopColor: colors.border }])}>
+                    <View style={StyleSheet.flatten([styles.inputWrapper, { backgroundColor: colors.background, borderColor: colors.border }])}>
                         <TextInput
-                            style={[styles.input, { maxHeight: 100, color: colors.text }]}
-                            placeholder="Ask me anything about your pets..."
+                            style={StyleSheet.flatten([styles.input, { maxHeight: 100, color: colors.text }])}
+                            placeholder={isHandoverMode ? "Type your message to Rahul..." : "Ask me anything..."}
                             value={input}
                             onChangeText={setInput}
                             multiline
                             placeholderTextColor={colors.textMuted}
                         />
                         <TouchableOpacity 
-                            style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled, { backgroundColor: colors.primary }]} 
+                            style={StyleSheet.flatten([styles.sendBtn, !input.trim() && styles.sendBtnDisabled, { backgroundColor: colors.primary }])} 
                             onPress={() => handleSend(input)}
                             disabled={!input.trim()}
                         >
@@ -182,7 +233,7 @@ export default function AIChatScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f8fafc' },
+    container: { flex: 1, backgroundColor: '#FFF9F5' },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -190,33 +241,33 @@ const styles = StyleSheet.create({
         paddingBottom: 16,
         backgroundColor: 'white',
         borderBottomWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
     },
-    backBtn: { marginRight: 16, width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9' },
+    backBtn: { marginRight: 16, width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5E6D8' },
     headerInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     aiStatusIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#8b5cf6', alignItems: 'center', justifyContent: 'center' },
-    headerTitle: { fontSize: 16, fontWeight: '900', color: '#0f172a' },
-    headerSubtitle: { fontSize: 10, fontWeight: '700', color: '#14b8a6', letterSpacing: 0.5 },
+    headerTitle: { fontSize: 16, fontWeight: '900', color: '#1A1612' },
+    headerSubtitle: { fontSize: 10, fontWeight: '700', color: '#FF7A3D', letterSpacing: 0.5 },
     listContent: { padding: 24, paddingBottom: 100 },
     messageWrapper: { marginBottom: 20, flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
     userMessageWrapper: { justifyContent: 'flex-end' },
     aiMessageWrapper: { justifyContent: 'flex-start' },
-    aiAvatar: { width: 32, height: 32, borderRadius: 12, backgroundColor: '#0f172a', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+    aiAvatar: { width: 32, height: 32, borderRadius: 12, backgroundColor: '#1A1612', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
     messageBubble: { padding: 16, borderRadius: 24, maxWidth: width * 0.75 },
-    userBubble: { backgroundColor: '#0f172a', borderBottomRightRadius: 4 },
+    userBubble: { backgroundColor: '#1A1612', borderBottomRightRadius: 4 },
     aiBubble: { borderBottomLeftRadius: 4, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 1 },
     messageText: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
     userText: { color: 'white' },
-    aiText: { color: '#0f172a' },
+    aiText: { color: '#1A1612' },
     typingIndicator: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, marginBottom: 16 },
-    typingText: { fontSize: 12, color: '#64748b', fontWeight: '800' },
+    typingText: { fontSize: 12, color: '#7A5540', fontWeight: '800' },
     suggestionsContainer: { position: 'absolute', bottom: 100, width: '100%', backgroundColor: 'transparent' },
     suggestionsList: { paddingHorizontal: 24, paddingBottom: 16, gap: 10 },
-    suggestionBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'white', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16, borderWidth: 1, borderColor: '#14b8a6', shadowColor: '#14b8a6', shadowOpacity: 0.05, shadowRadius: 10 },
-    suggestionText: { fontSize: 12, fontWeight: '800', color: '#14b8a6' },
-    inputContainer: { paddingHorizontal: 24, paddingTop: 12, backgroundColor: 'white', borderTopWidth: 1, borderColor: '#f1f5f9' },
-    inputWrapper: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, backgroundColor: '#f8fafc', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1.5, borderColor: '#f1f5f9' },
-    input: { flex: 1, paddingTop: 8, paddingBottom: 8, fontSize: 14, color: '#0f172a', fontWeight: '600' },
-    sendBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#14b8a6', alignItems: 'center', justifyContent: 'center' },
+    suggestionBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'white', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16, borderWidth: 1, borderColor: '#FF7A3D', shadowColor: '#FF7A3D', shadowOpacity: 0.05, shadowRadius: 10 },
+    suggestionText: { fontSize: 12, fontWeight: '800', color: '#FF7A3D' },
+    inputContainer: { paddingHorizontal: 24, paddingTop: 12, backgroundColor: 'white', borderTopWidth: 1, borderColor: '#F5E6D8' },
+    inputWrapper: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, backgroundColor: '#FFF9F5', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1.5, borderColor: '#F5E6D8' },
+    input: { flex: 1, paddingTop: 8, paddingBottom: 8, fontSize: 14, color: '#1A1612', fontWeight: '600' },
+    sendBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#FF7A3D', alignItems: 'center', justifyContent: 'center' },
     sendBtnDisabled: { backgroundColor: '#cbd5e1' },
 });

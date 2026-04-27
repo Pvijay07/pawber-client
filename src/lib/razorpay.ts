@@ -45,9 +45,9 @@ export const initializeRazorpayPayment = (options: RazorpayOptions) => {
     const rzp = new window.Razorpay({
         key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_mock_key',
         ...options,
-        name: 'PetCare',
+        name: 'Pawber',
         theme: {
-            color: '#10b981', // PetCare Primary Color
+            color: '#FF7A3D', // Pawber Primary Color
         },
     });
     rzp.open();

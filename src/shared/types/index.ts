@@ -33,6 +33,9 @@ export interface Pet {
     medical_notes?: string;
     vaccination_status?: string;
     image_url?: string;
+    has_insurance: boolean;
+    is_aggressive: boolean;
+    deleted_at?: string;
     created_at: string;
 }
 

@@ -18,46 +18,34 @@ export const LoyaltyProgress: React.FC<LoyaltyProgressProps> = ({ currentStreak,
         <View style={styles.container}>
             <View style={styles.header}>
                 <View style={styles.titleGroup}>
-                    <Crown size={20} color="#f97316" fill="#f97316" />
-                    <Text style={styles.title}>LOYALTY <Text style={styles.streakText}>STREAK</Text></Text>
+                    <Crown size={20} color="#FF7A3D" fill="#FF7A3D" />
+                    <Text style={styles.title}>Loyalty streak</Text>
                 </View>
                 <View style={styles.statusBadge}>
-                    <Zap size={12} color="#14b8a6" fill="#14b8a6" />
-                    <Text style={styles.statusText}>{isEligible ? 'REWARD READY' : `${currentStreak}/4 MONTHS`}</Text>
+                    <Zap size={14} color="#FF7A3D" fill="#FF7A3D" />
+                    <Text style={styles.statusText}>{isEligible ? 'Reward ready' : `${currentStreak} of 4 months complete`}</Text>
                 </View>
             </View>
 
             <View style={styles.progressContainer}>
-                {steps.map((step, index) => (
-                    <React.Fragment key={step}>
-                        <View style={styles.stepWrapper}>
-                            <View style={[
-                                styles.stepIcon,
-                                currentStreak >= step ? styles.stepActive : styles.stepInactive
-                            ]}>
-                                {currentStreak >= step ? (
-                                    <CheckCircle2 size={24} color="white" />
-                                ) : (
-                                    <Text style={styles.stepNumber}>{step}</Text>
-                                )}
-                            </View>
-                            <Text style={styles.monthLabel}>{progress[index]?.split(' ')[0] || `M${step}`}</Text>
-                        </View>
-                        {step < 4 && <View style={[styles.connector, currentStreak > step && styles.connectorActive]} />}
-                    </React.Fragment>
-                ))}
+                <View style={styles.progressBarBg}>
+                    <View style={StyleSheet.flatten([styles.progressBarFill, { width: `${Math.min((currentStreak / 4) * 100, 100)}%` }])} />
+                </View>
+                <View style={StyleSheet.flatten([styles.rewardChip, isEligible && styles.rewardChipActive])}>
+                    <Gift size={20} color={isEligible ? "white" : "#94A3B8"} />
+                </View>
             </View>
 
-            <View style={[styles.rewardCard, isEligible && styles.rewardCardActive]}>
+            <View style={StyleSheet.flatten([styles.rewardCard, isEligible && styles.rewardCardActive])}>
                 <View style={styles.rewardIconBg}>
-                    <Gift size={24} color={isEligible ? '#14b8a6' : '#94a3b8'} />
+                    <Gift size={24} color={isEligible ? '#FF7A3D' : '#94A3B8'} />
                 </View>
                 <View style={styles.rewardInfo}>
-                    <Text style={styles.rewardTitle}>5th Month Reward</Text>
+                    <Text style={styles.rewardTitle}>5th month reward</Text>
                     <Text style={styles.rewardSubtitle}>
                         {isEligible 
                             ? "Congratulations! Your next service (up to ₹1500) is on us! 🎁" 
-                            : "Keep booking! Complete 4 months to unlock a FREE session."}
+                            : "Keep booking! Complete 4 months to unlock a free session."}
                     </Text>
                 </View>
             </View>
@@ -72,7 +60,7 @@ const styles = StyleSheet.create({
         padding: 24,
         marginHorizontal: 0, // Padding handled by parent Home scroll
         borderWidth: 2,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         shadowColor: '#000',
         shadowOpacity: 0.04,
         shadowRadius: 15,
@@ -91,92 +79,75 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     title: {
-        fontSize: 13,
-        fontWeight: '900',
-        color: '#0f172a',
-        letterSpacing: 1.5,
-    },
-    streakText: {
-        color: '#f97316',
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#1E293B',
     },
     statusBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f0fdfa',
+        backgroundColor: '#FFF3EC',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 12,
         gap: 6,
     },
     statusText: {
-        fontSize: 10,
-        fontWeight: '900',
-        color: '#14b8a6',
+        fontSize: 12,
+        fontWeight: '500',
+        color: '#FF7A3D',
     },
     progressContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 10,
         marginBottom: 24,
+        paddingHorizontal: 4,
     },
-    stepWrapper: {
-        alignItems: 'center',
-        gap: 8,
-        zIndex: 5,
+    progressBarBg: {
+        flex: 1,
+        height: 8,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 4,
+        marginRight: -16, // Underlap the reward chip
+        zIndex: 1,
     },
-    stepIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 20,
+    progressBarFill: {
+        height: '100%',
+        backgroundColor: '#FF7A3D',
+        borderRadius: 4,
+    },
+    rewardChip: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#F8FAFC',
+        borderWidth: 3,
+        borderColor: '#F1F5F9',
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 2,
+        zIndex: 2,
     },
-    stepActive: {
-        backgroundColor: '#f97316',
-        borderColor: '#f97316',
-        shadowColor: '#f97316',
+    rewardChipActive: {
+        backgroundColor: '#FF7A3D',
+        borderColor: '#FFF3EC',
+        shadowColor: '#FF7A3D',
         shadowOpacity: 0.3,
         shadowRadius: 8,
-    },
-    stepInactive: {
-        backgroundColor: '#f8fafc',
-        borderColor: '#e2e8f0',
-    },
-    stepNumber: {
-        fontSize: 16,
-        fontWeight: '900',
-        color: '#94a3b8',
-    },
-    monthLabel: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: '#64748b',
-    },
-    connector: {
-        flex: 1,
-        height: 3,
-        backgroundColor: '#f1f5f9',
-        marginHorizontal: -15,
-        marginTop: -18,
-    },
-    connectorActive: {
-        backgroundColor: '#f97316',
+        elevation: 4,
     },
     rewardCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#F8FAFC',
         borderRadius: 20,
         padding: 16,
         gap: 16,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F1F5F9',
     },
     rewardCardActive: {
-        backgroundColor: '#f0fdfa',
-        borderColor: '#ccfbf1',
+        backgroundColor: '#FFF3EC',
+        borderColor: '#ffedd5',
     },
     rewardIconBg: {
         width: 52,
@@ -194,14 +165,14 @@ const styles = StyleSheet.create({
     },
     rewardTitle: {
         fontSize: 14,
-        fontWeight: '800',
-        color: '#0f172a',
+        fontWeight: '500',
+        color: '#1E293B',
         marginBottom: 4,
     },
     rewardSubtitle: {
-        fontSize: 11,
-        color: '#64748b',
-        fontWeight: '600',
-        lineHeight: 16,
+        fontSize: 12,
+        color: '#64748B',
+        fontWeight: '400',
+        lineHeight: 18,
     },
 });

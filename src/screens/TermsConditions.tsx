@@ -13,11 +13,11 @@ export default function TermsConditions({ navigation }: any) {
     const terms = [
         {
             title: "1. Acceptance of Terms",
-            content: "By accessing and using the PetCare application, you agree to be bound by these Terms and Conditions. If you do not agree to all of these terms, do not use the service."
+            content: "By accessing and using the Pawber application, you agree to be bound by these Terms and Conditions. If you do not agree to all of these terms, do not use the service."
         },
         {
             title: "2. Service Description",
-            content: "PetCare provides a platform for pet owners to book various pet services, including grooming, vet visits, and walking. We act as an intermediary between users and service providers."
+            content: "Pawber provides a platform for pet owners to book various pet services, including grooming, vet visits, and walking. We act as an intermediary between users and service providers."
         },
         {
             title: "3. User Responsibilities",
@@ -29,7 +29,7 @@ export default function TermsConditions({ navigation }: any) {
         },
         {
             title: "5. Limitation of Liability",
-            content: "PetCare is not liable for any direct, indirect, incidental, or consequential damages resulting from the use or inability to use our services."
+            content: "Pawber is not liable for any direct, indirect, incidental, or consequential damages resulting from the use or inability to use our services."
         }
     ];
 
@@ -39,7 +39,7 @@ export default function TermsConditions({ navigation }: any) {
                 {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                        <ChevronLeft size={24} color="#0f172a" />
+                        <ChevronLeft size={24} color="#1A1612" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Terms & Conditions</Text>
                 </View>
@@ -62,7 +62,7 @@ export default function TermsConditions({ navigation }: any) {
 
                     <View style={styles.acknowledgment}>
                         <Text style={styles.acknowledgmentText}>
-                            By continuing to use PetCare, you acknowledge that you have read and understood these Terms and Conditions.
+                            By continuing to use Pawber, you acknowledge that you have read and understood these Terms and Conditions.
                         </Text>
                     </View>
                 </ScrollView>
@@ -92,14 +92,14 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         backgroundColor: 'white',
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         alignItems: 'center',
         justifyContent: 'center',
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
     },
     scrollContent: {
         paddingHorizontal: 20,
@@ -111,14 +111,14 @@ const styles = StyleSheet.create({
         borderRadius: 32,
         padding: 24,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         shadowColor: '#000',
         shadowOpacity: 0.02,
         shadowOffset: { width: 0, height: 4 },
     },
     introText: {
         fontSize: 14,
-        color: '#64748b',
+        color: '#7A5540',
         lineHeight: 22,
         marginBottom: 32,
         fontWeight: '500',
@@ -132,29 +132,29 @@ const styles = StyleSheet.create({
     termTitle: {
         fontSize: 12,
         fontWeight: '900',
-        color: '#0f172a',
+        color: '#1A1612',
         letterSpacing: 1,
         textTransform: 'uppercase',
     },
     termContent: {
         fontSize: 13,
-        color: '#64748b',
+        color: '#7A5540',
         lineHeight: 20,
         fontWeight: '500',
     },
     acknowledgment: {
         marginTop: 24,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         borderRadius: 24,
         padding: 24,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         borderStyle: 'dashed',
         alignItems: 'center',
     },
     acknowledgmentText: {
         fontSize: 12,
-        color: '#94a3b8',
+        color: '#B09080',
         fontWeight: 'bold',
         fontStyle: 'italic',
         textAlign: 'center',

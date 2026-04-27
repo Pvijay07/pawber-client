@@ -111,7 +111,7 @@ export default function KYCScreen({ navigation }: any) {
                     <View style={styles.captureBtnInner} />
                 </TouchableOpacity>
                 <TouchableOpacity 
-                    style={[styles.closeCamera, { top: insets.top + 20 }]} 
+                    style={StyleSheet.flatten([styles.closeCamera, { top: insets.top + 20 }])} 
                     onPress={() => setIsCameraActive(false)}
                 >
                     <ChevronLeft size={30} color="white" />
@@ -121,44 +121,44 @@ export default function KYCScreen({ navigation }: any) {
     }
 
     return (
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <SafeAreaView style={StyleSheet.flatten([styles.safeArea, { backgroundColor: colors.background }])}>
             <View style={styles.container}>
                 {/* Header */}
-                <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: colors.surface }]}>
+                <View style={StyleSheet.flatten([styles.header, { paddingTop: Math.max(insets.top, 16) }])}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={StyleSheet.flatten([styles.backBtn, { backgroundColor: colors.surface }])}>
                         <ChevronLeft size={24} color={colors.text} />
                     </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: colors.text }]}>Identity Verification</Text>
+                    <Text style={StyleSheet.flatten([styles.headerTitle, { color: colors.text }])}>Identity Verification</Text>
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                     {/* Progress Indicator */}
                     <View style={styles.progressRow}>
-                        <View style={[styles.progressStep, { backgroundColor: colors.primary }]}>
+                        <View style={StyleSheet.flatten([styles.progressStep, { backgroundColor: colors.primary }])}>
                             <Text style={styles.progressStepText}>1</Text>
                         </View>
-                        <View style={[styles.progressLine, { backgroundColor: step >= 2 ? colors.primary : colors.border }]} />
-                        <View style={[styles.progressStep, { backgroundColor: step >= 2 ? colors.primary : colors.surface }]}>
-                            <Text style={[styles.progressStepText, { color: step >= 2 ? 'white' : colors.textSecondary }]}>2</Text>
+                        <View style={StyleSheet.flatten([styles.progressLine, { backgroundColor: step >= 2 ? colors.primary : colors.border }])} />
+                        <View style={StyleSheet.flatten([styles.progressStep, { backgroundColor: step >= 2 ? colors.primary : colors.surface }])}>
+                            <Text style={StyleSheet.flatten([styles.progressStepText, { color: step >= 2 ? 'white' : colors.textSecondary }])}>2</Text>
                         </View>
                     </View>
 
                     <View style={styles.infoBox}>
                         <ShieldCheck size={24} color={colors.primary} />
-                        <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+                        <Text style={StyleSheet.flatten([styles.infoText, { color: colors.textSecondary }])}>
                             Verification helps build trust with clients and secures your provider status.
                         </Text>
                     </View>
 
                     {step === 1 ? (
                         <View style={styles.stepContainer}>
-                            <Text style={[styles.stepTitle, { color: colors.text }]}>Take a Live Selfie</Text>
-                            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>
+                            <Text style={StyleSheet.flatten([styles.stepTitle, { color: colors.text }])}>Take a Live Selfie</Text>
+                            <Text style={StyleSheet.flatten([styles.stepDesc, { color: colors.textSecondary }])}>
                                 Make sure your face is clearly visible and well-lit.
                             </Text>
 
                             <TouchableOpacity 
-                                style={[styles.uploadBox, selfie && { borderColor: colors.primary, backgroundColor: colors.primaryLight }]}
+                                style={StyleSheet.flatten([styles.uploadBox, selfie && { borderColor: colors.primary, backgroundColor: colors.primaryLight }])}
                                 onPress={() => setIsCameraActive(true)}
                             >
                                 {selfie ? (
@@ -166,7 +166,7 @@ export default function KYCScreen({ navigation }: any) {
                                 ) : (
                                     <>
                                         <CameraIcon size={40} color={colors.primary} />
-                                        <Text style={[styles.uploadText, { color: colors.primary }]}>Capture Live Photo</Text>
+                                        <Text style={StyleSheet.flatten([styles.uploadText, { color: colors.primary }])}>Capture Live Photo</Text>
                                     </>
                                 )}
                             </TouchableOpacity>
@@ -174,19 +174,19 @@ export default function KYCScreen({ navigation }: any) {
                             {selfie && (
                                 <TouchableOpacity style={styles.retryBtn} onPress={() => setIsCameraActive(true)}>
                                     <RefreshCcw size={16} color={colors.textSecondary} />
-                                    <Text style={[styles.retryText, { color: colors.textSecondary }]}>Retake Photo</Text>
+                                    <Text style={StyleSheet.flatten([styles.retryText, { color: colors.textSecondary }])}>Retake Photo</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
                     ) : (
                         <View style={styles.stepContainer}>
-                            <Text style={[styles.stepTitle, { color: colors.text }]}>Upload Identity Proof</Text>
-                            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>
+                            <Text style={StyleSheet.flatten([styles.stepTitle, { color: colors.text }])}>Upload Identity Proof</Text>
+                            <Text style={StyleSheet.flatten([styles.stepDesc, { color: colors.textSecondary }])}>
                                 Upload a clear photo of your Govt. ID (Aadhar, PAN, or DL).
                             </Text>
 
                             <TouchableOpacity 
-                                style={[styles.uploadBox, docImage && { borderColor: colors.primary, backgroundColor: colors.primaryLight }]}
+                                style={StyleSheet.flatten([styles.uploadBox, docImage && { borderColor: colors.primary, backgroundColor: colors.primaryLight }])}
                                 onPress={pickDocument}
                             >
                                 {docImage ? (
@@ -194,7 +194,7 @@ export default function KYCScreen({ navigation }: any) {
                                 ) : (
                                     <>
                                         <FileText size={40} color={colors.primary} />
-                                        <Text style={[styles.uploadText, { color: colors.primary }]}>Select ID Document</Text>
+                                        <Text style={StyleSheet.flatten([styles.uploadText, { color: colors.primary }])}>Select ID Document</Text>
                                     </>
                                 )}
                             </TouchableOpacity>
@@ -202,17 +202,17 @@ export default function KYCScreen({ navigation }: any) {
                             {docImage && (
                                 <TouchableOpacity style={styles.retryBtn} onPress={pickDocument}>
                                     <Upload size={16} color={colors.textSecondary} />
-                                    <Text style={[styles.retryText, { color: colors.textSecondary }]}>Change Document</Text>
+                                    <Text style={StyleSheet.flatten([styles.retryText, { color: colors.textSecondary }])}>Change Document</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
                     )}
                 </ScrollView>
 
-                <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 10 }]}>
+                <View style={StyleSheet.flatten([styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 10 }])}>
                     {step === 1 ? (
                         <TouchableOpacity 
-                            style={[styles.primaryBtn, !selfie && styles.disabledBtn, { backgroundColor: colors.primary }]}
+                            style={StyleSheet.flatten([styles.primaryBtn, !selfie && styles.disabledBtn, { backgroundColor: colors.primary }])}
                             disabled={!selfie}
                             onPress={() => setStep(2)}
                         >
@@ -220,11 +220,11 @@ export default function KYCScreen({ navigation }: any) {
                         </TouchableOpacity>
                     ) : (
                         <View style={styles.footerBtns}>
-                            <TouchableOpacity style={[styles.secondaryBtn, { backgroundColor: colors.surface }]} onPress={() => setStep(1)}>
-                                <Text style={[styles.secondaryBtnText, { color: colors.text }]}>BACK</Text>
+                            <TouchableOpacity style={StyleSheet.flatten([styles.secondaryBtn, { backgroundColor: colors.surface }])} onPress={() => setStep(1)}>
+                                <Text style={StyleSheet.flatten([styles.secondaryBtnText, { color: colors.text }])}>BACK</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
-                                style={[styles.primaryBtn, { flex: 2, backgroundColor: colors.primary }, (!docImage || isSubmitting) && styles.disabledBtn]}
+                                style={StyleSheet.flatten([styles.primaryBtn, { flex: 2, backgroundColor: colors.primary }, (!docImage || isSubmitting) && styles.disabledBtn])}
                                 disabled={!docImage || isSubmitting}
                                 onPress={handleSubmit}
                             >
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     stepContainer: { alignItems: 'center' },
     stepTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
     stepDesc: { fontSize: 14, textAlign: 'center', marginBottom: 32, lineHeight: 20 },
-    uploadBox: { width: '100%', aspectRatio: 4/3, borderRadius: 24, borderStyle: 'dashed', borderWidth: 2, borderColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', overflow: 'hidden' },
+    uploadBox: { width: '100%', aspectRatio: 4/3, borderRadius: 24, borderStyle: 'dashed', borderWidth: 2, borderColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF9F5', overflow: 'hidden' },
     uploadText: { marginTop: 12, fontWeight: 'bold', fontSize: 14 },
     previewImage: { width: '100%', height: '100%' },
     retryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16 },

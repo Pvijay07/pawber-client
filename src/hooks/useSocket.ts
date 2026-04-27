@@ -9,25 +9,36 @@ export const useSocket = () => {
     const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
+        let isMounted = true;
+
         const initSocket = async () => {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
+            if (!session || !isMounted) return;
 
+            // Disconnect existing socket if any
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+            }
+
+            console.log('Connecting to socket at:', SOCKET_URL);
+            
             // Initialize socket with authentication
             const socket = io(SOCKET_URL, {
                 auth: {
                     token: session.access_token
                 },
-                transports: ['websocket']
+                transports: ['websocket'],
+                reconnection: true,
+                reconnectionAttempts: 5,
             });
 
             socket.on('connect', () => {
-                console.log('Socket.io connected');
+                console.log('Socket.io connected:', socket.id);
                 setIsConnected(true);
             });
 
-            socket.on('disconnect', () => {
-                console.log('Socket.io disconnected');
+            socket.on('disconnect', (reason) => {
+                console.log('Socket.io disconnected:', reason);
                 setIsConnected(false);
             });
 
@@ -38,11 +49,25 @@ export const useSocket = () => {
             socketRef.current = socket;
         };
 
-        if (!socketRef.current) {
-            initSocket();
-        }
+        // Initialize on mount
+        initSocket();
+
+        // Listen for auth changes to re-init socket
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                initSocket();
+            } else if (event === 'SIGNED_OUT') {
+                if (socketRef.current) {
+                    socketRef.current.disconnect();
+                    socketRef.current = null;
+                }
+                setIsConnected(false);
+            }
+        });
 
         return () => {
+            isMounted = false;
+            subscription.unsubscribe();
             if (socketRef.current) {
                 socketRef.current.disconnect();
                 socketRef.current = null;

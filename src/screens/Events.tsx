@@ -64,7 +64,7 @@ export default function Events({ navigation }: any) {
                             <View style={styles.ticketHeader}>
                                 <Text style={styles.ticketHeaderTitle}>Your Ticket</Text>
                                 <TouchableOpacity onPress={() => setShowTicket(false)} style={styles.closeBtn}>
-                                    <X size={20} color="#64748b" />
+                                    <X size={20} color="#7A5540" />
                                 </TouchableOpacity>
                             </View>
 
@@ -77,7 +77,7 @@ export default function Events({ navigation }: any) {
                                 </Text>
 
                                 <View style={styles.qrContainer}>
-                                    <QrCode size={180} color="#0f172a" />
+                                    <QrCode size={180} color="#1A1612" />
                                 </View>
 
                                 <Text style={styles.ticketId}>TICKET #8472910</Text>
@@ -116,8 +116,8 @@ export default function Events({ navigation }: any) {
 
                                 <View style={styles.modalFields}>
                                     <View style={styles.modalField}>
-                                        <View style={[styles.fieldIconBox, { backgroundColor: '#fff7ed' }]}>
-                                            <Calendar size={20} color="#f97316" />
+                                        <View style={StyleSheet.flatten([styles.fieldIconBox, { backgroundColor: '#E0F5F0' }])}>
+                                            <Calendar size={20} color="#1D9E86" />
                                         </View>
                                         <View>
                                             <Text style={styles.fieldLabel}>
@@ -134,8 +134,8 @@ export default function Events({ navigation }: any) {
                                     </View>
 
                                     <View style={styles.modalField}>
-                                        <View style={[styles.fieldIconBox, { backgroundColor: '#f0fdfa' }]}>
-                                            <MapPin size={20} color="#14b8a6" />
+                                        <View style={StyleSheet.flatten([styles.fieldIconBox, { backgroundColor: '#FFF3EC' }])}>
+                                            <MapPin size={20} color="#FF7A3D" />
                                         </View>
                                         <View>
                                             <Text style={styles.fieldLabel}>{selectedEvent?.location}</Text>
@@ -155,7 +155,7 @@ export default function Events({ navigation }: any) {
                                             <Image
                                                 key={i}
                                                 source={{ uri: `https://i.pravatar.cc/100?img=${i + 10}` }}
-                                                style={[styles.attendeeAvatar, { marginLeft: i === 0 ? 0 : -10 }]}
+                                                style={StyleSheet.flatten([styles.attendeeAvatar, { marginLeft: i === 0 ? 0 : -10 }])}
                                             />
                                         ))}
                                     </View>
@@ -187,18 +187,18 @@ export default function Events({ navigation }: any) {
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>Pet Events</Text>
                     <View style={styles.searchContainer}>
-                        <Search size={20} color="#94a3b8" style={styles.searchIcon} />
+                        <Search size={20} color="#B09080" style={styles.searchIcon} />
                         <TextInput
                             placeholder="Search events..."
                             style={styles.searchInput}
-                            placeholderTextColor="#94a3b8"
+                            placeholderTextColor="#B09080"
                         />
                     </View>
                 </View>
                 
                 {isLoading ? (
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                        <ActivityIndicator size="large" color="#14b8a6" />
+                        <ActivityIndicator size="large" color="#FF7A3D" />
                     </View>
                 ) : (
                     <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
@@ -223,20 +223,20 @@ export default function Events({ navigation }: any) {
                                     <Text style={styles.eventTitle}>{event.title}</Text>
                                     <View style={styles.eventMeta}>
                                         <View style={styles.metaRow}>
-                                            <Calendar size={14} color="#f97316" />
+                                            <Calendar size={14} color="#1D9E86" />
                                             <Text style={styles.metaText}>
                                                 {event.event_date ? new Date(event.event_date).toLocaleDateString() : 'TBD'}
                                             </Text>
                                         </View>
                                         <View style={styles.metaRow}>
-                                            <MapPin size={14} color="#14b8a6" />
+                                            <MapPin size={14} color="#FF7A3D" />
                                             <Text style={styles.metaText} numberOfLines={1}>{event.location}</Text>
                                         </View>
                                     </View>
 
                                     <View style={styles.eventFooter}>
                                         <View style={styles.attendeeRowSmall}>
-                                            <Users size={14} color="#64748b" />
+                                            <Users size={14} color="#7A5540" />
                                             <Text style={styles.attendeeCountText}>{event.tickets_sold || 0} attending</Text>
                                         </View>
                                         <TouchableOpacity style={styles.detailsTag}>
@@ -277,12 +277,12 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         marginBottom: 20,
     },
     searchContainer: {
         position: 'relative',
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         borderRadius: 20,
         height: 56,
         justifyContent: 'center',
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     searchInput: {
         fontSize: 16,
         paddingLeft: 32,
-        color: '#0f172a',
+        color: '#1A1612',
     },
     listContainer: {
         padding: 24,
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowOffset: { width: 0, height: 10 },
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
     },
     eventImage: {
         width: '100%',
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     priceText: {
         fontSize: 14,
         fontWeight: '900',
-        color: '#14b8a6',
+        color: '#FF7A3D',
     },
     eventInfo: {
         padding: 24,
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     eventTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         marginBottom: 12,
     },
     eventMeta: {
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     },
     metaText: {
         fontSize: 13,
-        color: '#64748b',
+        color: '#7A5540',
         fontWeight: '500',
     },
     eventFooter: {
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingTop: 16,
         borderTopWidth: 1,
-        borderTopColor: '#f1f5f9',
+        borderTopColor: '#F5E6D8',
     },
     attendeeRowSmall: {
         flexDirection: 'row',
@@ -367,11 +367,11 @@ const styles = StyleSheet.create({
     },
     attendeeCountText: {
         fontSize: 12,
-        color: '#64748b',
+        color: '#7A5540',
         fontWeight: '600',
     },
     detailsTag: {
-        backgroundColor: '#f0fdfa',
+        backgroundColor: '#FFF3EC',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 10,
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     detailsTagText: {
         fontSize: 10,
         fontWeight: '900',
-        color: '#14b8a6',
+        color: '#FF7A3D',
         letterSpacing: 0.5,
     },
     modalOverlay: {
@@ -430,11 +430,11 @@ const styles = StyleSheet.create({
     modalTitle: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         flex: 1,
     },
     modalPriceBadge: {
-        backgroundColor: '#f0fdfa',
+        backgroundColor: '#FFF3EC',
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 14,
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     modalPriceText: {
         fontSize: 16,
         fontWeight: '900',
-        color: '#14b8a6',
+        color: '#FF7A3D',
     },
     modalFields: {
         gap: 16,
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 16,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         padding: 16,
         borderRadius: 24,
     },
@@ -468,12 +468,12 @@ const styles = StyleSheet.create({
     fieldLabel: {
         fontSize: 15,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         marginBottom: 2,
     },
     fieldSub: {
         fontSize: 12,
-        color: '#94a3b8',
+        color: '#B09080',
         fontWeight: '600',
     },
     modalDescContainer: {
@@ -482,12 +482,12 @@ const styles = StyleSheet.create({
     descTitle: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         marginBottom: 12,
     },
     descText: {
         fontSize: 14,
-        color: '#64748b',
+        color: '#7A5540',
         lineHeight: 22,
         fontWeight: '500',
     },
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     },
     attendeesText: {
         fontSize: 13,
-        color: '#64748b',
+        color: '#7A5540',
         fontWeight: '600',
     },
     modalFooter: {
@@ -517,17 +517,17 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
         backgroundColor: 'white',
         borderTopWidth: 1,
-        borderTopColor: '#f1f5f9',
+        borderTopColor: '#F5E6D8',
     },
     ticketBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 10,
-        backgroundColor: '#14b8a6',
+        backgroundColor: '#FF7A3D',
         height: 64,
         borderRadius: 24,
-        shadowColor: '#14b8a6',
+        shadowColor: '#FF7A3D',
         shadowOpacity: 0.3,
         shadowOffset: { width: 0, height: 10 },
     },
@@ -552,19 +552,19 @@ const styles = StyleSheet.create({
     ticketHeaderTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
     },
     closeBtn: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#f1f5f9',
+        backgroundColor: '#F5E6D8',
         alignItems: 'center',
         justifyContent: 'center',
     },
     ticketCard: {
         width: '100%',
-        backgroundColor: '#f0fdfa',
+        backgroundColor: '#FFF3EC',
         borderRadius: 40,
         padding: 40,
         alignItems: 'center',
@@ -596,13 +596,13 @@ const styles = StyleSheet.create({
     ticketEventTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         textAlign: 'center',
         marginBottom: 8,
     },
     ticketEventSub: {
         fontSize: 14,
-        color: '#14b8a6',
+        color: '#FF7A3D',
         fontWeight: '600',
         marginBottom: 40,
     },
@@ -618,13 +618,13 @@ const styles = StyleSheet.create({
     ticketId: {
         fontSize: 12,
         fontWeight: '900',
-        color: '#94a3b8',
+        color: '#B09080',
         letterSpacing: 2,
     },
     closeModalBtn: {
         width: '100%',
         height: 64,
-        backgroundColor: '#0f172a',
+        backgroundColor: '#1A1612',
         borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',

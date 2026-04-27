@@ -63,24 +63,24 @@ export default function ForgotPassword({ navigation }: any) {
                 style={styles.container}
             >
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <ArrowLeft size={24} color="#0f172a" />
+                    <ArrowLeft size={24} color="#1A1612" />
                 </TouchableOpacity>
 
                 <View style={styles.content}>
                     <View style={styles.iconBox}>
-                        <KeyRound size={40} color="#f97316" />
+                        <KeyRound size={40} color="#1D9E86" />
                     </View>
 
                     <Text style={styles.title}>Reset Password</Text>
                     <Text style={styles.subtitle}>No worries, we'll send you a link to reset your password.</Text>
 
                     <View style={styles.form}>
-                        <View style={[styles.inputContainer, emailError ? styles.inputError : null]}>
-                            <Mail size={20} color={emailError ? '#ef4444' : '#94a3b8'} style={styles.inputIcon} />
+                        <View style={StyleSheet.flatten([styles.inputContainer, emailError ? styles.inputError : null])}>
+                            <Mail size={20} color={emailError ? '#ef4444' : '#B09080'} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="Enter your email"
-                                placeholderTextColor="#94a3b8"
+                                placeholderTextColor="#B09080"
                                 value={email}
                                 onChangeText={(val) => { setEmail(val); setEmailError(''); }}
                                 autoCapitalize="none"
@@ -97,14 +97,14 @@ export default function ForgotPassword({ navigation }: any) {
                         )}
 
                         {success && (
-                            <View style={[styles.alertBox, styles.successBox]}>
-                                <CheckCircle2 size={18} color="#14b8a6" />
-                                <Text style={[styles.alertText, styles.successText]}>{success}</Text>
+                            <View style={StyleSheet.flatten([styles.alertBox, styles.successBox])}>
+                                <CheckCircle2 size={18} color="#FF7A3D" />
+                                <Text style={StyleSheet.flatten([styles.alertText, styles.successText])}>{success}</Text>
                             </View>
                         )}
 
                         <TouchableOpacity
-                            style={[styles.resetBtn, (isLoading || !!success) && styles.resetBtnDisabled]}
+                            style={StyleSheet.flatten([styles.resetBtn, (isLoading || !!success) && styles.resetBtnDisabled])}
                             onPress={handleReset}
                             disabled={isLoading || !!success}
                         >
@@ -143,12 +143,12 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 16,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         alignItems: 'center',
         justifyContent: 'center',
         marginTop: 20,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
     },
     content: {
         flex: 1,
@@ -158,24 +158,24 @@ const styles = StyleSheet.create({
     iconBox: {
         width: 80,
         height: 80,
-        backgroundColor: '#fff7ed',
+        backgroundColor: '#E0F5F0',
         borderRadius: 32,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 24,
-        shadowColor: '#f97316',
+        shadowColor: '#1D9E86',
         shadowOpacity: 0.1,
         shadowOffset: { width: 0, height: 10 },
     },
     title: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         marginBottom: 12,
     },
     subtitle: {
         fontSize: 15,
-        color: '#64748b',
+        color: '#7A5540',
         textAlign: 'center',
         lineHeight: 22,
         fontWeight: '500',
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         borderRadius: 20,
         height: 64,
         paddingHorizontal: 20,
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 16,
         fontWeight: '500',
-        color: '#0f172a',
+        color: '#1A1612',
     },
     errorText: {
         fontSize: 10,
@@ -235,14 +235,14 @@ const styles = StyleSheet.create({
         lineHeight: 18,
     },
     successBox: {
-        backgroundColor: '#f0fdfa',
+        backgroundColor: '#FFF3EC',
         borderColor: '#ccfbf1',
     },
     successText: {
-        color: '#14b8a6',
+        color: '#FF7A3D',
     },
     resetBtn: {
-        backgroundColor: '#0f172a',
+        backgroundColor: '#1A1612',
         height: 64,
         borderRadius: 24,
         flexDirection: 'row',
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 10 },
     },
     resetBtnDisabled: {
-        backgroundColor: '#f1f5f9',
+        backgroundColor: '#F5E6D8',
         shadowOpacity: 0,
     },
     resetBtnText: {
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     },
     footerText: {
         fontSize: 14,
-        color: '#64748b',
+        color: '#7A5540',
         fontWeight: '500',
     },
     footerLink: {

@@ -10,3 +10,5 @@ export { reviewsApi } from './reviews.service';
 export { slotsApi } from './slots.service';
 export { paymentsApi } from './payments.service';
 export { eventsApi } from './events.service';
+export { loyaltyApi } from './loyalty.service';
+export { aiApi } from './ai.service';

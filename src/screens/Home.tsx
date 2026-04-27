@@ -89,7 +89,7 @@ export default function Home({ navigation }: HomeProps) {
 
     const fetchData = async () => {
         try {
-            const [content, wallet, pets, profile, loyalty, categoriesRes, bookingsRes] = await Promise.all([
+            const results = await Promise.allSettled([
                 contentService.getHomepageContent(),
                 walletService.get(),
                 petsService.list(),
@@ -99,20 +99,31 @@ export default function Home({ navigation }: HomeProps) {
                 bookingsApi.list({ status: 'confirmed,in_progress', limit: 1 })
             ]);
 
-            if ((content as any)?.content) setHomepageContent((content as any).content);
+            // Helper to get result data
+            const getRes = (idx: number) => results[idx].status === 'fulfilled' ? (results[idx] as any).value : null;
+
+            const content = getRes(0);
+            const wallet = getRes(1);
+            const pets = getRes(2);
+            const profile = getRes(3);
+            const loyalty = getRes(4);
+            const categoriesRes = getRes(5);
+            const bookingsRes = getRes(6);
+
+            if (content?.content) setHomepageContent(content.content);
             if (wallet?.success && wallet.data) setWalletData(wallet.data.wallet);
             if (pets?.success && pets.data) setPetsCount(pets.data.pets.length);
             if (profile?.data?.user) setUser(profile.data.user);
             if (loyalty?.success && loyalty.data) setLoyaltyStatus(loyalty.data);
             
             // Handle Categories (Final Dynamic Services)
-            if ((categoriesRes as any)?.success && (categoriesRes as any).data?.categories) {
-                setServices((categoriesRes as any).data.categories);
+            if (categoriesRes?.success && categoriesRes.data?.categories) {
+                setServices(categoriesRes.data.categories);
             }
 
             // Handle Upcoming Booking
-            if ((bookingsRes as any)?.success && (bookingsRes as any).data?.bookings?.[0]) {
-                setUpcomingBooking((bookingsRes as any).data.bookings[0]);
+            if (bookingsRes?.success && bookingsRes.data?.bookings?.[0]) {
+                setUpcomingBooking(bookingsRes.data.bookings[0]);
             }
 
             // Load Address from AsyncStorage
@@ -202,7 +213,7 @@ export default function Home({ navigation }: HomeProps) {
                     </View>
                 </View>
 
-                {/* dynamic Banners */}
+                {/* dynamic Banners - Moved to Top */}
                 {banners.length > 0 && (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} pagingEnabled style={styles.bannerScroll}>
                         {banners.map((banner: any, index: number) => (
@@ -221,6 +232,20 @@ export default function Home({ navigation }: HomeProps) {
                     </ScrollView>
                 )}
 
+                {/* Search */}
+                <View style={styles.searchContainer}>
+                    <View style={styles.searchWrapper}>
+                        <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
+                        <TextInput
+                            placeholder="What does your pet need today?"
+                            style={[styles.searchInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                            placeholderTextColor={colors.textMuted}
+                        />
+                    </View>
+                </View>
+
+                {/* Commented out per User Request: Loyalty, Emergency, Stats */}
+                {/* 
                 <View style={{ paddingHorizontal: 24 }}>
                     <LoyaltyProgress 
                         currentStreak={loyaltyStatus?.currentStreak || 0} 
@@ -229,7 +254,6 @@ export default function Home({ navigation }: HomeProps) {
                     />
                 </View>
 
-                {/* Quick Actions */}
                 <View style={styles.quickActions}>
                     <TouchableOpacity
                         style={[styles.quickActionBtn, { backgroundColor: '#fef2f2', borderColor: '#fee2e2' }]}
@@ -252,7 +276,6 @@ export default function Home({ navigation }: HomeProps) {
                     </TouchableOpacity>
                 </View>
 
-                {/* Stats */}
                 <View style={styles.statsRow}>
                     <View style={[styles.walletCard, { backgroundColor: isDark ? colors.surface : '#0f172a' }]}>
                         <View style={styles.walletHeader}>
@@ -281,6 +304,7 @@ export default function Home({ navigation }: HomeProps) {
                         <Text style={styles.petsLabel}>MY PETS</Text>
                     </TouchableOpacity>
                 </View>
+                */}
 
                 {/* Services Section */}
                 <View style={styles.sectionHeader}>
@@ -288,13 +312,19 @@ export default function Home({ navigation }: HomeProps) {
                 </View>
 
                 <View style={styles.servicesGrid}>
-                    {services.map((service) => {
+                    {(services.length > 0 ? services : [
+                        { id: 'grooming', name: 'Grooming' },
+                        { id: 'health', name: 'Veterinary' },
+                        { id: 'stay', name: 'Boarding' },
+                        { id: 'exercise', name: 'Dog Walking' },
+                        { id: 'training', name: 'Training' }
+                    ]).map((service) => {
                         const visuals = getServiceVisuals(service.name);
                         return (
                             <TouchableOpacity
                                 key={service.id}
                                 style={[styles.serviceItem, { width: serviceItemWidth }]}
-                                onPress={() => navigation.navigate('PackageSelection', { categoryId: service.id })}
+                                onPress={() => navigation.navigate('PackageSelection', { categoryId: service.id, serviceId: service.id })}
                             >
                                 <View style={[styles.serviceIcon, { backgroundColor: isDark ? colors.surface : visuals.bgColor }]}>
                                     {renderIcon(visuals.icon, 28, visuals.color)}
@@ -309,10 +339,6 @@ export default function Home({ navigation }: HomeProps) {
                 <View style={styles.howItWorksContainer}>
                     <View style={styles.sectionHeader}>
                         <Text style={[styles.sectionTitle, { color: colors.text }]}>HOW IT WORKS</Text>
-                        <View style={[styles.guideBadge, { backgroundColor: colors.primaryLight, borderColor: colors.primary + '33' }]}>
-                            <Info size={12} color={colors.primary} />
-                            <Text style={[styles.guideText, { color: colors.primary }]}>EASY GUIDE</Text>
-                        </View>
                     </View>
                     
                     <View style={styles.stepsWrapper}>
@@ -322,44 +348,22 @@ export default function Home({ navigation }: HomeProps) {
                                     <View style={[styles.stepCircleInner, { backgroundColor: colors.background }]}>
                                         {renderIcon(step.icon, 22, colors.text)}
                                     </View>
-                                    <View style={[styles.stepNumberBadge, { backgroundColor: colors.text, borderColor: colors.background }]}>
-                                        <Text style={[styles.stepNumber, { color: colors.background }]}>{index + 1}</Text>
-                                    </View>
                                 </View>
                                 <Text style={[styles.stepTitleText, { color: colors.text }]}>{step.title}</Text>
                                 <Text style={[styles.stepDescText, { color: colors.textSecondary }]}>{step.description}</Text>
-                                {index < howItWorksSteps.length - 1 && (
-                                    <View style={[styles.stepConnector, { backgroundColor: colors.border }]} />
-                                )}
                             </View>
                         ))}
                     </View>
                 </View>
 
+                {/* Commented out Upcoming per User Request */}
+                {/* 
                 {upcomingBooking && (
                     <View style={styles.upcomingSection}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={[styles.sectionTitle, { color: colors.text }]}>UPCOMING SESSION</Text>
-                            <View style={[styles.timeTag, { backgroundColor: colors.primaryLight }]}>
-                                <Clock size={12} color={colors.primary} />
-                                <Text style={[styles.timeTagText, { color: colors.primary }]}>
-                                    {new Date(upcomingBooking.booking_date).toLocaleDateString()} • {new Date(upcomingBooking.booking_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </Text>
-                            </View>
-                        </View>
-
-                        <TouchableOpacity style={[styles.appointmentCard, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Bookings')}>
-                            <View style={[styles.appointmentIcon, { backgroundColor: isDark ? colors.surfaceSecondary : '#fff7ed' }]}>
-                                <Sparkles size={22} color={colors.accent} />
-                            </View>
-                            <View style={styles.appointmentInfo}>
-                                <Text style={[styles.appointmentTitle, { color: colors.text }]}>{upcomingBooking.service?.name || 'Pet Service'}</Text>
-                                <Text style={styles.appointmentDate}>{upcomingBooking.booking_pets?.[0]?.pet?.name || 'Your Pet'} • {upcomingBooking.address || 'Your Location'}</Text>
-                            </View>
-                            <ChevronRight size={18} color={colors.textMuted} />
-                        </TouchableOpacity>
+                        ...
                     </View>
                 )}
+                */}
             </ScrollView>
 
             {/* Floating AI Assistant Button */}

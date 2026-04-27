@@ -35,7 +35,7 @@ export default function PrivacyPolicy({ navigation }: any) {
                 {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                        <ChevronLeft size={24} color="#0f172a" />
+                        <ChevronLeft size={24} color="#1A1612" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Privacy Policy</Text>
                 </View>
@@ -91,14 +91,14 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         backgroundColor: 'white',
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         alignItems: 'center',
         justifyContent: 'center',
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
     },
     scrollContent: {
         paddingHorizontal: 20,
@@ -110,20 +110,20 @@ const styles = StyleSheet.create({
         borderRadius: 32,
         padding: 24,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         shadowColor: '#000',
         shadowOpacity: 0.02,
         shadowOffset: { width: 0, height: 4 },
     },
     lastUpdated: {
         fontSize: 12,
-        color: '#94a3b8',
+        color: '#B09080',
         fontWeight: 'bold',
         marginBottom: 8,
     },
     introText: {
         fontSize: 14,
-        color: '#64748b',
+        color: '#7A5540',
         lineHeight: 22,
         marginBottom: 32,
         fontWeight: '500',
@@ -137,13 +137,13 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 12,
         fontWeight: '900',
-        color: '#0f172a',
+        color: '#1A1612',
         letterSpacing: 1,
         textTransform: 'uppercase',
     },
     sectionContent: {
         fontSize: 13,
-        color: '#64748b',
+        color: '#7A5540',
         lineHeight: 20,
         fontWeight: '500',
     },
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     },
     footerText: {
         fontSize: 12,
-        color: '#94a3b8',
+        color: '#B09080',
         fontWeight: 'bold',
         fontStyle: 'italic',
     },

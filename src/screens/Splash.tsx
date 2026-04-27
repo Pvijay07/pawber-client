@@ -1,59 +1,95 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
-import { PawPrint } from 'lucide-react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, Dimensions, ImageBackground, Image } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function Splash() {
-    const scaleAnim = new Animated.Value(0.8);
-    const opacityAnim = new Animated.Value(0);
-    const floatAnim = new Animated.Value(0);
+    const { colors } = useTheme();
+    const logoScale = useRef(new Animated.Value(0.5)).current;
+    const logoOpacity = useRef(new Animated.Value(0)).current;
+    const textOpacity = useRef(new Animated.Value(0)).current;
+    const textTranslateY = useRef(new Animated.Value(20)).current;
+    const bgScale = useRef(new Animated.Value(1.1)).current;
 
     useEffect(() => {
         Animated.parallel([
-            Animated.timing(scaleAnim, {
+            Animated.spring(logoScale, {
                 toValue: 1,
-                duration: 800,
+                tension: 20,
+                friction: 7,
                 useNativeDriver: true,
             }),
-            Animated.timing(opacityAnim, {
+            Animated.timing(logoOpacity, {
                 toValue: 1,
-                duration: 800,
+                duration: 1000,
                 useNativeDriver: true,
             }),
-        ]).start();
-
-        Animated.loop(
+            Animated.timing(bgScale, {
+                toValue: 1,
+                duration: 4000,
+                useNativeDriver: true,
+            }),
             Animated.sequence([
-                Animated.timing(floatAnim, {
-                    toValue: -10,
-                    duration: 1000,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(floatAnim, {
-                    toValue: 0,
-                    duration: 1000,
-                    useNativeDriver: true,
-                }),
+                Animated.delay(800),
+                Animated.parallel([
+                    Animated.timing(textOpacity, {
+                        toValue: 1,
+                        duration: 800,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(textTranslateY, {
+                        toValue: 0,
+                        duration: 800,
+                        useNativeDriver: true,
+                    }),
+                ])
             ])
-        ).start();
+        ]).start();
     }, []);
 
     return (
         <View style={styles.container}>
-            {/* Background decorative elements (simplified as colored circles) */}
-            <View style={[styles.blob, styles.blob1]} />
-            <View style={[styles.blob, styles.blob2]} />
-            <View style={[styles.blob, styles.blob3]} />
+            <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ scale: bgScale }] }]}>
+                <LinearGradient
+                    colors={[colors.primary, '#FF9D6C', '#FF7A3D']}
+                    style={StyleSheet.absoluteFill}
+                />
+            </Animated.View>
 
-            <Animated.View style={[styles.content, { transform: [{ scale: scaleAnim }], opacity: opacityAnim }]}>
-                <Animated.View style={[styles.iconContainer, { transform: [{ translateY: floatAnim }] }]}>
-                    <PawPrint size={64} color="#14b8a6" strokeWidth={2.5} />
+            {/* Decorative Paw Pattern */}
+            <View style={styles.patternOverlay}>
+                <View style={styles.patternRow}>
+                    {/* Add subtle paw icons or dots for texture */}
+                </View>
+            </View>
+
+            <View style={styles.content}>
+                <Animated.View style={[
+                    styles.logoContainer,
+                    { transform: [{ scale: logoScale }], opacity: logoOpacity }
+                ]}>
+                    <View style={styles.logoCircle}>
+                        <Image 
+                            source={require('../../assets/images/service_grooming_premium.png')} // Temporarily using an existing high-quality image
+                            style={styles.logoImage}
+                            resizeMode="contain"
+                        />
+                    </View>
                 </Animated.View>
 
-                <Text style={styles.title}>Pawber</Text>
-                <Text style={styles.subtitle}>Premium care for your best friend</Text>
-            </Animated.View>
+                <Animated.View style={{ opacity: textOpacity, transform: [{ translateY: textTranslateY }], alignItems: 'center' }}>
+                    <Text style={styles.brandName}>Pawber</Text>
+                    <View style={styles.taglineContainer}>
+                        <Text style={styles.tagline}>Premium Care for Every Paw</Text>
+                    </View>
+                </Animated.View>
+            </View>
+
+            <View style={styles.footer}>
+                <Text style={styles.footerText}>Made with ❤️ for Pets</Text>
+            </View>
         </View>
     );
 }
@@ -61,57 +97,71 @@ export default function Splash() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#14b8a6', // teal-500
+        backgroundColor: '#FF7A3D',
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'hidden',
-    },
-    blob: {
-        position: 'absolute',
-        width: 256,
-        height: 256,
-        borderRadius: 128,
-        opacity: 0.5,
-    },
-    blob1: {
-        top: -height * 0.1,
-        left: -width * 0.1,
-        backgroundColor: '#2dd4bf', // teal-400
-    },
-    blob2: {
-        top: -height * 0.1,
-        right: -width * 0.1,
-        backgroundColor: '#fb923c', // orange-400
-    },
-    blob3: {
-        bottom: -height * 0.1,
-        left: width * 0.2,
-        backgroundColor: '#5eead4', // teal-300
     },
     content: {
         alignItems: 'center',
         zIndex: 10,
     },
-    iconContainer: {
-        backgroundColor: 'white',
-        padding: 24,
-        borderRadius: 32,
-        marginBottom: 24,
-        shadowColor: '#134e4a',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
+    logoContainer: {
+        marginBottom: 30,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 15 },
+        shadowOpacity: 0.3,
         shadowRadius: 20,
-        elevation: 10,
+        elevation: 15,
     },
-    title: {
-        fontSize: 48,
-        fontWeight: 'bold',
+    logoCircle: {
+        width: 140,
+        height: 140,
+        borderRadius: 70,
+        backgroundColor: 'white',
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    logoImage: {
+        width: 100,
+        height: 100,
+    },
+    brandName: {
+        fontSize: 52,
+        fontWeight: '900',
         color: 'white',
-        marginBottom: 8,
+        letterSpacing: -1,
+        textShadowColor: 'rgba(0,0,0,0.1)',
+        textShadowOffset: { width: 0, height: 4 },
+        textShadowRadius: 10,
     },
-    subtitle: {
-        fontSize: 18,
-        color: '#ccfbf1', // teal-100
-        fontWeight: '500',
+    taglineContainer: {
+        marginTop: 10,
+        paddingHorizontal: 20,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.15)',
     },
+    tagline: {
+        fontSize: 16,
+        color: 'white',
+        fontWeight: '800',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+    footer: {
+        position: 'absolute',
+        bottom: 50,
+        alignItems: 'center',
+    },
+    footerText: {
+        color: 'rgba(255,255,255,0.6)',
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 1,
+    },
+    patternOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        opacity: 0.05,
+    }
 });

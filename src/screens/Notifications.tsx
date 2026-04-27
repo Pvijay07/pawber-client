@@ -84,8 +84,8 @@ export default function Notifications({ navigation }: NotificationsProps) {
     
     const getColorForType = (type: string) => {
         switch (type) {
-            case 'booking': return '#14b8a6';
-            case 'payment': return '#f97316';
+            case 'booking': return '#FF7A3D';
+            case 'payment': return '#1D9E86';
             case 'promo': return '#ec4899';
             default: return '#3b82f6';
         }
@@ -93,23 +93,23 @@ export default function Notifications({ navigation }: NotificationsProps) {
     
     const getBgColorForType = (type: string) => {
         switch (type) {
-            case 'booking': return isDark ? 'rgba(20,184,166,0.1)' : '#f0fdfa';
-            case 'payment': return isDark ? 'rgba(249,115,22,0.1)' : '#fff7ed';
+            case 'booking': return isDark ? 'rgba(20,184,166,0.1)' : '#FFF3EC';
+            case 'payment': return isDark ? 'rgba(249,115,22,0.1)' : '#E0F5F0';
             case 'promo': return isDark ? 'rgba(236,72,153,0.1)' : '#fdf2f8';
             default: return isDark ? 'rgba(59,130,246,0.1)' : '#eff6ff';
         }
     };
 
     return (
-        <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={StyleSheet.flatten([styles.safeArea, { backgroundColor: colors.background }])}>
             <View style={styles.container}>
                 {/* Header */}
-                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10, backgroundColor: colors.surface }]}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+                <View style={StyleSheet.flatten([styles.header, { paddingTop: Math.max(insets.top, 20) + 10, backgroundColor: colors.surface }])}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={StyleSheet.flatten([styles.backBtn, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }])}>
                         <ArrowLeft size={20} color={colors.text} />
                     </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
-                    <TouchableOpacity style={[styles.headerActionBtn, { backgroundColor: colors.primaryLight, borderColor: isDark ? colors.border : '#ccfbf1' }]}>
+                    <Text style={StyleSheet.flatten([styles.headerTitle, { color: colors.text }])}>Notifications</Text>
+                    <TouchableOpacity style={StyleSheet.flatten([styles.headerActionBtn, { backgroundColor: colors.primaryLight, borderColor: isDark ? colors.border : '#ccfbf1' }])}>
                         <Bell size={20} color={colors.primary} />
                     </TouchableOpacity>
                 </View>
@@ -121,7 +121,7 @@ export default function Notifications({ navigation }: NotificationsProps) {
                         </View>
                     ) : notifications.length === 0 ? (
                         <View style={styles.footer}>
-                            <Text style={[styles.footerText, { color: colors.textMuted }]}>No notifications yet!</Text>
+                            <Text style={StyleSheet.flatten([styles.footerText, { color: colors.textMuted }])}>No notifications yet!</Text>
                         </View>
                     ) : (
                         <View style={styles.listContainer}>
@@ -129,21 +129,21 @@ export default function Notifications({ navigation }: NotificationsProps) {
                                 <TouchableOpacity 
                                     key={item.id} 
                                     onPress={() => handleMarkAsRead(item.id, item.isNew)} 
-                                    style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, item.isNew && { borderColor: colors.primary, backgroundColor: colors.primaryLight }]}
+                                    style={StyleSheet.flatten([styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, item.isNew && { borderColor: colors.primary, backgroundColor: colors.primaryLight }])}
                                 >
-                                    <View style={[styles.iconBox, { backgroundColor: item.isNew ? (isDark ? 'rgba(45,212,191,0.15)' : 'rgba(255,255,255,0.8)') : item.bgColor }]}>
+                                    <View style={StyleSheet.flatten([styles.iconBox, { backgroundColor: item.isNew ? (isDark ? 'rgba(45,212,191,0.15)' : 'rgba(255,255,255,0.8)') : item.bgColor }])}>
                                         <item.icon size={20} color={item.color} strokeWidth={2.5} />
                                     </View>
 
                                     <View style={styles.content}>
                                         <View style={styles.titleRow}>
-                                            <Text style={[styles.title, { color: colors.textSecondary }, item.isNew && { color: colors.text }]}>{item.title}</Text>
+                                            <Text style={StyleSheet.flatten([styles.title, { color: colors.textSecondary }, item.isNew && { color: colors.text }])}>{item.title}</Text>
                                             {item.isNew && <View style={styles.newBadge}><Text style={styles.newBadgeText}>NEW</Text></View>}
                                         </View>
-                                        <Text style={[styles.message, { color: colors.textSecondary }]} numberOfLines={2}>{item.message}</Text>
+                                        <Text style={StyleSheet.flatten([styles.message, { color: colors.textSecondary }])} numberOfLines={2}>{item.message}</Text>
                                         <View style={styles.timeRow}>
                                             <Calendar size={10} color={colors.textMuted} />
-                                            <Text style={[styles.time, { color: colors.textMuted }]}>{item.time.toUpperCase()}</Text>
+                                            <Text style={StyleSheet.flatten([styles.time, { color: colors.textMuted }])}>{item.time.toUpperCase()}</Text>
                                         </View>
                                     </View>
 
@@ -151,7 +151,7 @@ export default function Notifications({ navigation }: NotificationsProps) {
                                 </TouchableOpacity>
                             ))}
                             <View style={styles.footer}>
-                                <Text style={[styles.footerText, { color: colors.textMuted }]}>That's all for now!</Text>
+                                <Text style={StyleSheet.flatten([styles.footerText, { color: colors.textMuted }])}>That's all for now!</Text>
                             </View>
                         </View>
                     )}
@@ -188,23 +188,23 @@ const styles = StyleSheet.create({
         width: 46,
         height: 46,
         borderRadius: 16,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
     },
     headerTitle: {
         fontSize: 19,
         fontWeight: '900',
-        color: '#0f172a',
+        color: '#1A1612',
         letterSpacing: -0.5,
     },
     headerActionBtn: {
         width: 46,
         height: 46,
         borderRadius: 16,
-        backgroundColor: '#f0fdfa',
+        backgroundColor: '#FFF3EC',
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         padding: 18,
         borderWidth: 1.5,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         position: 'relative',
         gap: 16,
         shadowColor: '#000',
@@ -234,11 +234,11 @@ const styles = StyleSheet.create({
         elevation: 1,
     },
     cardNew: {
-        borderColor: '#14b8a6',
-        backgroundColor: '#f0fdfa',
+        borderColor: '#FF7A3D',
+        backgroundColor: '#FFF3EC',
     },
     newBadge: {
-        backgroundColor: '#f97316',
+        backgroundColor: '#1D9E86',
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 8,
@@ -268,10 +268,10 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 15,
         fontWeight: '800',
-        color: '#64748b',
+        color: '#7A5540',
     },
     titleNew: {
-        color: '#0f172a',
+        color: '#1A1612',
     },
     message: {
         fontSize: 13,
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     time: {
         fontSize: 9,
         fontWeight: '900',
-        color: '#94a3b8',
+        color: '#B09080',
         letterSpacing: 1.2,
     },
     footer: {
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     },
     footerText: {
         fontSize: 12,
-        color: '#94a3b8',
+        color: '#B09080',
         fontWeight: '800',
         fontStyle: 'italic',
         letterSpacing: 0.5,

@@ -13,8 +13,10 @@ import {
     ActivityIndicator,
     Platform,
     StatusBar,
+    Animated
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import {
     Calendar,
     Clock,
@@ -39,6 +41,7 @@ import { bookingsApi } from '../services/bookings.service';
 import { Booking } from '../shared/types';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../theme/ThemeContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
@@ -84,7 +87,6 @@ export default function Bookings({ navigation }: any) {
     const fetchBookings = async () => {
         setIsLoading(true);
         try {
-            // 'upcoming' status maps conceptually. If 'past' you probably want 'completed', 'cancelled'
             const statuses = activeTab === 'upcoming' 
                 ? 'pending,confirmed,in_progress' 
                 : 'completed,cancelled';
@@ -102,125 +104,143 @@ export default function Bookings({ navigation }: any) {
 
     const getServiceIconVisual = (serviceName: string) => {
         const name = (serviceName || '').toLowerCase();
-        if (name.includes('groom')) return { icon: Scissors, color: isDark ? 'rgba(249,115,22,0.1)' : '#fff7ed', iconColor: '#f97316' };
-        if (name.includes('vet') || name.includes('medic')) return { icon: Stethoscope, color: colors.primaryLight, iconColor: colors.primary };
-        if (name.includes('walk')) return { icon: MapPin, color: isDark ? 'rgba(139,92,246,0.1)' : '#f5f3ff', iconColor: '#8b5cf6' };
-        return { icon: Calendar, color: colors.surfaceSecondary, iconColor: colors.textSecondary };
+        if (name.includes('groom')) return { icon: Scissors, color: 'rgba(29, 158, 134, 0.1)', iconColor: '#1D9E86' };
+        if (name.includes('vet') || name.includes('medic')) return { icon: Stethoscope, color: 'rgba(255, 122, 61, 0.1)', iconColor: '#FF7A3D' };
+        if (name.includes('walk')) return { icon: MapPin, color: 'rgba(139, 92, 246, 0.1)', iconColor: '#8b5cf6' };
+        return { icon: Calendar, color: 'rgba(148, 163, 184, 0.1)', iconColor: '#94A3B8' };
     };
 
     const renderBookingItem = ({ item }: { item: Booking }) => {
-        // Fallback for mock-like data mapping since backend might differ in output mapping depending on relationships pulled.
         const serviceName = (item as any).services?.name || 'Service';
         const visuals = getServiceIconVisual(serviceName);
         
         return (
-            <View style={[styles.bookingCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <View style={styles.cardHeader}>
-                    <View style={styles.serviceInfo}>
-                        <View style={[styles.iconBox, { backgroundColor: visuals.color }]}>
-                            <visuals.icon size={24} color={visuals.iconColor} />
-                        </View>
-                        <View>
-                            <Text style={[styles.serviceText, { color: colors.text }]}>{serviceName}</Text>
-                            <View style={styles.petRow}>
-                                <Text style={styles.petLabel}>REF: {item.id ? item.id.substring(0, 6) : 'Unknown'}</Text>
-                                <View style={[styles.dot, { backgroundColor: colors.borderSecondary }]} />
-                                <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>{item.status.toUpperCase()}</Text>
+            <BlurView intensity={80} tint="light" style={styles.bookingCardBlur}>
+                <View style={StyleSheet.flatten([styles.bookingCard, { backgroundColor: isDark ? 'rgba(30, 41, 59, 0.7)' : 'rgba(255,255,255,0.7)', borderColor: 'rgba(255,255,255,0.5)' }])}>
+                    <View style={styles.cardHeader}>
+                        <View style={styles.serviceInfo}>
+                            <View style={StyleSheet.flatten([styles.iconBox, { backgroundColor: visuals.color }])}>
+                                <visuals.icon size={24} color={visuals.iconColor} />
+                            </View>
+                            <View>
+                                <Text style={StyleSheet.flatten([styles.serviceText, { color: colors.text }])}>{serviceName}</Text>
+                                <View style={styles.petRow}>
+                                    <Text style={styles.petLabel}>REF: {item.id ? item.id.substring(0, 6) : 'Unknown'}</Text>
+                                    <View style={StyleSheet.flatten([styles.dot, { backgroundColor: colors.borderSecondary }])} />
+                                    <Text style={StyleSheet.flatten([styles.statusLabel, { color: colors.textSecondary }])}>{item.status.toUpperCase()}</Text>
+                                </View>
                             </View>
                         </View>
-                    </View>
-                    <TouchableOpacity style={styles.moreBtn}>
-                        <MoreVertical size={20} color={colors.textMuted} />
-                    </TouchableOpacity>
-                </View>
-
-                <View style={styles.cardMeta}>
-                    <View style={[styles.metaItem, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-                        <Calendar size={14} color={colors.textSecondary} />
-                        <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-                            {item.booking_date 
-                                ? new Date(item.booking_date).toLocaleDateString() 
-                                : 'TBD'}
-                        </Text>
-                    </View>
-                    <View style={[styles.metaItem, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-                        <ShieldCheck size={14} color="#4f46e5" />
-                        <Text style={[styles.metaText, { color: '#4f46e5' }]}>Escrow Held</Text>
-                    </View>
-                </View>
-
-                <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-                {activeTab === 'upcoming' ? (
-                    <View style={styles.cardFooter}>
-                        <View style={styles.securityBox}>
-                            <View style={styles.securityHeader}>
-                                <Text style={styles.securityLabel}>PAYMENT SECURITY</Text>
-                                <Text style={styles.priceLabel}>₹{(item.total_amount || 0).toFixed(2)}</Text>
-                            </View>
-                            <View style={styles.progressBar}>
-                                <View style={[styles.progressFill, { width: '65%' }]} />
-                            </View>
-                            <Text style={styles.securityDesc}>Funds held safely in escrow.</Text>
-                        </View>
-
-                        <View style={styles.actionButtons}>
-                            <TouchableOpacity
-                                style={styles.mainBtn}
-                                onPress={() => navigation.navigate('LiveTracking')}
-                            >
-                                <Text style={styles.mainBtnText}>TRACK NOW</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.chatBtn}
-                                onPress={() => navigation.navigate('Chat')}
-                            >
-                                <MessageSquare size={18} color="white" />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                ) : (
-                    <View style={styles.pastFooter}>
-                        <TouchableOpacity style={styles.rebookBtn}>
-                            <RefreshCcw size={16} color="#4f46e5" />
-                            <Text style={styles.rebookText}>REBOOK</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.rateBtn}>
-                            <Text style={styles.rateText}>RATE</Text>
+                        <TouchableOpacity style={styles.moreBtn}>
+                            <MoreVertical size={20} color={colors.textMuted} />
                         </TouchableOpacity>
                     </View>
-                )}
-            </View>
+
+                    <View style={styles.cardMeta}>
+                        <View style={StyleSheet.flatten([styles.metaItem, { backgroundColor: 'rgba(255,255,255,0.4)', borderColor: 'rgba(255,255,255,0.5)' }])}>
+                            <Calendar size={14} color="#64748B" />
+                            <Text style={StyleSheet.flatten([styles.metaText, { color: '#64748B' }])}>
+                                {item.booking_date 
+                                    ? new Date(item.booking_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) 
+                                    : 'TBD'}
+                            </Text>
+                        </View>
+                        <View style={StyleSheet.flatten([styles.metaItem, { backgroundColor: 'rgba(79, 70, 229, 0.05)', borderColor: 'rgba(79, 70, 229, 0.1)' }])}>
+                            <ShieldCheck size={14} color="#4f46e5" />
+                            <Text style={StyleSheet.flatten([styles.metaText, { color: '#4f46e5' }])}>Escrow Protected</Text>
+                        </View>
+                    </View>
+
+                    <View style={StyleSheet.flatten([styles.divider, { backgroundColor: 'rgba(245, 230, 216, 0.3)' }])} />
+
+                    {activeTab === 'upcoming' ? (
+                        <View style={styles.cardFooter}>
+                            <View style={styles.securityBox}>
+                                <View style={styles.securityHeader}>
+                                    <Text style={styles.securityLabel}>FUNDS ESCROWED</Text>
+                                    <Text style={styles.priceLabel}>₹{(item.total_amount || 0).toFixed(2)}</Text>
+                                </View>
+                                <View style={styles.progressBar}>
+                                    <LinearGradient
+                                        colors={['#4f46e5', '#6366f1']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                        style={StyleSheet.flatten([styles.progressFill, { width: '100%' }])}
+                                    />
+                                </View>
+                            </View>
+
+                            <View style={styles.actionButtons}>
+                                <TouchableOpacity
+                                    style={styles.mainBtn}
+                                    onPress={() => navigation.navigate('LiveTracking', { bookingId: item.id })}
+                                >
+                                    <LinearGradient
+                                        colors={['#1A1612', '#2D2824']}
+                                        style={StyleSheet.absoluteFill}
+                                        borderRadius={18}
+                                    />
+                                    <Text style={styles.mainBtnText}>TRACK ORDER</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.chatBtn}
+                                    onPress={() => navigation.navigate('Chat', { bookingId: item.id })}
+                                >
+                                    <BlurView intensity={20} tint="light" style={styles.chatBtnBlur}>
+                                        <MessageSquare size={18} color="white" />
+                                    </BlurView>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ) : (
+                        <View style={styles.pastFooter}>
+                            <TouchableOpacity style={styles.rebookBtn}>
+                                <RefreshCcw size={16} color="#4f46e5" />
+                                <Text style={styles.rebookText}>REBOOK</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.rateBtn}>
+                                <Text style={styles.rateText}>RATE PROVIDER</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+            </BlurView>
         );
     };
 
     return (
-        <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={StyleSheet.flatten([styles.safeArea, { backgroundColor: colors.background }])}>
+            {/* Background Decorative Elements */}
+            <View style={[styles.bgBlob, { top: -50, right: -50, backgroundColor: 'rgba(255, 122, 61, 0.08)' }]} />
+            <View style={[styles.bgBlob, { bottom: 100, left: -80, backgroundColor: 'rgba(29, 158, 134, 0.05)' }]} />
+
             <View style={styles.container}>
                 {/* Header */}
-                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
+                <View style={StyleSheet.flatten([styles.header, { paddingTop: Math.max(insets.top, 20) + 10 }])}>
                     <View style={styles.headerTop}>
-                        <Text style={[styles.headerTitle, { color: colors.text }]}>Bookings</Text>
+                        <Text style={StyleSheet.flatten([styles.headerTitle, { color: colors.text }])}>My Bookings</Text>
                         <View style={styles.headerActions}>
-                            <TouchableOpacity style={[styles.roundBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}><Search size={20} color={colors.textSecondary} /></TouchableOpacity>
-                            <TouchableOpacity style={[styles.roundBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}><Filter size={20} color={colors.textSecondary} /></TouchableOpacity>
+                            <TouchableOpacity style={StyleSheet.flatten([styles.roundBtn, { backgroundColor: 'white', borderColor: '#F1F5F9' }])}><Search size={20} color="#64748B" /></TouchableOpacity>
+                            <TouchableOpacity style={StyleSheet.flatten([styles.roundBtn, { backgroundColor: 'white', borderColor: '#F1F5F9' }])}><Filter size={20} color="#64748B" /></TouchableOpacity>
                         </View>
                     </View>
 
-                    <View style={[styles.tabContainer, { backgroundColor: colors.surfaceSecondary }]}>
-                        <TouchableOpacity
-                            onPress={() => setActiveTab('upcoming')}
-                            style={[styles.tab, activeTab === 'upcoming' && [styles.activeTab, { backgroundColor: colors.surface }]]}
-                        >
-                            <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'upcoming' && styles.activeTabText]}>UPCOMING</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={() => setActiveTab('past')}
-                            style={[styles.tab, activeTab === 'past' && [styles.activeTab, { backgroundColor: colors.surface }]]}
-                        >
-                            <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'past' && styles.activeTabText]}>PAST</Text>
-                        </TouchableOpacity>
-                    </View>
+                    <BlurView intensity={80} tint="light" style={styles.tabContainerBlur}>
+                        <View style={styles.tabContainer}>
+                            <TouchableOpacity
+                                onPress={() => setActiveTab('upcoming')}
+                                style={StyleSheet.flatten([styles.tab, activeTab === 'upcoming' && styles.activeTab])}
+                            >
+                                <Text style={StyleSheet.flatten([styles.tabText, activeTab === 'upcoming' && styles.activeTabText])}>UPCOMING</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => setActiveTab('past')}
+                                style={StyleSheet.flatten([styles.tab, activeTab === 'past' && styles.activeTab])}
+                            >
+                                <Text style={StyleSheet.flatten([styles.tabText, activeTab === 'past' && styles.activeTabText])}>PAST</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </BlurView>
                 </View>
 
                 {isLoading ? (
@@ -237,11 +257,11 @@ export default function Bookings({ navigation }: any) {
                             showsVerticalScrollIndicator={false}
                             ListEmptyComponent={
                                 <View style={styles.emptyState}>
-                                    <View style={[styles.emptyIconBox, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <View style={StyleSheet.flatten([styles.emptyIconBox, { backgroundColor: colors.surfaceSecondary }])}>
                                         <Calendar size={48} color={colors.borderSecondary} />
                                     </View>
-                                    <Text style={[styles.emptyTitle, { color: colors.text }]}>No bookings yet</Text>
-                                    <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>Your {activeTab} bookings will appear here once you book a service.</Text>
+                                    <Text style={StyleSheet.flatten([styles.emptyTitle, { color: colors.text }])}>No bookings yet</Text>
+                                    <Text style={StyleSheet.flatten([styles.emptyDesc, { color: colors.textMuted }])}>Your {activeTab} bookings will appear here once you book a service.</Text>
                                 </View>
                             }
                         />
@@ -249,6 +269,11 @@ export default function Bookings({ navigation }: any) {
                             style={styles.fab}
                             onPress={() => navigation.navigate('BookingFlow')}
                         >
+                            <LinearGradient
+                                colors={[colors.primary, '#FF9D6C']}
+                                style={StyleSheet.absoluteFill}
+                                borderRadius={22}
+                            />
                             <RefreshCcw size={24} color="white" />
                         </TouchableOpacity>
                     </>
@@ -259,309 +284,56 @@ export default function Bookings({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-    },
-    container: {
-        flex: 1,
-    },
-    header: {
-        paddingHorizontal: 24,
-        paddingBottom: 24,
-    },
-    headerTop: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 24,
-    },
-    headerTitle: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#0f172a',
-    },
-    headerActions: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    roundBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        backgroundColor: '#f8fafc',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-    },
-    tabContainer: {
-        flexDirection: 'row',
-        backgroundColor: '#f8fafc',
-        padding: 6,
-        borderRadius: 20,
-    },
-    tab: {
-        flex: 1,
-        paddingVertical: 12,
-        alignItems: 'center',
-        borderRadius: 16,
-    },
-    activeTab: {
-        backgroundColor: 'white',
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowOffset: { width: 0, height: 4 },
-    },
-    tabText: {
-        fontSize: 10,
-        fontWeight: '900',
-        color: '#94a3b8',
-        letterSpacing: 1,
-    },
-    activeTabText: {
-        color: '#4f46e5',
-    },
-    listContent: {
-        padding: 24,
-        paddingTop: 0,
-        gap: 16,
-    },
-    bookingCard: {
-        backgroundColor: 'white',
-        borderRadius: 32,
-        padding: 24,
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-        shadowColor: '#000',
-        shadowOpacity: 0.03,
-        shadowOffset: { width: 0, height: 10 },
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 20,
-    },
-    serviceInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-        flex: 1,
-    },
-    iconBox: {
-        width: 52,
-        height: 52,
-        borderRadius: 18,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    serviceText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#0f172a',
-        marginBottom: 4,
-    },
-    petRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    petLabel: {
-        fontSize: 11,
-        fontWeight: '900',
-        color: '#4f46e5',
-        textTransform: 'uppercase',
-    },
-    dot: {
-        width: 3,
-        height: 3,
-        borderRadius: 1.5,
-        backgroundColor: '#cbd5e1',
-    },
-    statusLabel: {
-        fontSize: 11,
-        fontWeight: 'bold',
-        color: '#64748b',
-    },
-    moreBtn: {
-        padding: 4,
-    },
-    cardMeta: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 20,
-    },
-    metaItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: '#f8fafc',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-    },
-    metaText: {
-        fontSize: 11,
-        fontWeight: 'bold',
-        color: '#64748b',
-    },
-    divider: {
-        height: 1,
-        backgroundColor: '#f1f5f9',
-        marginBottom: 20,
-    },
-    cardFooter: {
-        gap: 20,
-    },
-    securityBox: {
-        backgroundColor: '#f5f3ff',
-        padding: 16,
-        borderRadius: 24,
-        borderWidth: 1,
-        borderColor: '#ede9fe',
-    },
-    securityHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    securityLabel: {
-        fontSize: 9,
-        fontWeight: '900',
-        color: '#4f46e5',
-        letterSpacing: 1,
-    },
-    priceLabel: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: '#4f46e5',
-    },
-    progressBar: {
-        height: 6,
-        backgroundColor: 'rgba(79, 70, 229, 0.1)',
-        borderRadius: 3,
-        marginBottom: 8,
-    },
-    progressFill: {
-        height: '100%',
-        backgroundColor: '#4f46e5',
-        borderRadius: 3,
-    },
-    securityDesc: {
-        fontSize: 10,
-        color: '#64748b',
-        fontWeight: '600',
-    },
-    actionButtons: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    mainBtn: {
-        flex: 1,
-        height: 56,
-        backgroundColor: '#0f172a',
-        borderRadius: 18,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowOffset: { width: 0, height: 4 },
-    },
-    mainBtnText: {
-        color: 'white',
-        fontSize: 13,
-        fontWeight: '900',
-        letterSpacing: 1,
-    },
-    chatBtn: {
-        width: 56,
-        height: 56,
-        borderRadius: 18,
-        backgroundColor: '#3b82f6',
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#3b82f6',
-        shadowOpacity: 0.2,
-        shadowOffset: { width: 0, height: 4 },
-    },
-    pastFooter: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    rebookBtn: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        height: 52,
-        backgroundColor: '#f5f3ff',
-        borderRadius: 16,
-    },
-    rebookText: {
-        fontSize: 11,
-        fontWeight: '900',
-        color: '#4f46e5',
-        letterSpacing: 0.5,
-    },
-    rateBtn: {
-        flex: 1,
-        height: 52,
-        backgroundColor: '#f8fafc',
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-    },
-    rateText: {
-        fontSize: 11,
-        fontWeight: '900',
-        color: '#0f172a',
-        letterSpacing: 0.5,
-    },
-    emptyState: {
-        paddingVertical: 80,
-        alignItems: 'center',
-        paddingHorizontal: 40,
-    },
-    emptyIconBox: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: '#f8fafc',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 24,
-    },
-    emptyTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#0f172a',
-        marginBottom: 12,
-    },
-    emptyDesc: {
-        fontSize: 14,
-        color: '#94a3b8',
-        textAlign: 'center',
-        lineHeight: 22,
-        fontWeight: '500',
-    },
-    fab: {
-        position: 'absolute',
-        bottom: 24,
-        right: 24,
-        width: 64,
-        height: 64,
-        borderRadius: 22,
-        backgroundColor: '#4f46e5',
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#4f46e5',
-        shadowOpacity: 0.3,
-        shadowOffset: { width: 0, height: 10 },
-    },
+    safeArea: { flex: 1 },
+    bgBlob: { position: 'absolute', width: 300, height: 300, borderRadius: 150 },
+    container: { flex: 1 },
+    header: { paddingHorizontal: 24, paddingBottom: 24 },
+    headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+    headerTitle: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
+    headerActions: { flexDirection: 'row', gap: 12 },
+    roundBtn: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+    tabContainerBlur: { borderRadius: 20, overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
+    tabContainer: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.7)', padding: 6 },
+    tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 16 },
+    activeTab: { backgroundColor: 'white', shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 4 } },
+    tabText: { fontSize: 10, fontWeight: '900', color: '#B09080', letterSpacing: 1 },
+    activeTabText: { color: '#4f46e5' },
+    listContent: { padding: 24, paddingTop: 0, gap: 16, paddingBottom: 100 },
+    bookingCardBlur: { borderRadius: 32, overflow: 'hidden', elevation: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 20 },
+    bookingCard: { padding: 24, borderWidth: 1 },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+    serviceInfo: { flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1 },
+    iconBox: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+    serviceText: { fontSize: 17, fontWeight: '900', marginBottom: 4 },
+    petRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    petLabel: { fontSize: 11, fontWeight: '900', color: '#4f46e5', textTransform: 'uppercase' },
+    dot: { width: 3, height: 3, borderRadius: 1.5 },
+    statusLabel: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+    moreBtn: { padding: 4 },
+    cardMeta: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+    metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1 },
+    metaText: { fontSize: 11, fontWeight: '900' },
+    divider: { height: 1, marginBottom: 20 },
+    cardFooter: { gap: 20 },
+    securityBox: { backgroundColor: 'rgba(79, 70, 229, 0.05)', padding: 16, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(79, 70, 229, 0.1)' },
+    securityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+    securityLabel: { fontSize: 9, fontWeight: '900', color: '#4f46e5', letterSpacing: 1 },
+    priceLabel: { fontSize: 14, fontWeight: '900', color: '#4f46e5' },
+    progressBar: { height: 6, backgroundColor: 'rgba(79, 70, 229, 0.1)', borderRadius: 3 },
+    progressFill: { height: '100%', borderRadius: 3 },
+    actionButtons: { flexDirection: 'row', gap: 12 },
+    mainBtn: { flex: 1, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+    mainBtnText: { color: 'white', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
+    chatBtn: { width: 56, height: 56, borderRadius: 18, backgroundColor: '#3b82f6', overflow: 'hidden' },
+    chatBtnBlur: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    pastFooter: { flexDirection: 'row', gap: 12 },
+    rebookBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, backgroundColor: 'rgba(79, 70, 229, 0.05)', borderRadius: 16 },
+    rebookText: { fontSize: 11, fontWeight: '900', color: '#4f46e5', letterSpacing: 0.5 },
+    rateBtn: { flex: 1, height: 52, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(245, 230, 216, 0.5)' },
+    rateText: { fontSize: 11, fontWeight: '900', color: '#1A1612', letterSpacing: 0.5 },
+    emptyState: { paddingVertical: 80, alignItems: 'center', paddingHorizontal: 40 },
+    emptyIconBox: { width: 100, height: 100, borderRadius: 50, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+    emptyTitle: { fontSize: 20, fontWeight: '900', marginBottom: 12 },
+    emptyDesc: { fontSize: 14, textAlign: 'center', lineHeight: 22, fontWeight: '600' },
+    fab: { position: 'absolute', bottom: 24, right: 24, width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center', elevation: 12, shadowColor: '#4f46e5', shadowOpacity: 0.3, shadowRadius: 15 }
 });

@@ -17,7 +17,7 @@ import {
     KeyboardAvoidingView,
     Image,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { MapWrapper as MapView, MapMarker as Marker } from '../components/common/MapViewWrapper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
@@ -73,7 +73,7 @@ export default function Addresses({ navigation }: any) {
     const [addresses, setAddresses] = useState<Address[]>([]);
 
     // Map State
-    const mapRef = useRef<MapView>(null);
+    const mapRef = useRef<any>(null);
     const [region, setRegion] = useState({
         latitude: 19.0760,
         longitude: 72.8777,
@@ -104,7 +104,7 @@ export default function Addresses({ navigation }: any) {
 
     const loadAddresses = async () => {
         try {
-            const saved = await AsyncStorage.getItem('@petcare_addresses');
+            const saved = await AsyncStorage.getItem('@pawber_addresses');
             if (saved) {
                 setAddresses(JSON.parse(saved));
             }
@@ -116,7 +116,7 @@ export default function Addresses({ navigation }: any) {
     const saveAddresses = async (newAddresses: Address[]) => {
         try {
             setAddresses(newAddresses);
-            await AsyncStorage.setItem('@petcare_addresses', JSON.stringify(newAddresses));
+            await AsyncStorage.setItem('@pawber_addresses', JSON.stringify(newAddresses));
         } catch (e) {
             console.error('Failed to save addresses', e);
         }
@@ -143,7 +143,7 @@ export default function Addresses({ navigation }: any) {
         try {
             const response = await fetch(
                 `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`,
-                { headers: { 'User-Agent': 'PawberPetCareApp' } }
+                { headers: { 'User-Agent': 'PawberPawberApp' } }
             );
             const data = await response.json();
             if (data && data.address) {
@@ -174,7 +174,7 @@ export default function Addresses({ navigation }: any) {
         try {
             const response = await fetch(
                 `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`,
-                { headers: { 'User-Agent': 'PawberPetCareApp' } }
+                { headers: { 'User-Agent': 'PawberPawberApp' } }
             );
             const data = await response.json();
             setSearchResults(data);
@@ -248,11 +248,11 @@ export default function Addresses({ navigation }: any) {
     };
 
     const renderHeader = (title: string, backAction: () => void) => (
-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10, backgroundColor: colors.background }]}>
+        <View style={StyleSheet.flatten([styles.header, { paddingTop: Math.max(insets.top, 20) + 10, backgroundColor: colors.background }])}>
             <TouchableOpacity onPress={backAction} style={styles.backBtn}>
                 <ChevronLeft size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>{title}</Text>
+            <Text style={StyleSheet.flatten([styles.headerTitle, { color: colors.text }])}>{title}</Text>
         </View>
     );
 
@@ -263,22 +263,22 @@ export default function Addresses({ navigation }: any) {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.listContainer}>
                     {addresses.map((addr) => (
-                        <View key={addr.id} style={[styles.addressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                            <View style={[styles.iconBox, { backgroundColor: colors.primaryLight }]}>
+                        <View key={addr.id} style={StyleSheet.flatten([styles.addressCard, { backgroundColor: colors.surface, borderColor: colors.border }])}>
+                            <View style={StyleSheet.flatten([styles.iconBox, { backgroundColor: colors.primaryLight }])}>
                                 {addr.type === 'home' ? <Home size={20} color={colors.primary} /> : 
                                  addr.type === 'work' ? <Briefcase size={20} color={colors.primary} /> : 
                                  <MapIcon size={20} color={colors.primary} />}
                             </View>
                             <View style={styles.addressInfo}>
                                 <View style={styles.labelRow}>
-                                    <Text style={[styles.addressLabel, { color: colors.text }]}>{addr.label}</Text>
+                                    <Text style={StyleSheet.flatten([styles.addressLabel, { color: colors.text }])}>{addr.label}</Text>
                                     {addr.isDefault && (
-                                        <View style={[styles.defaultBadge, { backgroundColor: colors.primaryLight }]}>
-                                            <Text style={[styles.defaultText, { color: colors.primary }]}>DEFAULT</Text>
+                                        <View style={StyleSheet.flatten([styles.defaultBadge, { backgroundColor: colors.primaryLight }])}>
+                                            <Text style={StyleSheet.flatten([styles.defaultText, { color: colors.primary }])}>DEFAULT</Text>
                                         </View>
                                     )}
                                 </View>
-                                <Text style={[styles.addressTextList, { color: colors.textSecondary }]} numberOfLines={2}>{addr.address}</Text>
+                                <Text style={StyleSheet.flatten([styles.addressTextList, { color: colors.textSecondary }])} numberOfLines={2}>{addr.address}</Text>
                                 <View style={styles.cardActions}>
                                     <TouchableOpacity onPress={() => {
                                         setEditingId(addr.id);
@@ -291,13 +291,13 @@ export default function Addresses({ navigation }: any) {
                                         setViewState('map-picker');
                                     }} style={styles.actionBtn}>
                                         <Edit2 size={12} color={colors.primary} />
-                                        <Text style={[styles.actionBtnText, { color: colors.primary }]}>EDIT</Text>
+                                        <Text style={StyleSheet.flatten([styles.actionBtnText, { color: colors.primary }])}>EDIT</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity onPress={() => {
                                         saveAddresses(addresses.filter(a => a.id !== addr.id));
                                     }} style={styles.actionBtn}>
                                         <Trash2 size={12} color={colors.danger} />
-                                        <Text style={[styles.actionBtnText, { color: colors.danger }]}>DELETE</Text>
+                                        <Text style={StyleSheet.flatten([styles.actionBtnText, { color: colors.danger }])}>DELETE</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -309,10 +309,10 @@ export default function Addresses({ navigation }: any) {
                             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                             setViewState('map-picker');
                         }}
-                        style={[styles.addNewBtn, { borderColor: colors.border }]}
+                        style={StyleSheet.flatten([styles.addNewBtn, { borderColor: colors.border }])}
                     >
                         <Plus size={20} color={colors.primary} />
-                        <Text style={[styles.addNewText, { color: colors.primary }]}>Add New Address</Text>
+                        <Text style={StyleSheet.flatten([styles.addNewText, { color: colors.primary }])}>Add New Address</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -323,7 +323,7 @@ export default function Addresses({ navigation }: any) {
     const renderMapPicker = () => (
         <View style={styles.flexOne}>
             <View style={styles.absoluteHeader}>
-                <View style={[styles.headerFloating, { marginTop: Math.max(insets.top, 20) }]}>
+                <View style={StyleSheet.flatten([styles.headerFloating, { marginTop: Math.max(insets.top, 20) }])}>
                     <TouchableOpacity onPress={() => setViewState('list')} style={styles.backBtnRound}>
                         <ArrowLeft size={20} color={colors.text} />
                     </TouchableOpacity>
@@ -332,11 +332,11 @@ export default function Addresses({ navigation }: any) {
 
                 {/* Search Overlay */}
                 <View style={styles.searchOverlay}>
-                    <View style={[styles.searchBar, { backgroundColor: colors.background }]}>
+                    <View style={StyleSheet.flatten([styles.searchBar, { backgroundColor: colors.background }])}>
                         <Search size={18} color={colors.textMuted} />
                         <TextInput
                             placeholder="Search for apartment, street name..."
-                            style={[styles.searchField, { color: colors.text }]}
+                            style={StyleSheet.flatten([styles.searchField, { color: colors.text }])}
                             placeholderTextColor={colors.textMuted}
                             value={searchQuery}
                             onChangeText={handleSearch}
@@ -348,15 +348,15 @@ export default function Addresses({ navigation }: any) {
                         )}
                     </View>
                     {searchResults.length > 0 && (
-                        <View style={[styles.searchResultsContainer, { backgroundColor: colors.background }]}>
+                        <View style={StyleSheet.flatten([styles.searchResultsContainer, { backgroundColor: colors.background }])}>
                             {searchResults.map((res: any, idx: number) => (
                                 <TouchableOpacity 
                                     key={idx} 
-                                    style={[styles.searchResultItem, { borderBottomColor: colors.border }]}
+                                    style={StyleSheet.flatten([styles.searchResultItem, { borderBottomColor: colors.border }])}
                                     onPress={() => selectSearchResult(res)}
                                 >
                                     <MapPin size={16} color={colors.textMuted} />
-                                    <Text style={[styles.searchResultText, { color: colors.text }]} numberOfLines={1}>{res.display_name}</Text>
+                                    <Text style={StyleSheet.flatten([styles.searchResultText, { color: colors.text }])} numberOfLines={1}>{res.display_name}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
@@ -371,7 +371,6 @@ export default function Addresses({ navigation }: any) {
                 onRegionChangeComplete={handleRegionChangeComplete}
                 showsUserLocation={true}
                 showsMyLocationButton={false}
-                provider={PROVIDER_GOOGLE}
             />
 
             {/* Fixed Center Pin */}
@@ -389,19 +388,19 @@ export default function Addresses({ navigation }: any) {
 
             {/* Floating Actions */}
             <TouchableOpacity 
-                style={[styles.myLocationBtn, { bottom: 180 }]}
+                style={StyleSheet.flatten([styles.myLocationBtn, { bottom: 180 }])}
                 onPress={handleUseMyLocation}
             >
                 {isLocating ? <ActivityIndicator color={BRAND_PINK} /> : <Crosshair size={22} color={BRAND_PINK} />}
             </TouchableOpacity>
 
             {/* Bottom Address Summary */}
-            <View style={[styles.mapFooter, { paddingBottom: Math.max(insets.bottom, 20) + 10 }]}>
+            <View style={StyleSheet.flatten([styles.mapFooter, { paddingBottom: Math.max(insets.bottom, 20) + 10 }])}>
                 <View style={styles.locationInfo}>
-                    <Text style={[styles.locationMain, { color: colors.text }]}>
+                    <Text style={StyleSheet.flatten([styles.locationMain, { color: colors.text }])}>
                         {isReverseGeocoding ? 'Fetching address...' : locationSummary.main}
                     </Text>
-                    <Text style={[styles.locationSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                    <Text style={StyleSheet.flatten([styles.locationSub, { color: colors.textSecondary }])} numberOfLines={1}>
                         {locationSummary.sub}
                     </Text>
                 </View>
@@ -425,16 +424,13 @@ export default function Addresses({ navigation }: any) {
                     <MapView
                         style={styles.mapPreview}
                         region={region}
-                        liteMode={true}
-                        scrollEnabled={false}
-                        zoomEnabled={false}
                     >
-                        <Marker coordinate={region} pinColor={BRAND_PINK} />
+                        <Marker coordinate={region} />
                     </MapView>
                     <View style={styles.previewAddressRow}>
                         <View style={styles.flexOne}>
-                            <Text style={[styles.previewMain, { color: colors.text }]}>{locationSummary.main}</Text>
-                            <Text style={[styles.previewSub, { color: colors.textSecondary }]} numberOfLines={1}>{locationSummary.sub}</Text>
+                            <Text style={StyleSheet.flatten([styles.previewMain, { color: colors.text }])}>{locationSummary.main}</Text>
+                            <Text style={StyleSheet.flatten([styles.previewSub, { color: colors.textSecondary }])} numberOfLines={1}>{locationSummary.sub}</Text>
                         </View>
                         <TouchableOpacity style={styles.changeBtn} onPress={() => setViewState('map-picker')}>
                             <Text style={styles.changeBtnText}>Change</Text>
@@ -448,7 +444,7 @@ export default function Addresses({ navigation }: any) {
                         <View style={styles.formInputGroup}>
                             <Text style={styles.fieldLabel}>House No. & Floor *</Text>
                             <TextInput
-                                style={[styles.formInput, { backgroundColor: colors.surface }]}
+                                style={StyleSheet.flatten([styles.formInput, { backgroundColor: colors.surface }])}
                                 value={houseNo}
                                 onChangeText={setHouseNo}
                                 placeholder="e.g. 402, 4th Floor"
@@ -457,7 +453,7 @@ export default function Addresses({ navigation }: any) {
                         <View style={styles.formInputGroup}>
                             <Text style={styles.fieldLabel}>Building & Block No. (Optional)</Text>
                             <TextInput
-                                style={[styles.formInput, { backgroundColor: colors.surface }]}
+                                style={StyleSheet.flatten([styles.formInput, { backgroundColor: colors.surface }])}
                                 value={building}
                                 onChangeText={setBuilding}
                                 placeholder="e.g. Sunrise Apartments"
@@ -466,7 +462,7 @@ export default function Addresses({ navigation }: any) {
                         <View style={styles.formInputGroup}>
                             <Text style={styles.fieldLabel}>Landmark & Area Name (Optional)</Text>
                             <TextInput
-                                style={[styles.formInput, { backgroundColor: colors.surface }]}
+                                style={StyleSheet.flatten([styles.formInput, { backgroundColor: colors.surface }])}
                                 value={landmark}
                                 onChangeText={setLandmark}
                                 placeholder="e.g. Near St. Pauls School"
@@ -474,23 +470,23 @@ export default function Addresses({ navigation }: any) {
                         </View>
                     </View>
 
-                    <Text style={[styles.formSectionLabel, { marginTop: 30 }]}>Add Address Label</Text>
+                    <Text style={StyleSheet.flatten([styles.formSectionLabel, { marginTop: 30 }])}>Add Address Label</Text>
                     <View style={styles.labelChips}>
                         {(['home', 'work', 'other'] as const).map((chip) => (
                             <TouchableOpacity 
                                 key={chip}
-                                style={[
+                                style={StyleSheet.flatten([
                                     styles.chip, 
                                     type === chip && styles.chipActive,
                                     { borderColor: type === chip ? BRAND_PINK : colors.border }
-                                ]}
+                                ])}
                                 onPress={() => setType(chip)}
                             >
-                                <Text style={[
+                                <Text style={StyleSheet.flatten([
                                     styles.chipText,
                                     type === chip && styles.chipTextActive,
                                     { color: type === chip ? BRAND_PINK : colors.textSecondary }
-                                ]}>
+                                ])}>
                                     {chip.toUpperCase()}
                                 </Text>
                             </TouchableOpacity>
@@ -499,7 +495,7 @@ export default function Addresses({ navigation }: any) {
 
                     {type === 'other' && (
                         <TextInput
-                            style={[styles.formInput, { marginTop: 12, backgroundColor: colors.surface }]}
+                            style={StyleSheet.flatten([styles.formInput, { marginTop: 12, backgroundColor: colors.surface }])}
                             placeholder="e.g. Grandma's House"
                             value={label}
                             onChangeText={setLabel}
@@ -507,21 +503,21 @@ export default function Addresses({ navigation }: any) {
                     )}
 
                     <TouchableOpacity 
-                        style={[
+                        style={StyleSheet.flatten([
                             styles.saveBtnBig, 
                             { 
                                 marginTop: 40, 
                                 marginBottom: 50,
                                 backgroundColor: houseNo ? BRAND_PINK : '#f3f4f6' 
                             }
-                        ]}
+                        ])}
                         onPress={handleSubmit}
                         disabled={!houseNo}
                     >
-                        <Text style={[
+                        <Text style={StyleSheet.flatten([
                             styles.saveBtnTextBig, 
                             { color: houseNo ? 'white' : '#9ca3af' }
-                        ]}>SAVE ADDRESS</Text>
+                        ])}>SAVE ADDRESS</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -552,7 +548,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -622,7 +618,7 @@ const styles = StyleSheet.create({
     confirmBtnText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
 
     // Form Specific
-    mapPreviewContainer: { padding: 24, backgroundColor: '#f8fafc' },
+    mapPreviewContainer: { padding: 24, backgroundColor: '#FFF9F5' },
     mapPreview: { height: 160, borderRadius: 20, marginBottom: 16 },
     previewAddressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
     previewMain: { fontSize: 16, fontWeight: 'bold' },

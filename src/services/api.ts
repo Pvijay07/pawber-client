@@ -45,9 +45,20 @@ class ApiClient {
                 ...options,
             });
 
-            const json = await response.json();
-            return json as ApiResponse<T>;
+            const text = await response.text();
+            try {
+                return JSON.parse(text) as ApiResponse<T>;
+            } catch (e) {
+                console.error(`[API ERROR] Non-JSON response from ${path}:`, text.substring(0, 200));
+                return {
+                    success: false,
+                    error: {
+                        message: `Server returned an invalid response (HTML). Check backend logs.`,
+                    },
+                };
+            }
         } catch (error) {
+            console.error(`[API ERROR] Fetch failed for ${path}:`, error);
             return {
                 success: false,
                 error: {

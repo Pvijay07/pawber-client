@@ -163,34 +163,34 @@ export default function Auth({ navigation }: AuthProps) {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
             >
-                <ScrollView contentContainerStyle={[styles.container, { paddingTop: Math.max(insets.top, 20) + 20 }]}>
+                <ScrollView contentContainerStyle={StyleSheet.flatten([styles.container, { paddingTop: Math.max(insets.top, 20) + 20 }])}>
                     <View style={styles.header}>
                         <View style={styles.logoContainer}>
                             <PawPrint size={32} color="white" />
                         </View>
-                        <Text style={styles.title}>PetCare</Text>
+                        <Text style={styles.title}>Pawber</Text>
                         <Text style={styles.subtitle}>Your pet's best friend</Text>
                     </View>
 
                     <View style={styles.tabContainer}>
                         <TouchableOpacity
                             onPress={() => { setMode('login'); setError(null); }}
-                            style={[styles.tab, mode === 'login' && styles.activeTab]}
+                            style={StyleSheet.flatten([styles.tab, mode === 'login' && styles.activeTab])}
                         >
-                            <Text style={[styles.tabText, mode === 'login' && styles.activeTabText]}>LOGIN</Text>
+                            <Text style={StyleSheet.flatten([styles.tabText, mode === 'login' && styles.activeTabText])}>LOGIN</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             onPress={() => { setMode('signup'); setError(null); }}
-                            style={[styles.tab, mode === 'signup' && styles.activeTab]}
+                            style={StyleSheet.flatten([styles.tab, mode === 'signup' && styles.activeTab])}
                         >
-                            <Text style={[styles.tabText, mode === 'signup' && styles.activeTabText]}>SIGN UP</Text>
+                            <Text style={StyleSheet.flatten([styles.tabText, mode === 'signup' && styles.activeTabText])}>SIGN UP</Text>
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.form}>
                         <View style={styles.inputWrapper}>
-                            <View style={[styles.inputContainer, emailError ? styles.inputError : null]}>
-                                <Mail size={18} color={emailError ? "#ef4444" : "#64748b"} />
+                            <View style={StyleSheet.flatten([styles.inputContainer, emailError ? styles.inputError : null])}>
+                                <Mail size={18} color={emailError ? "#ef4444" : "#7A5540"} />
                                 <TextInput
                                     placeholder="Email Address"
                                     style={styles.input}
@@ -198,22 +198,22 @@ export default function Auth({ navigation }: AuthProps) {
                                     onChangeText={(val) => { setEmail(val); setEmailError(''); }}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
-                                    placeholderTextColor="#94a3b8"
+                                    placeholderTextColor="#B09080"
                                 />
                             </View>
                             {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
                         </View>
 
                         <View style={styles.inputWrapper}>
-                            <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
-                                <Lock size={18} color={passwordError ? "#ef4444" : "#64748b"} />
+                            <View style={StyleSheet.flatten([styles.inputContainer, passwordError ? styles.inputError : null])}>
+                                <Lock size={18} color={passwordError ? "#ef4444" : "#7A5540"} />
                                 <TextInput
                                     placeholder="Password"
                                     style={styles.input}
                                     value={password}
                                     onChangeText={(val) => { setPassword(val); setPasswordError(''); }}
                                     secureTextEntry
-                                    placeholderTextColor="#94a3b8"
+                                    placeholderTextColor="#B09080"
                                 />
                             </View>
                             {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
@@ -234,7 +234,7 @@ export default function Auth({ navigation }: AuthProps) {
 
                         {success && (
                             <View style={styles.alertSuccess}>
-                                <CheckCircle2 size={16} color="#14b8a6" />
+                                <CheckCircle2 size={16} color="#FF7A3D" />
                                 <Text style={styles.alertText}>{success}</Text>
                             </View>
                         )}
@@ -269,7 +269,7 @@ export default function Auth({ navigation }: AuthProps) {
                             <Text style={styles.socialBtnText}>Google</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => handleOAuth('github')} style={styles.socialBtn}>
-                            <Github size={18} color="#0f172a" />
+                            <Github size={18} color="#1A1612" />
                             <Text style={styles.socialBtnText}>Github</Text>
                         </TouchableOpacity>
                     </View>
@@ -305,11 +305,11 @@ const styles = StyleSheet.create({
     logoContainer: {
         width: 64,
         height: 64,
-        backgroundColor: '#14b8a6',
+        backgroundColor: '#FF7A3D',
         borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#14b8a6',
+        shadowColor: '#FF7A3D',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.2,
         shadowRadius: 15,
@@ -319,22 +319,22 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         marginBottom: 4,
     },
     subtitle: {
         fontSize: 14,
-        color: '#64748b',
+        color: '#7A5540',
         fontWeight: '500',
     },
     tabContainer: {
         flexDirection: 'row',
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         padding: 6,
         borderRadius: 16,
         marginBottom: 32,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
     },
     tab: {
         flex: 1,
@@ -353,11 +353,11 @@ const styles = StyleSheet.create({
     tabText: {
         fontSize: 12,
         fontWeight: 'bold',
-        color: '#64748b',
+        color: '#7A5540',
         letterSpacing: 1,
     },
     activeTabText: {
-        color: '#0f172a',
+        color: '#1A1612',
     },
     form: {
         gap: 16,
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: '#fff',
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: '#DEC9B5',
         borderRadius: 16,
         height: 56,
         paddingHorizontal: 16,
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     input: {
         flex: 1,
         fontSize: 15,
-        color: '#0f172a',
+        color: '#1A1612',
         fontWeight: '500',
     },
     errorText: {
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     forgotText: {
         fontSize: 11,
         fontWeight: 'bold',
-        color: '#14b8a6',
+        color: '#FF7A3D',
         letterSpacing: 1,
     },
     alertError: {
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     alertSuccess: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f0fdfa',
+        backgroundColor: '#FFF3EC',
         padding: 16,
         borderRadius: 16,
         gap: 10,
@@ -425,12 +425,12 @@ const styles = StyleSheet.create({
     alertText: {
         fontSize: 12,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         flex: 1,
     },
     submitBtn: {
         height: 56,
-        backgroundColor: '#0f172a',
+        backgroundColor: '#1A1612',
         borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
@@ -459,12 +459,12 @@ const styles = StyleSheet.create({
     line: {
         flex: 1,
         height: 1,
-        backgroundColor: '#f1f5f9',
+        backgroundColor: '#F5E6D8',
     },
     dividerText: {
         fontSize: 10,
         fontWeight: 'bold',
-        color: '#94a3b8',
+        color: '#B09080',
         letterSpacing: 2,
     },
     socialGrid: {
@@ -481,24 +481,24 @@ const styles = StyleSheet.create({
         height: 50,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         backgroundColor: 'white',
     },
     socialBtnText: {
         fontSize: 12,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
     },
     footer: {
         alignItems: 'center',
     },
     footerText: {
         fontSize: 13,
-        color: '#64748b',
+        color: '#7A5540',
         fontWeight: '500',
     },
     footerAction: {
-        color: '#14b8a6',
+        color: '#FF7A3D',
         fontWeight: 'bold',
     },
 });

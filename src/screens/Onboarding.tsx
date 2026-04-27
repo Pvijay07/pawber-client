@@ -63,16 +63,16 @@ export default function Onboarding({ navigation }: any) {
                 <View style={styles.header}>
                     {step > 1 ? (
                         <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-                            <ArrowLeft size={20} color="#0f172a" />
+                            <ArrowLeft size={20} color="#1A1612" />
                         </TouchableOpacity>
                     ) : <View style={{ width: 44 }} />}
 
                     <View style={styles.progressContainer}>
                         {[1, 2, 3, 4, 5].map(i => (
-                            <View key={i} style={[
+                            <View key={i} style={StyleSheet.flatten([
                                 styles.progressBar,
                                 i === step ? styles.activeProgressBar : styles.inactiveProgressBar
-                            ]} />
+                            ])} />
                         ))}
                     </View>
 
@@ -97,13 +97,13 @@ export default function Onboarding({ navigation }: any) {
                                     <TouchableOpacity
                                         key={type.id}
                                         onPress={() => setPetType(type.id)}
-                                        style={[
+                                        style={StyleSheet.flatten([
                                             styles.petCard,
                                             petType === type.id && styles.activePetCard
-                                        ]}
+                                        ])}
                                     >
                                         <type.icon size={40} color={petType === type.id ? '#4f46e5' : '#cbd5e1'} />
-                                        <Text style={[styles.petCardText, petType === type.id && styles.activePetCardText]}>{type.name}</Text>
+                                        <Text style={StyleSheet.flatten([styles.petCardText, petType === type.id && styles.activePetCardText])}>{type.name}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -120,25 +120,25 @@ export default function Onboarding({ navigation }: any) {
                                     <TouchableOpacity
                                         key={service.id}
                                         onPress={() => toggleService(service.id)}
-                                        style={[
+                                        style={StyleSheet.flatten([
                                             styles.serviceItem,
                                             selectedServices.includes(service.id) && styles.activeServiceItem
-                                        ]}
+                                        ])}
                                     >
-                                        <View style={[
+                                        <View style={StyleSheet.flatten([
                                             styles.serviceIconBox,
-                                            selectedServices.includes(service.id) ? { backgroundColor: '#4f46e5' } : { backgroundColor: '#f8fafc' }
-                                        ]}>
-                                            <service.icon size={24} color={selectedServices.includes(service.id) ? 'white' : '#94a3b8'} />
+                                            selectedServices.includes(service.id) ? { backgroundColor: '#4f46e5' } : { backgroundColor: '#FFF9F5' }
+                                        ])}>
+                                            <service.icon size={24} color={selectedServices.includes(service.id) ? 'white' : '#B09080'} />
                                         </View>
-                                        <Text style={[
+                                        <Text style={StyleSheet.flatten([
                                             styles.serviceName,
-                                            selectedServices.includes(service.id) && { color: '#0f172a' }
-                                        ]}>{service.name}</Text>
-                                        <View style={[
+                                            selectedServices.includes(service.id) && { color: '#1A1612' }
+                                        ])}>{service.name}</Text>
+                                        <View style={StyleSheet.flatten([
                                             styles.checkCircle,
                                             selectedServices.includes(service.id) && styles.activeCheckCircle
-                                        ]}>
+                                        ])}>
                                             {selectedServices.includes(service.id) && <CheckCircle2 size={16} color="white" />}
                                         </View>
                                     </TouchableOpacity>
@@ -154,7 +154,7 @@ export default function Onboarding({ navigation }: any) {
 
                             <View style={styles.accessList}>
                                 <View style={styles.accessItem}>
-                                    <View style={[styles.accessIconBox, { backgroundColor: '#eff6ff' }]}>
+                                    <View style={StyleSheet.flatten([styles.accessIconBox, { backgroundColor: '#eff6ff' }])}>
                                         <MapPin size={28} color="#3b82f6" />
                                     </View>
                                     <View style={styles.accessInfo}>
@@ -165,8 +165,8 @@ export default function Onboarding({ navigation }: any) {
                                 </View>
 
                                 <View style={styles.accessItem}>
-                                    <View style={[styles.accessIconBox, { backgroundColor: '#fff7ed' }]}>
-                                        <Bell size={28} color="#f97316" />
+                                    <View style={StyleSheet.flatten([styles.accessIconBox, { backgroundColor: '#E0F5F0' }])}>
+                                        <Bell size={28} color="#1D9E86" />
                                     </View>
                                     <View style={styles.accessInfo}>
                                         <Text style={styles.accessTitle}>Notifications</Text>
@@ -190,7 +190,7 @@ export default function Onboarding({ navigation }: any) {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="ENTER CODE (OPTIONAL)"
-                                    placeholderTextColor="#94a3b8"
+                                    placeholderTextColor="#B09080"
                                     value={referralCode}
                                     onChangeText={setReferralCode}
                                     autoCapitalize="characters"
@@ -198,18 +198,18 @@ export default function Onboarding({ navigation }: any) {
                             </View>
 
                             <View style={styles.promoCard}>
-                                <Text style={styles.promoText}>Claim a <Text style={{ fontWeight: 'bold', color: '#0f172a' }}>₹250 credit</Text> on your first service with a valid code!</Text>
+                                <Text style={styles.promoText}>Claim a <Text style={{ fontWeight: 'bold', color: '#1A1612' }}>₹250 credit</Text> on your first service with a valid code!</Text>
                             </View>
                         </View>
                     )}
 
                     {step === 5 && (
-                        <View style={[styles.stepContent, { alignItems: 'center' }]}>
+                        <View style={StyleSheet.flatten([styles.stepContent, { alignItems: 'center' }])}>
                             <View style={styles.successIconBox}>
                                 <CheckCircle2 size={64} color="#4f46e5" />
                             </View>
-                            <Text style={[styles.title, { textAlign: 'center' }]}>You're all <Text style={styles.accentText}>set</Text>!</Text>
-                            <Text style={[styles.subtitle, { textAlign: 'center' }]}>Welcome to the PetCare family. We're ready to provide the best care for your buddy.</Text>
+                            <Text style={StyleSheet.flatten([styles.title, { textAlign: 'center' }])}>You're all <Text style={styles.accentText}>set</Text>!</Text>
+                            <Text style={StyleSheet.flatten([styles.subtitle, { textAlign: 'center' }])}>Welcome to the Pawber family. We're ready to provide the best care for your buddy.</Text>
 
                             <View style={styles.bonusCard}>
                                 <View style={styles.bonusIconBox}>
@@ -253,11 +253,11 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 14,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
     },
     progressContainer: {
         flexDirection: 'row',
@@ -273,12 +273,12 @@ const styles = StyleSheet.create({
     },
     inactiveProgressBar: {
         width: 6,
-        backgroundColor: '#f1f5f9',
+        backgroundColor: '#F5E6D8',
     },
     skipText: {
         fontSize: 10,
         fontWeight: '900',
-        color: '#94a3b8',
+        color: '#B09080',
         letterSpacing: 1,
     },
     content: {
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 32,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         lineHeight: 40,
         marginBottom: 12,
     },
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     },
     subtitle: {
         fontSize: 15,
-        color: '#64748b',
+        color: '#7A5540',
         fontWeight: '500',
         lineHeight: 22,
         marginBottom: 40,
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         borderRadius: 32,
         borderWidth: 2,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 12,
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     petCardText: {
         fontSize: 14,
         fontWeight: 'bold',
-        color: '#94a3b8',
+        color: '#B09080',
     },
     activePetCardText: {
         color: '#4f46e5',
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         backgroundColor: 'white',
         borderWidth: 2,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         gap: 16,
     },
     activeServiceItem: {
@@ -364,14 +364,14 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 15,
         fontWeight: 'bold',
-        color: '#94a3b8',
+        color: '#B09080',
     },
     checkCircle: {
         width: 24,
         height: 24,
         borderRadius: 12,
         borderWidth: 2,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         borderRadius: 32,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         gap: 16,
     },
     accessIconBox: {
@@ -405,12 +405,12 @@ const styles = StyleSheet.create({
     accessTitle: {
         fontSize: 15,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         marginBottom: 2,
     },
     accessDesc: {
         fontSize: 12,
-        color: '#94a3b8',
+        color: '#B09080',
         fontWeight: '500',
     },
     enableText: {
@@ -422,12 +422,12 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         borderRadius: 24,
         paddingHorizontal: 20,
         height: 72,
         borderWidth: 2,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         marginBottom: 24,
     },
     inputIconBox: {
@@ -443,20 +443,20 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         letterSpacing: 2,
     },
     promoCard: {
         padding: 24,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFF9F5',
         borderRadius: 32,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         borderStyle: 'dashed',
     },
     promoText: {
         fontSize: 13,
-        color: '#64748b',
+        color: '#7A5540',
         textAlign: 'center',
         lineHeight: 20,
         fontWeight: '500',
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         borderRadius: 32,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: '#F5E6D8',
         flexDirection: 'row',
         alignItems: 'center',
         gap: 16,
@@ -494,16 +494,16 @@ const styles = StyleSheet.create({
     bonusTitle: {
         fontSize: 15,
         fontWeight: 'bold',
-        color: '#0f172a',
+        color: '#1A1612',
         marginBottom: 2,
     },
     bonusValue: {
         fontSize: 12,
-        color: '#64748b',
+        color: '#7A5540',
         fontWeight: '600',
     },
     nextBtn: {
-        backgroundColor: '#0f172a',
+        backgroundColor: '#1A1612',
         height: 64,
         borderRadius: 24,
         flexDirection: 'row',
