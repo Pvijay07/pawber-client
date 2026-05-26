@@ -14,6 +14,7 @@ import {
     Platform,
     StatusBar
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Icons from 'lucide-react-native';
 import {
@@ -52,6 +53,18 @@ interface HomeProps {
     navigation: any;
 }
 
+const CUTE_PET_VIDEOS = [
+    { id: '1', title: 'Funny Paws', url: 'https://assets.mixkit.co/videos/preview/mixkit-funny-cat-licking-its-paws-on-the-bed-34354-large.mp4', category: 'Funny', poster: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?q=80&w=400' },
+    { id: '2', title: 'Bath Time', url: 'https://assets.mixkit.co/videos/preview/mixkit-owner-grooming-her-cat-with-a-brush-34358-large.mp4', category: 'Grooming', poster: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?q=80&w=400' },
+    { id: '3', title: 'Park Fun', url: 'https://assets.mixkit.co/videos/preview/mixkit-golden-retriever-dog-running-in-the-park-34356-large.mp4', category: 'Walking', poster: 'https://images.unsplash.com/photo-1551730459-92db2a308d6a?q=80&w=400' },
+    { id: '4', title: 'Sleepy Head', url: 'https://assets.mixkit.co/videos/preview/mixkit-cat-sleeping-on-the-sofa-34352-large.mp4', category: 'Cute', poster: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?q=80&w=400' }
+];
+
+const SafeVideo = ({ url, poster, style }: { url: string, poster: string, style: any }) => {
+    // Temporarily disabled video to debug crash
+    return <Image source={{ uri: poster }} style={style} />;
+};
+
 export default function Home({ navigation }: HomeProps) {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -87,6 +100,8 @@ export default function Home({ navigation }: HomeProps) {
         fetchData();
     }, []);
 
+    const DISABLED_SERVICES = ['health', 'training', 'stay', 'veterinary', 'boarding'];
+
     const fetchData = async () => {
         try {
             const results = await Promise.allSettled([
@@ -115,10 +130,20 @@ export default function Home({ navigation }: HomeProps) {
             if (pets?.success && pets.data) setPetsCount(pets.data.pets.length);
             if (profile?.data?.user) setUser(profile.data.user);
             if (loyalty?.success && loyalty.data) setLoyaltyStatus(loyalty.data);
-            
+
             // Handle Categories (Final Dynamic Services)
             if (categoriesRes?.success && categoriesRes.data?.categories) {
-                setServices(categoriesRes.data.categories);
+                const mapped = categoriesRes.data.categories.map((c: any) => {
+                    const isManualDisabled = DISABLED_SERVICES.includes(c.id) || 
+                                           DISABLED_SERVICES.includes(c.slug) || 
+                                           DISABLED_SERVICES.includes(c.name.toLowerCase());
+                    return {
+                        ...c,
+                        is_active: isManualDisabled ? false : c.is_active,
+                        is_coming_soon: isManualDisabled ? true : c.is_coming_soon
+                    };
+                });
+                setServices(mapped);
             }
 
             // Handle Upcoming Booking
@@ -169,12 +194,17 @@ export default function Home({ navigation }: HomeProps) {
         { title: 'Expert Arrives', icon: 'Heart', description: 'Pro at door' },
     ];
 
-    const banners = homepageContent?.client_home_banners || [];
+    const banners = (homepageContent?.client_home_banners && homepageContent.client_home_banners.length > 0) 
+        ? homepageContent.client_home_banners 
+        : [
+            { title: 'Premium Grooming', subtitle: '30% Off this weekend', image: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?q=80&w=800', action: 'bookingFlow', serviceId: 'grooming' },
+            { title: 'Expert Veterinary', subtitle: 'Certified vets at your door', image: 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?q=80&w=800', action: 'bookingFlow', serviceId: 'health' }
+        ];
 
     return (
         <View style={[{ flex: 1 }, { backgroundColor: colors.background }]}>
-            <ScrollView 
-                contentContainerStyle={styles.container} 
+            <ScrollView
+                contentContainerStyle={styles.container}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
@@ -201,36 +231,8 @@ export default function Home({ navigation }: HomeProps) {
                     </TouchableOpacity>
                 </View>
 
-                {/* Search */}
-                <View style={styles.searchContainer}>
-                    <View style={styles.searchWrapper}>
-                        <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
-                        <TextInput
-                            placeholder="What does your pet need today?"
-                            style={[styles.searchInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-                            placeholderTextColor={colors.textMuted}
-                        />
-                    </View>
-                </View>
 
-                {/* dynamic Banners - Moved to Top */}
-                {banners.length > 0 && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} pagingEnabled style={styles.bannerScroll}>
-                        {banners.map((banner: any, index: number) => (
-                            <TouchableOpacity 
-                                key={index} 
-                                style={[styles.bannerCard, { width: width - 48 }]}
-                                onPress={() => navigation.navigate('PackageSelection', { serviceId: banner.serviceId })}
-                            >
-                                <Image source={{ uri: banner.image }} style={styles.bannerImage} />
-                                <View style={styles.bannerOverlay}>
-                                    <Text style={styles.bannerTitle}>{banner.title}</Text>
-                                    <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
-                                </View>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                )}
+
 
                 {/* Search */}
                 <View style={styles.searchContainer}>
@@ -306,6 +308,40 @@ export default function Home({ navigation }: HomeProps) {
                 </View>
                 */}
 
+                {/* dynamic Banners - Above Explore Services */}
+                <View style={{ marginBottom: 32 }}>
+                    <ScrollView 
+                        horizontal 
+                        showsHorizontalScrollIndicator={false} 
+                        pagingEnabled 
+                        contentContainerStyle={{ paddingLeft: 24, paddingRight: 8 }}
+                    >
+                        {banners.map((banner: any, index: number) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={[styles.bannerCard, { width: width - 48 }]}
+                                onPress={() => {
+                                    const isDisabled = DISABLED_SERVICES.includes(banner.serviceId?.toLowerCase());
+                                    if (!isDisabled) {
+                                        navigation.navigate('PackageSelection', { serviceId: banner.serviceId });
+                                    }
+                                }}
+                            >
+                                <Image source={{ uri: banner.image }} style={styles.bannerImage} />
+                                <View style={styles.bannerOverlay}>
+                                    <Text style={styles.bannerTitle}>{banner.title}</Text>
+                                    <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
+                                    {DISABLED_SERVICES.includes(banner.serviceId?.toLowerCase()) && (
+                                        <View style={[styles.comingSoonBadge, { position: 'relative', top: 0, right: 0, alignSelf: 'flex-start', marginTop: 8 }]}>
+                                            <Text style={styles.comingSoonText}>COMING SOON</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+
                 {/* Services Section */}
                 <View style={styles.sectionHeader}>
                     <Text style={[styles.sectionTitle, { color: colors.text }]}>EXPLORE SERVICES</Text>
@@ -313,26 +349,67 @@ export default function Home({ navigation }: HomeProps) {
 
                 <View style={styles.servicesGrid}>
                     {(services.length > 0 ? services : [
-                        { id: 'grooming', name: 'Grooming' },
-                        { id: 'health', name: 'Veterinary' },
-                        { id: 'stay', name: 'Boarding' },
-                        { id: 'exercise', name: 'Dog Walking' },
-                        { id: 'training', name: 'Training' }
+                        { id: 'grooming', name: 'Grooming', is_active: true },
+                        { id: 'exercise', name: 'Dog Walking', is_active: true },
+                        { id: 'stay', name: 'Boarding', is_active: false, is_coming_soon: true },
+                        { id: 'training', name: 'Training', is_active: false, is_coming_soon: true },
+                        { id: 'health', name: 'Veterinary', is_active: false, is_coming_soon: true },
                     ]).map((service) => {
                         const visuals = getServiceVisuals(service.name);
+                        const isDisabled = service.is_coming_soon || !service.is_active;
                         return (
                             <TouchableOpacity
                                 key={service.id}
-                                style={[styles.serviceItem, { width: serviceItemWidth }]}
-                                onPress={() => navigation.navigate('PackageSelection', { categoryId: service.id, serviceId: service.id })}
+                                style={[styles.serviceItem, { width: serviceItemWidth, opacity: isDisabled ? 0.7 : 1 }]}
+                                onPress={() => {
+                                    if (isDisabled) return;
+                                    navigation.navigate('PackageSelection', { categoryId: service.id });
+                                }}
                             >
                                 <View style={[styles.serviceIcon, { backgroundColor: isDark ? colors.surface : visuals.bgColor }]}>
                                     {renderIcon(visuals.icon, 28, visuals.color)}
                                 </View>
                                 <Text style={[styles.serviceName, { color: colors.textSecondary }]}>{service.name}</Text>
+                                {isDisabled && (
+                                    <View style={[styles.comingSoonBadge, { backgroundColor: colors.primary }]}>
+                                        <Text style={styles.comingSoonText}>COMING SOON</Text>
+                                    </View>
+                                )}
                             </TouchableOpacity>
                         );
                     })}
+                </View>
+
+                {/* Pet Cute and Funny Videos Section */}
+                <View style={styles.videosSection}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>PAWBER MOMENTS</Text>
+                        <TouchableOpacity>
+                            <Text style={[styles.seeAllText, { color: colors.primary }]}>Watch More</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingLeft: 24, gap: 16 }}
+                    >
+                        {CUTE_PET_VIDEOS.map((video) => (
+                            <View key={video.id} style={[styles.videoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                <SafeVideo
+                                    url={video.url}
+                                    poster={video.poster}
+                                    style={styles.videoPlayer}
+                                />
+                                <View style={styles.videoOverlay}>
+                                    <View style={styles.videoCategoryBadge}>
+                                        <Text style={styles.videoCategoryText}>{video.category}</Text>
+                                    </View>
+                                    <Text style={styles.videoTitle}>{video.title}</Text>
+                                </View>
+                            </View>
+                        ))}
+                    </ScrollView>
                 </View>
 
                 {/* How It Works Section */}
@@ -340,7 +417,7 @@ export default function Home({ navigation }: HomeProps) {
                     <View style={styles.sectionHeader}>
                         <Text style={[styles.sectionTitle, { color: colors.text }]}>HOW IT WORKS</Text>
                     </View>
-                    
+
                     <View style={styles.stepsWrapper}>
                         {howItWorksSteps.map((step: any, index: number) => (
                             <View key={index} style={styles.stepBlock}>
@@ -356,19 +433,36 @@ export default function Home({ navigation }: HomeProps) {
                     </View>
                 </View>
 
-                {/* Commented out Upcoming per User Request */}
-                {/* 
+                {/* Restore Upcoming Session per User Context */}
                 {upcomingBooking && (
                     <View style={styles.upcomingSection}>
-                        ...
+                        <View style={styles.sectionHeader}>
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>UPCOMING SESSION</Text>
+                            <View style={[styles.timeTag, { backgroundColor: colors.primaryLight }]}>
+                                <Icons.Clock size={12} color={colors.primary} />
+                                <Text style={[styles.timeTagText, { color: colors.primary }]}>
+                                    {new Date(upcomingBooking.booking_date).toLocaleDateString()} • {new Date(upcomingBooking.booking_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <TouchableOpacity style={[styles.appointmentCard, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Bookings')}>
+                            <View style={[styles.appointmentIcon, { backgroundColor: isDark ? colors.surfaceSecondary : '#fff7ed' }]}>
+                                <Icons.Sparkles size={22} color={colors.accent} />
+                            </View>
+                            <View style={styles.appointmentInfo}>
+                                <Text style={[styles.appointmentTitle, { color: colors.text }]}>{upcomingBooking.service?.name || 'Pet Service'}</Text>
+                                <Text style={styles.appointmentDate}>{upcomingBooking.booking_pets?.[0]?.pet?.name || 'Your Pet'} • {upcomingBooking.address || 'Your Location'}</Text>
+                            </View>
+                            <Icons.ChevronRight size={18} color={colors.textMuted} />
+                        </TouchableOpacity>
                     </View>
                 )}
-                */}
             </ScrollView>
 
             {/* Floating AI Assistant Button */}
-            <TouchableOpacity 
-                style={styles.aiFab} 
+            <TouchableOpacity
+                style={styles.aiFab}
                 onPress={() => navigation.navigate('AIChatScreen')}
             >
                 <Bot size={28} color="white" />
@@ -502,17 +596,17 @@ const styles = StyleSheet.create({
     quickActionIcon: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
     quickActionText: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
     statsRow: { flexDirection: 'row', paddingHorizontal: 24, gap: 16, marginBottom: 36 },
-    walletCard: { 
-        flex: 1.6, 
-        backgroundColor: '#0f172a', 
-        borderRadius: 32, 
-        padding: 20, 
+    walletCard: {
+        flex: 1.6,
+        backgroundColor: '#0f172a',
+        borderRadius: 32,
+        padding: 20,
         paddingBottom: 24,
         justifyContent: 'space-between',
-        shadowColor: '#000', 
-        shadowOpacity: 0.1, 
-        shadowRadius: 20, 
-        elevation: 8 
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 8
     },
     statIconCircle: { width: 32, height: 32, borderRadius: 12, backgroundColor: 'rgba(20, 184, 166, 0.1)', alignItems: 'center', justifyContent: 'center' },
     statIconCircleOrange: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
@@ -523,14 +617,14 @@ const styles = StyleSheet.create({
     walletValue: { fontSize: 32, fontWeight: '900', color: 'white' },
     walletDetails: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
     walletDetailsText: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5 },
-    petsCard: { 
-        flex: 1, 
-        backgroundColor: '#fff', 
-        borderRadius: 32, 
-        borderWidth: 2, 
-        borderColor: '#f1f5f9', 
-        padding: 20, 
-        alignItems: 'center', 
+    petsCard: {
+        flex: 1,
+        backgroundColor: '#fff',
+        borderRadius: 32,
+        borderWidth: 2,
+        borderColor: '#f1f5f9',
+        padding: 20,
+        alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
         shadowOpacity: 0.02,
@@ -566,4 +660,64 @@ const styles = StyleSheet.create({
     appointmentInfo: { flex: 1 },
     appointmentTitle: { fontSize: 17, fontWeight: 'bold', color: '#0f172a', marginBottom: 4 },
     appointmentDate: { fontSize: 13, color: '#94a3b8', fontWeight: '700' },
+    comingSoonBadge: {
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 8,
+        borderWidth: 2,
+        borderColor: 'white',
+        zIndex: 10,
+    },
+    comingSoonText: {
+        color: 'white',
+        fontSize: 8,
+        fontWeight: '900',
+    },
+    videosSection: {
+        marginBottom: 40,
+    },
+    videoCard: {
+        width: 160,
+        height: 240,
+        borderRadius: 24,
+        overflow: 'hidden',
+        borderWidth: 1,
+    },
+    videoPlayer: {
+        width: '100%',
+        height: '100%',
+    },
+    videoOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        padding: 12,
+        backgroundColor: 'rgba(0,0,0,0.3)',
+    },
+    videoCategoryBadge: {
+        alignSelf: 'flex-start',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        marginBottom: 4,
+    },
+    videoCategoryText: {
+        color: 'white',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    videoTitle: {
+        color: 'white',
+        fontSize: 14,
+        fontWeight: '900',
+    },
+    seeAllText: {
+        fontSize: 12,
+        fontWeight: '700',
+    },
 });

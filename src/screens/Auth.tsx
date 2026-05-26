@@ -79,7 +79,7 @@ export default function Auth({ navigation }: AuthProps) {
                 const res = await fetch(`${API_BASE}/api/auth/signin`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password }),
+                    body: JSON.stringify({ email, password, role: 'client' }),
                 });
                 const body = await res.json();
                 if (!res.ok) throw new Error(body?.error?.message || body?.error || 'Login failed');
@@ -91,7 +91,7 @@ export default function Auth({ navigation }: AuthProps) {
                 const res = await fetch(`${API_BASE}/api/auth/signup`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password, full_name: email.split('@')[0] }),
+                    body: JSON.stringify({ email, password, full_name: email.split('@')[0], role: 'client' }),
                 });
                 const body = await res.json();
                 if (!res.ok) throw new Error(body?.error?.message || body?.error || 'Signup failed');

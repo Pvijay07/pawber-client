@@ -33,6 +33,11 @@ import {
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../theme/ThemeContext';
+import { authApi } from '../services/auth.service';
+import { loyaltyApi } from '../services/loyalty.service';
+import { walletApi } from '../services/wallet.service';
+import { bookingsApi } from '../services/bookings.service';
+import { useIsFocused } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -43,12 +48,35 @@ interface ProfileProps {
 export default function Profile({ navigation }: ProfileProps) {
     const insets = useSafeAreaInsets();
     const { colors, isDark, toggleTheme } = useTheme();
+    const isFocused = useIsFocused();
+    
+    const [userData, setUserData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState([
+        { label: 'Orders', value: '0', icon: FileText, color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.1)' },
+        { label: 'Points', value: '0', icon: Star, color: '#f97316', bgColor: 'rgba(249, 115, 22, 0.1)' },
+        { label: 'Saves', value: '₹0', icon: Gift, color: '#14b8a6', bgColor: 'rgba(20, 184, 166, 0.1)' },
+    ]);
 
-    const stats = [
-        { label: 'Orders', value: '12', icon: FileText, color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.1)' },
-        { label: 'Points', value: '2.4k', icon: Star, color: '#f97316', bgColor: 'rgba(249, 115, 22, 0.1)' },
-        { label: 'Saves', value: '₹4k', icon: Gift, color: '#14b8a6', bgColor: 'rgba(20, 184, 166, 0.1)' },
-    ];
+    React.useEffect(() => {
+        if (isFocused) {
+            fetchProfileData();
+        }
+    }, [isFocused]);
+
+    const fetchProfileData = async () => {
+        try {
+            setLoading(true);
+            const profileRes = await authApi.getProfile();
+            if (profileRes?.success && profileRes.data?.user) {
+                setUserData(profileRes.data.user);
+            }
+        } catch (error) {
+            console.error('Error fetching profile data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const menuItems = [
         { id: 'Addresses', label: 'My Addresses', icon: MapPin, color: '#3b82f6', bgColor: isDark ? 'rgba(59,130,246,0.1)' : '#eff6ff' },
@@ -73,21 +101,19 @@ export default function Profile({ navigation }: ProfileProps) {
                     <View style={styles.avatarWrapper}>
                         <View style={styles.avatarContainer}>
                             <Image
-                                source={{ uri: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200&h=200' }}
+                                source={{ uri: userData?.avatar_url || 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200&h=200' }}
                                 style={styles.avatar}
                             />
                         </View>
-                        <TouchableOpacity style={styles.editBtn}>
+                        <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('EditProfile')}>
                             <Edit2 size={14} color="white" strokeWidth={3} />
                         </TouchableOpacity>
-                        <View style={styles.levelBadge}>
-                            <Crown size={10} color="white" fill="white" />
-                            <Text style={styles.levelText}>GOLD</Text>
-                        </View>
                     </View>
 
-                    <Text style={styles.userName}>Sarah Jenkins</Text>
-                    <Text style={styles.userSince}>MEMBER SINCE OCT 2022</Text>
+                    <Text style={styles.userName}>{userData?.full_name || 'Loading...'}</Text>
+                    <Text style={styles.userSince}>
+                        MEMBER SINCE {userData?.created_at ? new Date(userData.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase() : '...'}
+                    </Text>
 
                     <View style={styles.statsRow}>
                         {stats.map((s, i) => (

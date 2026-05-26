@@ -17,6 +17,9 @@ import { Camera, ChevronLeft, User, Phone, Mail, Check, X } from 'lucide-react-n
 import * as ImagePicker from 'expo-image-picker';
 import { authApi } from '../services/auth.service';
 import { useTheme } from '../theme/ThemeContext';
+import { supabase } from '../lib/supabase';
+import { decode } from 'base64-arraybuffer';
+import * as FileSystem from 'expo-file-system';
 
 export default function EditProfile({ navigation }: any) {
     const insets = useSafeAreaInsets();
@@ -79,17 +82,39 @@ export default function EditProfile({ navigation }: any) {
 
         setSaving(true);
         try {
-            // Only send avatar_url if it's a remote URL, not a local file URI
+            let finalAvatarUrl = avatarUrl;
+
+            // Handle Image Upload if it's a local URI
             const isLocalUri = avatarUrl.startsWith('file://') || avatarUrl.startsWith('content://');
-            
+            if (isLocalUri) {
+                const base64 = await FileSystem.readAsStringAsync(avatarUrl, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+                
+                const fileName = `${userData.id}-${Date.now()}.jpg`;
+                const filePath = `avatars/${fileName}`;
+                
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('user-content')
+                    .upload(filePath, decode(base64), {
+                        contentType: 'image/jpeg',
+                        upsert: true
+                    });
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('user-content')
+                    .getPublicUrl(filePath);
+                
+                finalAvatarUrl = publicUrl;
+            }
+
             const payload: any = {
                 full_name: fullName,
                 phone: phone,
+                avatar_url: finalAvatarUrl
             };
-            
-            if (!isLocalUri && avatarUrl) {
-                payload.avatar_url = avatarUrl;
-            }
 
             const response = await authApi.updateProfile(payload);
 

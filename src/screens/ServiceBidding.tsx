@@ -103,7 +103,7 @@ export default function ServiceBidding({ navigation, route }: any) {
     const handleAccept = (bidId: string) => {
         setIsLocking(bidId);
         setTimeout(() => {
-            navigation.navigate('Home');
+            navigation.navigate('Main');
         }, 2000);
     };
 

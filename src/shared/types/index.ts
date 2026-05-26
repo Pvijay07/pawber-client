@@ -46,6 +46,7 @@ export interface ServiceCategory {
     icon_url?: string;
     sort_order: number;
     is_active: boolean;
+    is_coming_soon?: boolean;
 }
 
 export interface Service {

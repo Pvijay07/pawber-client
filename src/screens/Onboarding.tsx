@@ -43,7 +43,7 @@ export default function Onboarding({ navigation }: any) {
 
     const handleNext = () => {
         if (step < 5) setStep(step + 1);
-        else navigation.replace('Home');
+        else navigation.replace('Main');
     };
 
     const handleBack = () => {
@@ -76,7 +76,7 @@ export default function Onboarding({ navigation }: any) {
                         ))}
                     </View>
 
-                    <TouchableOpacity onPress={() => navigation.replace('Home')}>
+                    <TouchableOpacity onPress={() => navigation.replace('Main')}>
                         <Text style={styles.skipText}>SKIP</Text>
                     </TouchableOpacity>
                 </View>

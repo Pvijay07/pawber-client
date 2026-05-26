@@ -45,52 +45,96 @@ export default function PackageSelection({ navigation, route }: any) {
             setLoading(true);
             try {
                 let targetServiceId = serviceId;
+                console.log('🔍 Fetching PackageSelection data for:', { serviceId, categoryId });
 
                 // If we only have a category, fetch the first service in that category
                 if (!targetServiceId && categoryId) {
                     const servicesRes = await servicesApi.list(categoryId);
                     if (servicesRes.success && servicesRes.data?.services?.length > 0) {
-                        targetServiceId = servicesRes.data.services[0].id;
+                        // Prefer the service with a slug (the main/canonical one with packages)
+                        const withSlug = servicesRes.data.services.find((s: any) => s.slug);
+                        targetServiceId = withSlug?.id || servicesRes.data.services[0].id;
                     }
                 }
 
                 if (!targetServiceId) {
-                    throw new Error('No service specified');
+                    // Try fallback if categoryId is a slug itself (sometimes passed this way)
+                    if (categoryId) {
+                        targetServiceId = categoryId;
+                    } else {
+                        throw new Error('No service specified');
+                    }
                 }
 
                 const response = await servicesApi.getById(targetServiceId);
+                console.log('📦 API Response for service:', { 
+                    targetServiceId,
+                    success: response.success, 
+                    hasService: !!response.data?.service,
+                    packageCount: response.data?.service?.packages?.length,
+                    error: response.error?.message
+                });
+
                 if (response.success && response.data?.service) {
                     const svc = response.data.service;
-                    const mappedSvc = {
-                        ...svc,
-                        description: svc.description || '',
-                        image: svc.image_url || 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&q=80&w=800&h=400',
-                        packages: svc.packages.map((p: any) => ({
-                            id: p.id,
-                            name: p.package_name,
-                            price: p.price,
-                            duration: `${p.duration_minutes} mins`,
-                            features: p.features || [],
-                            isPopular: p.is_popular
-                        })),
-                        addons: svc.addons.map((a: any) => ({
-                            id: a.id,
-                            name: a.name,
-                            price: a.price,
-                            duration: `${a.duration_minutes} mins`
-                        }))
-                    };
-                    setService(mappedSvc);
-                    if (mappedSvc.packages.length > 0) {
-                        setSelectedPackage(mappedSvc.packages.find((p: any) => p.isPopular)?.id || mappedSvc.packages[0].id);
+                    const mapped = mapServiceData(svc);
+                    console.log('✨ Mapped Service Data:', {
+                        name: mapped.name,
+                        packages: mapped.packages.map((p: any) => p.name)
+                    });
+                    
+                    // Defensive check for packages - if empty, maybe try to fetch by category
+                    if ((!mapped.packages || mapped.packages.length === 0) && svc.category_id) {
+                        console.log('⚠️ Service has no packages, trying to find another service in same category');
+                        const catServices = await servicesApi.list(svc.category_id);
+                        if (catServices.success && catServices.data?.services?.length > 1) {
+                            const otherService = catServices.data.services.find((s: any) => s.id !== svc.id && s.slug);
+                            if (otherService) {
+                                console.log('🔍 Checking other service in category:', otherService.name);
+                                const otherRes = await servicesApi.getById(otherService.id);
+                                if (otherRes.success && otherRes.data?.service?.packages?.length > 0) {
+                                    console.log('✅ Found packages in other service!');
+                                    setService(mapServiceData(otherRes.data.service));
+                                    return;
+                                }
+                            }
+                        }
                     }
+
+                    setService(mapped);
                 }
             } catch (err) {
                 console.error('Failed to fetch dynamic service data:', err);
-                // Handle fallback or error UI
             } finally {
                 setLoading(false);
             }
+        };
+
+        const mapServiceData = (svc: any) => {
+            const mapped = {
+                ...svc,
+                description: svc.description || '',
+                image: svc.image_url || 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&q=80&w=800&h=400',
+                packages: (svc.packages || []).map((p: any) => ({
+                    id: p.id,
+                    name: p.package_name || p.name,
+                    price: p.price,
+                    duration: `${p.duration_minutes || 0} mins`,
+                    features: p.features || [],
+                    isPopular: p.is_popular
+                })),
+                addons: (svc.addons || []).map((a: any) => ({
+                    id: a.id,
+                    name: a.name,
+                    price: a.price,
+                    duration: `${a.duration_minutes || 0} mins`
+                }))
+            };
+            
+            if (mapped.packages.length > 0) {
+                setSelectedPackage(mapped.packages.find((p: any) => p.isPopular)?.id || mapped.packages[0].id);
+            }
+            return mapped;
         };
 
         fetchDynamicData();
@@ -142,10 +186,15 @@ export default function PackageSelection({ navigation, route }: any) {
                             <Image source={{ uri: service.image }} style={styles.bannerImage} />
                             <View style={styles.bannerOverlay} />
                             <View style={styles.bannerContent}>
-                                <View style={styles.categoryBadge}>
-                                    <Text style={styles.categoryText}>
-                                        {service.id.toUpperCase()}
-                                    </Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <View style={styles.categoryBadge}>
+                                        <Text style={styles.categoryText}>
+                                            {(service.category?.name || 'Service').toUpperCase()}
+                                        </Text>
+                                    </View>
+                                    <View style={{ backgroundColor: '#FF7A3D', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                                        <Text style={{ color: 'white', fontSize: 10, fontWeight: '900' }}>STEP 1 OF 3</Text>
+                                    </View>
                                 </View>
                                 <Text style={styles.serviceName}>{service.name}</Text>
                                 <View style={styles.durationRow}>
@@ -185,84 +234,94 @@ export default function PackageSelection({ navigation, route }: any) {
                             <View style={styles.section}>
                                 <Text style={styles.sectionTitle}>Select Package</Text>
                                 <View style={styles.packagesContainer}>
-                                    {packages.map((pkg: any) => (
-                                        <TouchableOpacity
-                                            key={pkg.id}
-                                            onPress={() => setSelectedPackage(pkg.id)}
-                                            style={[
-                                                styles.packageCard,
-                                                selectedPackage === pkg.id && styles.packageCardSelected
-                                            ]}
-                                        >
-                                            {pkg.isPopular && (
-                                                <View style={styles.popularBadge}>
-                                                    <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
-                                                </View>
-                                            )}
-                                            <View style={styles.packageHeader}>
-                                                <View style={styles.packageNameBox}>
-                                                    <Text style={styles.packageName}>{pkg.name}</Text>
-                                                    <View style={styles.pkgDurationRow}>
-                                                        <Clock size={12} color="#94a3b8" />
-                                                        <Text style={styles.pkgDurationText}>{pkg.duration}</Text>
-                                                    </View>
-                                                </View>
-                                                <Text style={styles.packagePrice}>₹{pkg.price}</Text>
-                                            </View>
-
-                                            <View style={styles.featuresList}>
-                                                {pkg.features.map((feature: string, idx: number) => (
-                                                    <View key={idx} style={styles.featureItem}>
-                                                        <View style={styles.checkIconBox}>
-                                                            <Check size={10} color="#f97316" strokeWidth={4} />
-                                                        </View>
-                                                        <Text style={styles.featureText}>{feature}</Text>
-                                                    </View>
-                                                ))}
-                                            </View>
-
-                                            <View style={[
-                                                styles.radioCircle,
-                                                selectedPackage === pkg.id && styles.radioCircleSelected
-                                            ]}>
-                                                {selectedPackage === pkg.id && <View style={styles.radioInner} />}
-                                            </View>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            </View>
-
-                            {/* Add-ons */}
-                            <View style={styles.section}>
-                                <View style={styles.addonsHeader}>
-                                    <Text style={styles.sectionTitle}>Add-ons</Text>
-                                    <Info size={16} color="#94a3b8" />
-                                </View>
-                                <View style={styles.addonsContainer}>
-                                    {addons.map((addon: any) => (
-                                        <View key={addon.id} style={styles.addonCard}>
-                                            <View>
-                                                <Text style={styles.addonName}>{addon.name}</Text>
-                                                <Text style={styles.addonPriceText}>
-                                                    +₹{addon.price} • {addon.duration}
-                                                </Text>
-                                            </View>
+                                    {packages.length > 0 ? (
+                                        packages.map((pkg: any) => (
                                             <TouchableOpacity
-                                                onPress={() => toggleAddon(addon.id)}
+                                                key={pkg.id}
+                                                onPress={() => setSelectedPackage(pkg.id)}
                                                 style={[
-                                                    styles.toggleSwitch,
-                                                    selectedAddons.includes(addon.id) && styles.toggleSwitchOn
+                                                    styles.packageCard,
+                                                    selectedPackage === pkg.id && styles.packageCardSelected
                                                 ]}
                                             >
+                                                {pkg.isPopular && (
+                                                    <View style={styles.popularBadge}>
+                                                        <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
+                                                    </View>
+                                                )}
+                                                <View style={styles.packageHeader}>
+                                                    <View style={styles.packageNameBox}>
+                                                        <Text style={styles.packageName}>{pkg.name}</Text>
+                                                        <View style={styles.pkgDurationRow}>
+                                                            <Clock size={12} color="#94a3b8" />
+                                                            <Text style={styles.pkgDurationText}>{pkg.duration}</Text>
+                                                        </View>
+                                                    </View>
+                                                    <Text style={styles.packagePrice}>₹{pkg.price}</Text>
+                                                </View>
+
+                                                <View style={styles.featuresList}>
+                                                    {pkg.features.map((feature: string, idx: number) => (
+                                                        <View key={idx} style={styles.featureItem}>
+                                                            <View style={styles.checkIconBox}>
+                                                                <Check size={10} color="#f97316" strokeWidth={4} />
+                                                            </View>
+                                                            <Text style={styles.featureText}>{feature}</Text>
+                                                        </View>
+                                                    ))}
+                                                </View>
+
                                                 <View style={[
-                                                    styles.toggleCircle,
-                                                    selectedAddons.includes(addon.id) && styles.toggleCircleOn
-                                                ]} />
+                                                    styles.radioCircle,
+                                                    selectedPackage === pkg.id && styles.radioCircleSelected
+                                                ]}>
+                                                    {selectedPackage === pkg.id && <View style={styles.radioInner} />}
+                                                </View>
                                             </TouchableOpacity>
+                                        ))
+                                    ) : (
+                                        <View style={styles.emptyPackages}>
+                                            <AlertCircle size={32} color="#94a3b8" />
+                                            <Text style={styles.emptyPackagesText}>No packages found for this service.</Text>
                                         </View>
-                                    ))}
+                                    )}
                                 </View>
                             </View>
+
+                            {/* Add-ons Section */}
+                            {addons.length > 0 && (
+                                <View style={styles.section}>
+                                    <View style={styles.addonsHeader}>
+                                        <Text style={styles.sectionTitle}>Customize Your Session</Text>
+                                        <Info size={16} color="#94a3b8" />
+                                    </View>
+                                    <View style={styles.addonsContainer}>
+                                        {addons.map((addon: any) => (
+                                            <TouchableOpacity
+                                                key={addon.id}
+                                                style={[
+                                                    styles.addonCard,
+                                                    selectedAddons.includes(addon.id) && styles.addonCardSelected
+                                                ]}
+                                                onPress={() => toggleAddon(addon.id)}
+                                            >
+                                                <View style={styles.addonInfo}>
+                                                    <Text style={styles.addonName}>{addon.name}</Text>
+                                                    <Text style={styles.addonPriceText}>
+                                                        +₹{addon.price} • {addon.duration}
+                                                    </Text>
+                                                </View>
+                                                <View style={[
+                                                    styles.addonCheck,
+                                                    selectedAddons.includes(addon.id) && styles.addonCheckActive
+                                                ]}>
+                                                    {selectedAddons.includes(addon.id) && <Check size={12} color="white" strokeWidth={4} />}
+                                                </View>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            )}
                         </View>
                     </ScrollView>
 
@@ -281,7 +340,7 @@ export default function PackageSelection({ navigation, route }: any) {
                             </View>
                         </View>
                         <TouchableOpacity
-                            onPress={() => navigation.navigate('BookingFlow', { serviceId, packageId: selectedPackage, addonIds: selectedAddons })}
+                            onPress={() => navigation.navigate('BookingFlow', { serviceId: service?.id || serviceId, packageId: selectedPackage, addonIds: selectedAddons })}
                             style={styles.bookBtn}
                         >
                             <Text style={styles.bookBtnText}>BOOK NOW</Text>
@@ -562,6 +621,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        marginBottom: 12,
     },
     addonsContainer: {
         gap: 12,
@@ -573,41 +633,42 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: '#f1f5f9',
+        shadowColor: '#000',
+        shadowOpacity: 0.02,
+        shadowOffset: { width: 0, height: 4 },
+    },
+    addonCardSelected: {
+        borderColor: '#f97316',
+        backgroundColor: '#fff7ed',
+    },
+    addonInfo: {
+        flex: 1,
     },
     addonName: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: 'bold',
         color: '#0f172a',
-        marginBottom: 2,
+        marginBottom: 4,
     },
     addonPriceText: {
-        fontSize: 11,
+        fontSize: 12,
         color: '#94a3b8',
         fontWeight: '700',
     },
-    toggleSwitch: {
-        width: 48,
+    addonCheck: {
+        width: 24,
         height: 24,
         borderRadius: 12,
-        backgroundColor: '#e2e8f0',
-        padding: 2,
+        borderWidth: 2,
+        borderColor: '#e2e8f0',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    toggleSwitchOn: {
+    addonCheckActive: {
         backgroundColor: '#f97316',
-    },
-    toggleCircle: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: 'white',
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowOffset: { width: 0, height: 2 },
-    },
-    toggleCircleOn: {
-        alignSelf: 'flex-end',
+        borderColor: '#f97316',
     },
     bottomBar: {
         position: 'absolute',
@@ -672,4 +733,21 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         letterSpacing: 1,
     },
+    emptyPackages: {
+        backgroundColor: 'white',
+        borderRadius: 24,
+        padding: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+        borderWidth: 2,
+        borderColor: '#f1f5f9',
+        borderStyle: 'dashed'
+    },
+    emptyPackagesText: {
+        fontSize: 14,
+        color: '#64748b',
+        fontWeight: '600',
+        textAlign: 'center'
+    }
 });

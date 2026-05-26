@@ -2,8 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home as HomeIcon, Calendar, Map, Wallet as WalletIcon, User, MessageSquare } from 'lucide-react-native';
 import { Platform, View, StyleSheet, Text, Animated } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../theme/ThemeContext';
 
 // Screens
 import Home from '../screens/Home';
@@ -14,149 +13,88 @@ import Profile from '../screens/Profile';
 
 const Tab = createBottomTabNavigator();
 
-const TabIcon = ({ IconComponent, focused, label }: { IconComponent: any, focused: boolean, label: string }) => {
-  const scale = React.useRef(new Animated.Value(focused ? 1.1 : 1)).current;
-
-  React.useEffect(() => {
-    Animated.spring(scale, {
-      toValue: focused ? 1.15 : 1,
-      useNativeDriver: true,
-      friction: 8,
-      tension: 100
-    }).start();
-  }, [focused]);
-
-  return (
-    <View style={styles.tabItem}>
-      <Animated.View style={[
-        styles.iconPod,
-        focused && styles.iconPodActive,
-        { transform: [{ scale }] }
-      ]}>
-        {focused && (
-          <LinearGradient
-            colors={['rgba(255, 122, 61, 0.25)', 'rgba(255, 122, 61, 0.05)']}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          />
-        )}
-        <IconComponent 
-          size={24} 
-          color={focused ? '#FF7A3D' : '#94A3B8'} 
-          strokeWidth={focused ? 2.5 : 2}
-          fill={focused ? 'rgba(255, 122, 61, 0.1)' : 'transparent'}
-        />
-      </Animated.View>
-      {focused && (
-        <Animated.Text style={[styles.tabLabel, { color: '#FF7A3D' }]}>
-          {label}
-        </Animated.Text>
-      )}
-    </View>
-  );
-};
-
 export default function MainTabNavigator() {
+  const { colors } = useTheme();
+
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarShowLabel: false,
-        tabBarStyle: styles.tabBar,
-        tabBarBackground: () => (
-          <BlurView
-            intensity={90}
-            tint="light"
-            style={styles.tabBarBlur}
-          />
-        ),
-      }}
+        tabBarActiveTintColor: '#FF7A3D',
+        tabBarInactiveTintColor: '#94A3B8',
+        tabBarStyle: {
+          height: Platform.OS === 'ios' ? 88 : 68,
+          paddingBottom: Platform.OS === 'ios' ? 30 : 12,
+          paddingTop: 10,
+          backgroundColor: 'white',
+          borderTopWidth: 1,
+          borderTopColor: '#F1F5F9',
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '700',
+        },
+        tabBarIcon: ({ focused, color, size }) => {
+          let IconComponent;
+          if (route.name === 'HomeTab') IconComponent = HomeIcon;
+          else if (route.name === 'BookingsTab') IconComponent = Calendar;
+          else if (route.name === 'NearbyTab') IconComponent = Map;
+          else if (route.name === 'WalletTab') IconComponent = WalletIcon;
+          else if (route.name === 'ProfileTab') IconComponent = User;
+
+          return (
+            <View style={{ alignItems: 'center' }}>
+              {IconComponent && (
+                <IconComponent 
+                  size={24} 
+                  color={color} 
+                  strokeWidth={focused ? 2.5 : 2}
+                  fill={focused ? 'rgba(255, 122, 61, 0.1)' : 'transparent'}
+                />
+              )}
+              {focused && (
+                <View style={{
+                  width: 4,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: '#FF7A3D',
+                  marginTop: 4,
+                  position: 'absolute',
+                  bottom: -16
+                }} />
+              )}
+            </View>
+          );
+        },
+      })}
     >
       <Tab.Screen
         name="HomeTab"
         component={Home}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon IconComponent={HomeIcon} focused={focused} label="Home" />,
-        }}
+        options={{ tabBarLabel: 'Home' }}
       />
       <Tab.Screen
         name="BookingsTab"
         component={Bookings}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon IconComponent={Calendar} focused={focused} label="Bookings" />,
-        }}
+        options={{ tabBarLabel: 'Bookings' }}
+      />
+      <Tab.Screen
+        name="NearbyTab"
+        component={Nearby}
+        options={{ tabBarLabel: 'Nearby' }}
       />
       <Tab.Screen
         name="WalletTab"
         component={Wallet}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon IconComponent={WalletIcon} focused={focused} label="Wallet" />,
-        }}
+        options={{ tabBarLabel: 'Wallet' }}
       />
       <Tab.Screen
         name="ProfileTab"
         component={Profile}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon IconComponent={User} focused={focused} label="Profile" />,
-        }}
+        options={{ tabBarLabel: 'Profile' }}
       />
     </Tab.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    position: 'absolute',
-    bottom: 25,
-    left: 20,
-    right: 20,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'transparent',
-    borderTopWidth: 0,
-    elevation: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    paddingHorizontal: 10,
-  },
-  tabBarBlur: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 36,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.75)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 10,
-  },
-  iconPod: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  iconPodActive: {
-    backgroundColor: 'white',
-    shadowColor: '#FF7A3D',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontWeight: '900',
-    marginTop: 4,
-    letterSpacing: 0.3,
-  }
-});
 
 

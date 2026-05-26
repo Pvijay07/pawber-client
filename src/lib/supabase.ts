@@ -2,15 +2,8 @@ import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const runtimeEnv: Record<string, string | undefined> = typeof process !== 'undefined'
-    ? (process.env as Record<string, string | undefined>)
-    : {};
-const supabaseUrl =
-    runtimeEnv.EXPO_PUBLIC_SUPABASE_URL ||
-    'https://your-project.supabase.co';
-const supabaseAnonKey =
-    runtimeEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-    'your-anon-key';
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured = Boolean(
     supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('your-project')

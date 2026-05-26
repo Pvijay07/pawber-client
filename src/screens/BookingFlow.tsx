@@ -104,7 +104,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     const serviceId = route?.params?.serviceId || 'grooming';
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
+
     const [serviceData, setServiceData] = useState<ServiceDetail | null>(null);
     const [pets, setPets] = useState<Pet[]>([]);
     const [addresses, setAddresses] = useState<any[]>([]);
@@ -114,14 +114,14 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
     const [selectedPackage, setSelectedPackage] = useState<string | null>(route?.params?.packageId || null);
     const [serviceLocation, setServiceLocation] = useState<'home' | 'center'>('home');
-    
+
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
     const [recurringType, setRecurringType] = useState<'none' | 'weekly' | 'monthly'>('none');
-    
+
     const [selectedAddons, setSelectedAddons] = useState<string[]>(route?.params?.addonIds || []);
     const [instructions, setInstructions] = useState('');
-    
+
     const [paymentMode, setPaymentMode] = useState<'wallet' | 'gateway' | 'split'>('wallet');
     const [couponCode, setCouponCode] = useState('');
     const [holdTimer, setHoldTimer] = useState(300);
@@ -229,11 +229,11 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
 
     const handleNext = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        if (step < 4) setStep(step + 1);
-        else if (step === 4) {
+        if (step < 2) setStep(step + 1);
+        else if (step === 2) {
             submitBooking();
         } else {
-            navigation.navigate('Home');
+            navigation.navigate('Main');
         }
     };
 
@@ -245,6 +245,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 package_id: selectedPackage!,
                 booking_type: 'scheduled',
                 pet_ids: selectedPets,
+                addon_ids: selectedAddons,
                 booking_date: selectedDate!,
                 address: addresses.find(a => a.id === selectedAddress)?.address,
                 notes: instructions,
@@ -254,7 +255,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
 
             if (res.success && res.data) {
                 setCreatedBooking(res.data.booking);
-                setStep(5);
+                setStep(3);
             } else {
                 alert('Booking failed: ' + ((res as any).error?.message || 'Unknown error'));
             }
@@ -271,7 +272,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         if (!createdBooking?.id) return;
 
         console.log('📡 Tracking Booking Status (Socket + DB):', createdBooking.id);
-        
+
         // 1. Database Subscription (Fallback)
         const channel = supabase
             .channel(`booking_status:${createdBooking.id}`)
@@ -327,8 +328,8 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     };
 
     const isNextDisabled = () => {
-        if (step === 1) return selectedPets.length === 0 || !selectedPackage || !selectedAddress;
-        if (step === 2) return !selectedDate || !selectedTime;
+        if (step === 1) return selectedPets.length === 0 || !selectedPackage || !selectedAddress || !selectedDate || !selectedTime;
+        if (step === 2) return false;
         return false;
     };
 
@@ -358,8 +359,8 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                         <ArrowLeft size={20} color="#1A1612" />
                     </TouchableOpacity>
                     <View style={styles.headerTitles}>
-                        <Text style={styles.headerTitle}>{step === 5 ? 'CONFIRMED' : 'BOOKING'}</Text>
-                        {step < 5 && <Text style={styles.stepIndicator}>Step {step} of 4</Text>}
+                        <Text style={styles.headerTitle}>{step === 3 ? 'CONFIRMED' : 'BOOKING'}</Text>
+                        {step < 3 && <Text style={styles.stepIndicator}>Step {step + 1} of 3</Text>}
                     </View>
                     <TouchableOpacity style={styles.infoBtn}>
                         <Info size={20} color="#7A5540" />
@@ -367,21 +368,21 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 </View>
 
                 {/* Progress Bar */}
-                {step < 5 && (
+                {step < 3 && (
                     <View style={styles.progressTrack}>
                         <LinearGradient
                             colors={['#FF7A3D', '#FFB088']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
-                            style={StyleSheet.flatten([styles.progressBar, { width: `${(step / 4) * 100}%` }])}
+                            style={StyleSheet.flatten([styles.progressBar, { width: `${((step + 1) / 3) * 100}%` }])}
                         />
                     </View>
                 )}
 
                 <View style={styles.scrollContainer}>
-                    <ScrollView 
+                    <ScrollView
                         style={styles.scrollView}
-                        contentContainerStyle={styles.scrollContent} 
+                        contentContainerStyle={styles.scrollContent}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
                     >
@@ -451,10 +452,67 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
 
 
 
+
+
+                                {/* Frequency */}
+                                <View style={styles.sectionBlock}>
+                                    <Text style={styles.sectionTitle}>FREQUENCY</Text>
+                                    <View style={styles.frequencyTabs}>
+                                        {(['none', 'weekly', 'monthly'] as const).map(t => (
+                                            <TouchableOpacity
+                                                key={t}
+                                                onPress={() => setRecurringType(t)}
+                                                style={StyleSheet.flatten([styles.freqTab, recurringType === t && styles.freqTabActive])}
+                                            >
+                                                <Text style={StyleSheet.flatten([styles.freqTabText, recurringType === t && styles.freqTabTextActive])}>
+                                                    {t === 'none' ? 'ONCE' : t.toUpperCase()}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+
+                                {/* Date */}
+                                <View style={styles.sectionBlock}>
+                                    <Text style={styles.sectionTitle}>SELECT DATE</Text>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateList}>
+                                        {dates.map(d => (
+                                            <TouchableOpacity
+                                                key={d.full}
+                                                onPress={() => setSelectedDate(d.full)}
+                                                style={StyleSheet.flatten([styles.dateCard, selectedDate === d.full && styles.dateCardActive])}
+                                            >
+                                                <Text style={StyleSheet.flatten([styles.dateMonth, selectedDate === d.full && styles.textWhite])}>{d.month}</Text>
+                                                <Text style={StyleSheet.flatten([styles.dateDay, selectedDate === d.full && styles.textWhite])}>{d.day}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                </View>
+
+                                {/* Time */}
+                                <View style={styles.sectionBlock}>
+                                    <Text style={styles.sectionTitle}>SELECT TIME</Text>
+                                    <View style={styles.timeGrid}>
+                                        {times.map(t => (
+                                            <TouchableOpacity
+                                                key={t.time}
+                                                onPress={() => t.available && setSelectedTime(t.time)}
+                                                disabled={!t.available}
+                                                style={StyleSheet.flatten([
+                                                    styles.timeBtn,
+                                                    !t.available && styles.timeBtnDisabled,
+                                                    selectedTime === t.time && styles.timeBtnActive
+                                                ])}
+                                            >
+                                                <Text style={StyleSheet.flatten([styles.timeText, selectedTime === t.time && styles.textWhite])}>{t.time}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
                                 {/* Address Selection */}
                                 <View style={styles.sectionBlock}>
                                     <Text style={styles.sectionTitle}>ADDRESS</Text>
-                                     <View style={styles.addressList}>
+                                    <View style={styles.addressList}>
                                         {addresses.map(addr => (
                                             <TouchableOpacity
                                                 key={addr.id}
@@ -488,127 +546,38 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                         {step === 2 && (
                             <View style={styles.stepView}>
                                 <View style={styles.textGroup}>
-                                    <Text style={styles.title}>When & <Text style={styles.italic}>How</Text>.</Text>
-                                    <Text style={styles.subtitle}>Set your preferred schedule and frequency.</Text>
+                                    <Text style={styles.title}>Review & <Text style={styles.italic}>Pay</Text>.</Text>
+                                    <Text style={styles.subtitle}>Finalize your instructions and complete payment.</Text>
                                 </View>
 
-                                {/* Frequency */}
-                                <Text style={styles.sectionTitle}>FREQUENCY</Text>
-                                <View style={styles.frequencyTabs}>
-                                    {(['none', 'weekly', 'monthly'] as const).map(t => (
-                                        <TouchableOpacity
-                                            key={t}
-                                            onPress={() => setRecurringType(t)}
-                                            style={StyleSheet.flatten([styles.freqTab, recurringType === t && styles.freqTabActive])}
-                                        >
-                                            <Text style={StyleSheet.flatten([styles.freqTabText, recurringType === t && styles.freqTabTextActive])}>
-                                                {t === 'none' ? 'ONCE' : t.toUpperCase()}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
 
-                                {/* Date */}
-                                <Text style={styles.sectionTitle}>SELECT DATE</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateList}>
-                                    {dates.map(d => (
-                                        <TouchableOpacity
-                                            key={d.full}
-                                            onPress={() => setSelectedDate(d.full)}
-                                            style={StyleSheet.flatten([styles.dateCard, selectedDate === d.full && styles.dateCardActive])}
-                                        >
-                                            <Text style={StyleSheet.flatten([styles.dateMonth, selectedDate === d.full && styles.textWhite])}>{d.month}</Text>
-                                            <Text style={StyleSheet.flatten([styles.dateDay, selectedDate === d.full && styles.textWhite])}>{d.day}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
 
-                                {/* Time */}
-                                <Text style={styles.sectionTitle}>SELECT TIME</Text>
-                                <View style={styles.timeGrid}>
-                                    {times.map(t => (
-                                        <TouchableOpacity
-                                            key={t.time}
-                                            onPress={() => t.available && setSelectedTime(t.time)}
-                                            disabled={!t.available}
-                                            style={StyleSheet.flatten([
-                                                styles.timeBtn,
-                                                !t.available && styles.timeBtnDisabled,
-                                                selectedTime === t.time && styles.timeBtnActive
-                                            ])}
-                                        >
-                                            <Text style={StyleSheet.flatten([styles.timeText, selectedTime === t.time && styles.textWhite])}>{t.time}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-
-                                <View style={styles.timerBanner}>
-                                    <View style={styles.timerLeft}>
-                                        <Timer size={18} color="#1D9E86" />
-                                        <Text style={styles.timerLabel}>Slot Held For</Text>
+                                {/* Instructions moved from step 3 */}
+                                <View style={styles.sectionBlock}>
+                                    <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>SPECIAL INSTRUCTIONS</Text>
+                                    <View style={styles.instructionBox}>
+                                        <MessageSquare size={20} color="#B09080" style={styles.instructionIcon} />
+                                        <TextInput
+                                            placeholder="Tell us about your pet's temperament, specific needs, or where to find the key..."
+                                            style={styles.instructionInput}
+                                            multiline
+                                            numberOfLines={4}
+                                            value={instructions}
+                                            onChangeText={setInstructions}
+                                            placeholderTextColor="#B09080"
+                                        />
                                     </View>
-                                    <Text style={styles.timerValue}>{formatTimer(holdTimer)}</Text>
-                                </View>
-                            </View>
-                        )}
-
-                        {step === 3 && (
-                            <View style={styles.stepView}>
-                                <View style={styles.textGroup}>
-                                    <Text style={styles.title}>Extra <Text style={styles.italic}>Care</Text>.</Text>
-                                    <Text style={styles.subtitle}>Add dynamic services and specific instructions.</Text>
                                 </View>
 
-                                {/* Addons */}
-                                <Text style={styles.sectionTitle}>ADDONS</Text>
-                                <View style={styles.addonList}>
-                                    {serviceData?.addons?.map(addon => (
-                                        <TouchableOpacity
-                                            key={addon.id}
-                                            onPress={() => toggleAddon(addon.id)}
-                                            style={StyleSheet.flatten([styles.addonCard, selectedAddons.includes(addon.id) && styles.addonCardActive])}
-                                        >
-                                            <View style={styles.addonInfo}>
-                                                <Text style={styles.addonTitle}>{addon.name}</Text>
-                                                <Text style={styles.addonMeta}>₹{addon.price} • {addon.duration_minutes || (addon as any).duration}m</Text>
-                                            </View>
-                                            <View style={StyleSheet.flatten([styles.radioCircle, selectedAddons.includes(addon.id) && styles.radioCircleActive])}>
-                                                {selectedAddons.includes(addon.id) && <Check size={14} color="white" />}
-                                            </View>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-
-                                {/* Instructions */}
-                                <Text style={styles.sectionTitle}>SPECIAL INSTRUCTIONS</Text>
-                                <View style={styles.instructionBox}>
-                                    <MessageSquare size={20} color="#B09080" style={styles.instructionIcon} />
-                                    <TextInput
-                                        placeholder="Tell us about your pet's temperament, specific needs, or where to find the key..."
-                                        style={styles.instructionInput}
-                                        multiline
-                                        numberOfLines={4}
-                                        value={instructions}
-                                        onChangeText={setInstructions}
-                                        placeholderTextColor="#B09080"
-                                    />
-                                </View>
-                            </View>
-                        )}
-
-                        {step === 4 && (
-                            <View style={styles.stepView}>
-                                <View style={styles.textGroup}>
-                                    <Text style={styles.title}>Review & <Text style={styles.italic}>Checkout</Text>.</Text>
-                                    <Text style={styles.subtitle}>Apply coupons and select payment mode.</Text>
-                                </View>
-
-                                <View style={styles.summaryCard}>
-                                    <View style={styles.summaryHeader}>
+                                {/* Review & Checkout merged into step 2 */}
+                                <View style={styles.sectionBlock}>
+                                    <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>REVIEW & CHECKOUT</Text>
+                                    <View style={styles.summaryCard}>
+                                        <View style={styles.summaryHeader}>
                                         <Receipt size={24} color="#FF7A3D" />
                                         <View>
                                             <Text style={styles.summaryTitle}>{serviceData?.name} ({selectedPets.length} Pets)</Text>
-                                            <Text style={styles.summaryMeta}>Oct {selectedDate}, {selectedTime}</Text>
+                                            <Text style={styles.summaryMeta}>{selectedDate}, {selectedTime}</Text>
                                         </View>
                                     </View>
 
@@ -633,8 +602,8 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                     />
 
                                     {pointsBalance > 0 && (
-                                        <TouchableOpacity 
-                                            style={StyleSheet.flatten([styles.pointsRedeem, usePoints && styles.pointsRedeemActive])} 
+                                        <TouchableOpacity
+                                            style={StyleSheet.flatten([styles.pointsRedeem, usePoints && styles.pointsRedeemActive])}
                                             onPress={() => setUsePoints(!usePoints)}
                                         >
                                             <View style={styles.pointsInfo}>
@@ -678,10 +647,18 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         <Text style={styles.gstStatus}>INCLUDED</Text>
                                     </View>
                                 </View>
+                                </View>
+                                <View style={[styles.timerBanner, { marginTop: 32 }]}>
+                                    <View style={styles.timerLeft}>
+                                        <Timer size={18} color="#1D9E86" />
+                                        <Text style={styles.timerLabel}>Slot Held For</Text>
+                                    </View>
+                                    <Text style={styles.timerValue}>{formatTimer(holdTimer)}</Text>
+                                </View>
                             </View>
                         )}
 
-                        {step === 5 && (
+                        {step === 3 && (
                             <View style={styles.successView}>
                                 {bookingStatus === 'pending' ? (
                                     <View style={{ alignItems: 'center' }}>
@@ -690,9 +667,9 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         <Text style={styles.successSubtitle}>
                                             Broadcasting your request to professionals within 20km. This usually takes 2-5 minutes.
                                         </Text>
-                                        <TouchableOpacity 
-                                            style={StyleSheet.flatten([styles.trackBtn, { marginTop: 40, backgroundColor: '#F5E6D8' }])} 
-                                            onPress={() => navigation.navigate('Home')}
+                                        <TouchableOpacity
+                                            style={StyleSheet.flatten([styles.trackBtn, { marginTop: 40, backgroundColor: '#F5E6D8' }])}
+                                            onPress={() => navigation.navigate('Main')}
                                         >
                                             <Text style={StyleSheet.flatten([styles.trackBtnText, { color: '#1A1612' }])}>WAIT IN BACKGROUND</Text>
                                         </TouchableOpacity>
@@ -700,9 +677,9 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                 ) : bookingStatus === 'accepted' ? (
                                     <View style={{ alignItems: 'center' }}>
                                         <View style={styles.providerMatchCard}>
-                                            <Image 
-                                                source={{ uri: createdBooking?.provider?.user?.avatar_url || 'https://i.pravatar.cc/100' }} 
-                                                style={styles.providerAvatar} 
+                                            <Image
+                                                source={{ uri: createdBooking?.provider?.user?.avatar_url || 'https://i.pravatar.cc/100' }}
+                                                style={styles.providerAvatar}
                                             />
                                             <Text style={styles.matchTitle}>Expert Found!</Text>
                                             <Text style={styles.providerName}>{createdBooking?.provider?.business_name}</Text>
@@ -714,8 +691,8 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         <Text style={styles.successSubtitle}>
                                             Please confirm payment to finalize the booking. Your expert is ready to start!
                                         </Text>
-                                        <TouchableOpacity 
-                                            style={StyleSheet.flatten([styles.continueBtn, { width: '100%', marginTop: 30 }])} 
+                                        <TouchableOpacity
+                                            style={StyleSheet.flatten([styles.continueBtn, { width: '100%', marginTop: 30 }])}
                                             onPress={handlePay}
                                             disabled={isSubmitting}
                                         >
@@ -731,8 +708,8 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         <Text style={styles.successSubtitle}>
                                             We couldn't find a professional nearby at this time. Please try scheduling for later.
                                         </Text>
-                                        <TouchableOpacity 
-                                            style={StyleSheet.flatten([styles.trackBtn, { marginTop: 40 }])} 
+                                        <TouchableOpacity
+                                            style={StyleSheet.flatten([styles.trackBtn, { marginTop: 40 }])}
                                             onPress={() => setStep(2)}
                                         >
                                             <Text style={styles.trackBtnText}>CHANGE SLOT</Text>
@@ -750,13 +727,13 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                             Your dedicated expert is now assigned. Get ready for premium care!
                                         </Text>
                                         <View style={styles.successButtons}>
-                                            <TouchableOpacity 
-                                                style={styles.homeBtn} 
+                                            <TouchableOpacity
+                                                style={styles.homeBtn}
                                                 onPress={() => navigation.navigate('LiveTracking', { bookingId: createdBooking?.id })}
                                             >
                                                 <Text style={styles.homeBtnText}>TRACK LIVE</Text>
                                             </TouchableOpacity>
-                                            <TouchableOpacity style={styles.trackBtn} onPress={() => navigation.navigate('Home')}>
+                                            <TouchableOpacity style={styles.trackBtn} onPress={() => navigation.navigate('Main')}>
                                                 <Text style={styles.trackBtnText}>BACK TO HOME</Text>
                                             </TouchableOpacity>
                                         </View>
@@ -768,7 +745,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 </View>
 
                 {/* Footer Navigation */}
-                {step < 5 && (
+                {step < 3 && (
                     <View style={styles.footer}>
                         <TouchableOpacity
                             onPress={handleNext}
@@ -783,7 +760,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                             ) : (
                                 <>
                                     <Text style={styles.continueBtnText}>
-                                        {step === 4 ? `PAY ₹${calculateTotal().toFixed(0)}` : 'CONTINUE'}
+                                        {step === 2 ? `PAY ₹${calculateTotal().toFixed(0)}` : 'CONTINUE'}
                                     </Text>
                                     <ChevronRight size={18} color="white" />
                                 </>
@@ -805,10 +782,10 @@ const styles = StyleSheet.create({
     headerTitle: { fontSize: 13, fontWeight: '900', color: '#B09080', letterSpacing: 2 },
     stepIndicator: { fontSize: 18, fontWeight: '900', color: '#1A1612', marginTop: 2 },
     infoBtn: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
- 
+
     progressTrack: { height: 6, backgroundColor: '#F5E6D8', marginHorizontal: 24, borderRadius: 3, overflow: 'hidden', marginBottom: 20 },
     progressBar: { height: '100%', borderRadius: 3 },
- 
+
     scrollContainer: { flex: 1 },
     scrollView: { flex: 1 },
     scrollContent: { paddingBottom: 120 },
@@ -817,12 +794,12 @@ const styles = StyleSheet.create({
     title: { fontSize: 32, fontWeight: '900', color: '#1A1612', letterSpacing: -1 },
     italic: { color: '#FF7A3D', fontStyle: 'italic' },
     subtitle: { fontSize: 15, color: '#7A5540', fontWeight: '600', marginTop: 8 },
- 
+
     sectionBlock: { marginBottom: 36 },
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     sectionTitle: { fontSize: 12, fontWeight: '900', color: '#B09080', letterSpacing: 1.5 },
     selectionCount: { fontSize: 12, fontWeight: '800', color: '#FF7A3D' },
- 
+
     petScroll: { marginHorizontal: -24, paddingLeft: 24 },
     petCard: { width: 90, alignItems: 'center', marginRight: 16, paddingVertical: 12, borderRadius: 24, backgroundColor: 'white', borderWidth: 2, borderColor: 'transparent' },
     petCardActive: { borderColor: '#FF7A3D', shadowColor: '#FF7A3D', shadowOpacity: 0.1, shadowRadius: 10, elevation: 2 },
@@ -834,13 +811,13 @@ const styles = StyleSheet.create({
     petCardAdd: { width: 90, height: 110, alignItems: 'center', justifyContent: 'center', marginRight: 16, borderRadius: 24, backgroundColor: '#FFF3EC', borderStyle: 'dashed', borderWidth: 2, borderColor: '#FFB088' },
     addIconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
     addText: { fontSize: 9, fontWeight: '900', color: '#FF7A3D' },
- 
+
     locationTabs: { flexDirection: 'row', gap: 12, marginTop: 12 },
     locationTab: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F5E6D8', alignItems: 'center', justifyContent: 'center' },
     locationTabActive: { backgroundColor: '#1A1612' },
     locationTabText: { fontSize: 11, fontWeight: '900', color: '#7A5540', letterSpacing: 1 },
     locationTabTextActive: { color: 'white' },
- 
+
     addressList: { gap: 12, marginTop: 4 },
     addressCard: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: 'white', borderRadius: 20, borderWidth: 2, borderColor: 'transparent' },
     addressCardActive: { borderColor: '#1D9E86', shadowColor: '#1D9E86', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
@@ -853,7 +830,7 @@ const styles = StyleSheet.create({
     selectionCircleActive: { backgroundColor: '#1D9E86', borderColor: '#1D9E86' },
     addressAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 20, backgroundColor: '#FFF3EC', borderStyle: 'dashed', borderWidth: 2, borderColor: '#FFB088', marginTop: 4 },
     addressAddBtnText: { fontSize: 12, fontWeight: '900', color: '#FF7A3D', letterSpacing: 0.5 },
- 
+
     packageList: { gap: 12, marginTop: 4 },
     planCard: { padding: 20, backgroundColor: 'white', borderRadius: 24, borderWidth: 2, borderColor: 'transparent' },
     planCardActive: { borderColor: '#1D9E86', backgroundColor: '#FAFFFE' },
@@ -864,12 +841,12 @@ const styles = StyleSheet.create({
     planPrice: { fontSize: 22, fontWeight: '900', color: '#1A1612' },
     planSelectionIndicator: { position: 'absolute', top: -10, right: 20, width: 24, height: 24, borderRadius: 12, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' },
     planSelectionIndicatorActive: { backgroundColor: '#1D9E86' },
- 
+
     footer: { position: 'absolute', bottom: 0, width: '100%', paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, paddingTop: 16, backgroundColor: 'rgba(255,255,255,0.9)' },
     continueBtn: { height: 64, borderRadius: 24, backgroundColor: '#1D9E86', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, shadowColor: '#1D9E86', shadowOpacity: 0.3, shadowRadius: 15, elevation: 8 },
     continueBtnDisabled: { backgroundColor: '#cbd5e1', shadowOpacity: 0 },
     continueBtnText: { color: 'white', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
- 
+
     frequencyTabs: { flexDirection: 'row', gap: 10, marginBottom: 24 },
     freqTab: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F5E6D8', alignItems: 'center' },
     freqTabActive: { backgroundColor: '#1A1612' },
