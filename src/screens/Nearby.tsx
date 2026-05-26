@@ -27,6 +27,7 @@ import {
     ChevronRight,
     Filter
 } from 'lucide-react-native';
+import { providersApi } from '../services/providers.service';
 
 const { width, height } = Dimensions.get('window');
 
@@ -79,8 +80,43 @@ export default function Nearby({ navigation }: any) {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedPlace, setSelectedPlace] = useState<any>(null);
     const [isMapReady, setIsMapReady] = useState(false);
+    const [places, setPlaces] = useState<any[]>(PLACES);
 
-    const filteredPlaces = PLACES.filter(p => selectedCategory === 'all' || p.type === selectedCategory);
+    useEffect(() => {
+        const fetchNearby = async () => {
+            try {
+                const res = await providersApi.list({ limit: 50 });
+                if (res.success && res.data?.providers?.length > 0) {
+                    const mapped = res.data.providers.map((p: any) => {
+                        let type = p.category;
+                        if (p.category === 'health') type = 'vet';
+                        if (p.category === 'stay') type = 'boarding';
+                        if (p.category === 'exercise') type = 'walking';
+                        return {
+                            id: p.id,
+                            name: p.business_name || 'Pet Care Expert',
+                            type: type || 'grooming',
+                            rating: p.rating || 5.0,
+                            reviews: p.total_reviews || 0,
+                            distance: '1.0 km',
+                            address: p.address || 'Bandra West, Mumbai',
+                            coords: {
+                                latitude: p.latitude || 19.076,
+                                longitude: p.longitude || 72.8777
+                            },
+                            image: p.user?.avatar_url || 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&q=80&w=200'
+                        };
+                    });
+                    setPlaces(mapped);
+                }
+            } catch (err) {
+                console.error('Error fetching nearby providers:', err);
+            }
+        };
+        fetchNearby();
+    }, []);
+
+    const filteredPlaces = places.filter(p => selectedCategory === 'all' || p.type === selectedCategory);
 
     const onPlacePress = (place: any) => {
         setSelectedPlace(place);

@@ -100,7 +100,7 @@ export default function Home({ navigation }: HomeProps) {
         fetchData();
     }, []);
 
-    const DISABLED_SERVICES = ['health', 'training', 'stay', 'veterinary', 'boarding'];
+    const DISABLED_SERVICES: string[] = [];
 
     const fetchData = async () => {
         try {
