@@ -49,9 +49,7 @@ import { Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ServiceDetail, Pet } from '../shared/types';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// LayoutAnimation is disabled on Android to prevent native crashes during layout changes
 
 const { width } = Dimensions.get('window');
 

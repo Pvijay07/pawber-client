@@ -152,7 +152,7 @@ export default function Home({ navigation }: HomeProps) {
             }
 
             // Load Address from AsyncStorage
-            const savedAddresses = await AsyncStorage.getItem('@petcare_addresses');
+            const savedAddresses = await AsyncStorage.getItem('@pawber_addresses');
             if (savedAddresses) {
                 const parsed = JSON.parse(savedAddresses);
                 if (parsed.length > 0) {
@@ -194,12 +194,7 @@ export default function Home({ navigation }: HomeProps) {
         { title: 'Expert Arrives', icon: 'Heart', description: 'Pro at door' },
     ];
 
-    const banners = (homepageContent?.client_home_banners && homepageContent.client_home_banners.length > 0) 
-        ? homepageContent.client_home_banners 
-        : [
-            { title: 'Premium Grooming', subtitle: '30% Off this weekend', image: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?q=80&w=800', action: 'bookingFlow', serviceId: 'grooming' },
-            { title: 'Expert Veterinary', subtitle: 'Certified vets at your door', image: 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?q=80&w=800', action: 'bookingFlow', serviceId: 'health' }
-        ];
+    const banners = homepageContent?.client_home_banners || [];
 
     return (
         <View style={[{ flex: 1 }, { backgroundColor: colors.background }]}>
@@ -309,38 +304,40 @@ export default function Home({ navigation }: HomeProps) {
                 */}
 
                 {/* dynamic Banners - Above Explore Services */}
-                <View style={{ marginBottom: 32 }}>
-                    <ScrollView 
-                        horizontal 
-                        showsHorizontalScrollIndicator={false} 
-                        pagingEnabled 
-                        contentContainerStyle={{ paddingLeft: 24, paddingRight: 8 }}
-                    >
-                        {banners.map((banner: any, index: number) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={[styles.bannerCard, { width: width - 48 }]}
-                                onPress={() => {
-                                    const isDisabled = DISABLED_SERVICES.includes(banner.serviceId?.toLowerCase());
-                                    if (!isDisabled) {
-                                        navigation.navigate('PackageSelection', { serviceId: banner.serviceId });
-                                    }
-                                }}
-                            >
-                                <Image source={{ uri: banner.image }} style={styles.bannerImage} />
-                                <View style={styles.bannerOverlay}>
-                                    <Text style={styles.bannerTitle}>{banner.title}</Text>
-                                    <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
-                                    {DISABLED_SERVICES.includes(banner.serviceId?.toLowerCase()) && (
-                                        <View style={[styles.comingSoonBadge, { position: 'relative', top: 0, right: 0, alignSelf: 'flex-start', marginTop: 8 }]}>
-                                            <Text style={styles.comingSoonText}>COMING SOON</Text>
-                                        </View>
-                                    )}
-                                </View>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
+                {banners && banners.length > 0 && (
+                    <View style={{ marginBottom: 32 }}>
+                        <ScrollView 
+                            horizontal 
+                            showsHorizontalScrollIndicator={false} 
+                            pagingEnabled 
+                            contentContainerStyle={{ paddingLeft: 24, paddingRight: 8 }}
+                        >
+                            {banners.map((banner: any, index: number) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={[styles.bannerCard, { width: width - 48 }]}
+                                    onPress={() => {
+                                        const isDisabled = DISABLED_SERVICES.includes(banner.serviceId?.toLowerCase());
+                                        if (!isDisabled) {
+                                            navigation.navigate('PackageSelection', { serviceId: banner.serviceId });
+                                        }
+                                    }}
+                                >
+                                    <Image source={{ uri: banner.image }} style={styles.bannerImage} />
+                                    <View style={styles.bannerOverlay}>
+                                        <Text style={styles.bannerTitle}>{banner.title}</Text>
+                                        <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
+                                        {DISABLED_SERVICES.includes(banner.serviceId?.toLowerCase()) && (
+                                            <View style={[styles.comingSoonBadge, { position: 'relative', top: 0, right: 0, alignSelf: 'flex-start', marginTop: 8 }]}>
+                                                <Text style={styles.comingSoonText}>COMING SOON</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
 
                 {/* Services Section */}
                 <View style={styles.sectionHeader}>
@@ -348,36 +345,36 @@ export default function Home({ navigation }: HomeProps) {
                 </View>
 
                 <View style={styles.servicesGrid}>
-                    {(services.length > 0 ? services : [
-                        { id: 'grooming', name: 'Grooming', is_active: true },
-                        { id: 'exercise', name: 'Dog Walking', is_active: true },
-                        { id: 'stay', name: 'Boarding', is_active: false, is_coming_soon: true },
-                        { id: 'training', name: 'Training', is_active: false, is_coming_soon: true },
-                        { id: 'health', name: 'Veterinary', is_active: false, is_coming_soon: true },
-                    ]).map((service) => {
-                        const visuals = getServiceVisuals(service.name);
-                        const isDisabled = service.is_coming_soon || !service.is_active;
-                        return (
-                            <TouchableOpacity
-                                key={service.id}
-                                style={[styles.serviceItem, { width: serviceItemWidth, opacity: isDisabled ? 0.7 : 1 }]}
-                                onPress={() => {
-                                    if (isDisabled) return;
-                                    navigation.navigate('PackageSelection', { categoryId: service.id });
-                                }}
-                            >
-                                <View style={[styles.serviceIcon, { backgroundColor: isDark ? colors.surface : visuals.bgColor }]}>
-                                    {renderIcon(visuals.icon, 28, visuals.color)}
-                                </View>
-                                <Text style={[styles.serviceName, { color: colors.textSecondary }]}>{service.name}</Text>
-                                {isDisabled && (
-                                    <View style={[styles.comingSoonBadge, { backgroundColor: colors.primary }]}>
-                                        <Text style={styles.comingSoonText}>COMING SOON</Text>
+                    {services.length > 0 ? (
+                        services.map((service) => {
+                            const visuals = getServiceVisuals(service.name);
+                            const isDisabled = service.is_coming_soon || !service.is_active;
+                            return (
+                                <TouchableOpacity
+                                    key={service.id}
+                                    style={[styles.serviceItem, { width: serviceItemWidth, opacity: isDisabled ? 0.7 : 1 }]}
+                                    onPress={() => {
+                                        if (isDisabled) return;
+                                        navigation.navigate('PackageSelection', { categoryId: service.id });
+                                    }}
+                                >
+                                    <View style={[styles.serviceIcon, { backgroundColor: isDark ? colors.surface : visuals.bgColor }]}>
+                                        {renderIcon(visuals.icon, 28, visuals.color)}
                                     </View>
-                                )}
-                            </TouchableOpacity>
-                        );
-                    })}
+                                    <Text style={[styles.serviceName, { color: colors.textSecondary }]}>{service.name}</Text>
+                                    {isDisabled && (
+                                        <View style={[styles.comingSoonBadge, { backgroundColor: colors.primary }]}>
+                                            <Text style={styles.comingSoonText}>COMING SOON</Text>
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        })
+                    ) : (
+                        <View style={{ padding: 24, width: '100%', alignItems: 'center' }}>
+                            <Text style={{ color: colors.textSecondary }}>No services available.</Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Pet Cute and Funny Videos Section */}

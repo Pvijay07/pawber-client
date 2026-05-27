@@ -40,9 +40,7 @@ import {
     X,
 } from 'lucide-react-native';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// LayoutAnimation is disabled on Android to prevent native crashes during layout changes
 
 const { width, height } = Dimensions.get('window');
 
@@ -84,6 +82,7 @@ export default function Addresses({ navigation }: any) {
     const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
     const [selectedFullAddress, setSelectedFullAddress] = useState('');
     const [locationSummary, setLocationSummary] = useState({ main: '', sub: '' });
+    const [hasLocationPermission, setHasLocationPermission] = useState(false);
 
     // Search State
     const [searchQuery, setSearchQuery] = useState('');
@@ -125,7 +124,9 @@ export default function Addresses({ navigation }: any) {
     const getUserLocationInitial = async () => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status === 'granted') {
+            const granted = status === 'granted';
+            setHasLocationPermission(granted);
+            if (granted) {
                 const location = await Location.getCurrentPositionAsync({});
                 const newRegion = {
                     ...region,
@@ -186,7 +187,7 @@ export default function Addresses({ navigation }: any) {
         const lon = parseFloat(result.lon);
         const newRegion = { ...region, latitude: lat, longitude: lon };
         setRegion(newRegion);
-        mapRef.current?.animateToRegion(newRegion, 1000);
+        mapRef.current?.animateToRegion?.(newRegion, 1000);
         setSearchQuery('');
         setSearchResults([]);
         reverseGeocode(lat, lon);
@@ -195,11 +196,20 @@ export default function Addresses({ navigation }: any) {
     const handleUseMyLocation = async () => {
         setIsLocating(true);
         try {
-            const location = await Location.getCurrentPositionAsync({});
-            const newRegion = { ...region, latitude: location.coords.latitude, longitude: location.coords.longitude };
-            setRegion(newRegion);
-            mapRef.current?.animateToRegion(newRegion, 1000);
-            reverseGeocode(location.coords.latitude, location.coords.longitude);
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            const granted = status === 'granted';
+            setHasLocationPermission(granted);
+            if (granted) {
+                const location = await Location.getCurrentPositionAsync({});
+                const newRegion = { ...region, latitude: location.coords.latitude, longitude: location.coords.longitude };
+                setRegion(newRegion);
+                mapRef.current?.animateToRegion?.(newRegion, 1000);
+                reverseGeocode(location.coords.latitude, location.coords.longitude);
+            } else {
+                Alert.alert("Permission Denied", "Please enable location services in your device settings.");
+            }
+        } catch (e) {
+            console.error(e);
         } finally {
             setIsLocating(false);
         }
@@ -211,7 +221,9 @@ export default function Addresses({ navigation }: any) {
     };
 
     const resetFlow = () => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        if (Platform.OS === 'ios') {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        }
         setViewState('list');
         setEditingId(null);
         setHouseNo('');
@@ -306,7 +318,9 @@ export default function Addresses({ navigation }: any) {
 
                     <TouchableOpacity
                         onPress={() => {
-                            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                            if (Platform.OS === 'ios') {
+                                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                            }
                             setViewState('map-picker');
                         }}
                         style={StyleSheet.flatten([styles.addNewBtn, { borderColor: colors.border }])}
@@ -369,7 +383,7 @@ export default function Addresses({ navigation }: any) {
                 style={styles.map}
                 initialRegion={region}
                 onRegionChangeComplete={handleRegionChangeComplete}
-                showsUserLocation={true}
+                showsUserLocation={hasLocationPermission}
                 showsMyLocationButton={false}
             />
 

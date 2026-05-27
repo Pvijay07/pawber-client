@@ -1,19 +1,22 @@
 import React, { forwardRef } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-
+import { View, Text, StyleSheet, Platform } from 'react-native';
 let MapView: any = View;
 let Marker: any = View;
 let Polyline: any = View;
 let PROVIDER_GOOGLE: any = null;
 
-try {
-    const Maps = require('react-native-maps');
-    MapView = Maps.default || Maps;
-    Marker = Maps.Marker;
-    Polyline = Maps.Polyline;
-    PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
-} catch (e) {
-    console.warn('react-native-maps failed to load:', e);
+// Only load native maps on iOS (Apple Maps, no API key needed) or on Android if the Google Maps key is provided
+const shouldLoadNativeMap = Platform.OS === 'ios' || Boolean(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY);
+
+if (shouldLoadNativeMap) {
+    try {
+        const Maps = require('react-native-maps');
+        MapView = Maps.default || Maps;
+        Marker = Maps.Marker;
+        Polyline = Maps.Polyline;
+    } catch (e) {
+        console.warn('react-native-maps failed to load:', e);
+    }
 }
 
 export { PROVIDER_GOOGLE };

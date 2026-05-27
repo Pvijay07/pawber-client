@@ -36,8 +36,8 @@ interface AuthProps {
 export default function Auth({ navigation }: AuthProps) {
     const insets = useSafeAreaInsets();
     const [mode, setMode] = useState<'login' | 'signup'>('login');
-    const [email, setEmail] = useState('demo@pawber.com');
-    const [password, setPassword] = useState('password123');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);

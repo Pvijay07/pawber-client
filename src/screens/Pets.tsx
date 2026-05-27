@@ -43,9 +43,7 @@ import {
 
 import { petsApi } from '../services/pets.service';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// LayoutAnimation is disabled on Android to prevent native crashes during layout changes
 
 const { width, height } = Dimensions.get('window');
 

@@ -24,7 +24,7 @@ if (Platform.OS !== 'web') {
     MapView = Maps.default;
     Marker = Maps.Marker;
     Polyline = Maps.Polyline;
-    PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+    PROVIDER_GOOGLE = null;
 }
 import {
     ArrowLeft,
