@@ -42,6 +42,7 @@ import { walletApi } from '../services/wallet.service';
 import { servicesApi } from '../services/services.service';
 import { petsApi } from '../services/pets.service';
 import { bookingsApi } from '../services/bookings.service';
+import { paymentsApi } from '../services/payments.service';
 import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSocket } from '../hooks/useSocket';
@@ -100,6 +101,7 @@ const radarStyles = StyleSheet.create({
 
 export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     const serviceId = route?.params?.serviceId || 'grooming';
+    const bookingType = route?.params?.bookingType || 'scheduled';
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -159,6 +161,25 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     useEffect(() => {
         fetchInitialData(true); // Full loading on mount
     }, [fetchInitialData]);
+
+    useEffect(() => {
+        if (route?.params?.fromBidding && route?.params?.bookingId) {
+            console.log('🔄 Coming back from bidding screen, setting state for payment');
+            setCreatedBooking({
+                id: route.params.bookingId,
+                total_amount: route.params.totalAmount,
+                provider: {
+                    business_name: route.params.selectedBid?.provider_name,
+                    rating: route.params.selectedBid?.rating,
+                    user: {
+                        avatar_url: route.params.selectedBid?.provider_image
+                    }
+                }
+            });
+            setBookingStatus('accepted');
+            setStep(3);
+        }
+    }, [route?.params]);
 
     useEffect(() => {
         if (step === 2 && holdTimer > 0) {
@@ -235,13 +256,13 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         }
     };
 
-    const submitBooking = async () => {
+        const submitBooking = async () => {
         setIsSubmitting(true);
         try {
             const res = await bookingsApi.create({
                 service_id: serviceId,
                 package_id: selectedPackage!,
-                booking_type: 'scheduled',
+                booking_type: bookingType,
                 pet_ids: selectedPets,
                 addon_ids: selectedAddons,
                 booking_date: selectedDate!,
@@ -253,7 +274,17 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
 
             if (res.success && res.data) {
                 setCreatedBooking(res.data.booking);
-                setStep(3);
+                if (bookingType === 'scheduled') {
+                    // Navigate to ServiceBidding for scheduled bookings
+                    navigation.navigate('ServiceBidding', {
+                        bookingId: res.data.booking.id,
+                        serviceId: serviceId,
+                        totalAmount: calculateTotal()
+                    });
+                } else {
+                    // For instant bookings, show radar step 3
+                    setStep(3);
+                }
             } else {
                 alert('Booking failed: ' + ((res as any).error?.message || 'Unknown error'));
             }
@@ -308,11 +339,69 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     const handlePay = async () => {
         setIsSubmitting(true);
         try {
+            const amount = createdBooking?.total_amount;
+            if (!amount) {
+                alert('Invalid booking amount');
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Attempt Razorpay Payment if on Web
+            if (Platform.OS === 'web') {
+                const { loadRazorpay, initializeRazorpayPayment } = require('../lib/razorpay');
+                const loaded = await loadRazorpay();
+                if (loaded) {
+                    const orderRes = await paymentsApi.createOrder(createdBooking.id, amount);
+                    if (orderRes.success && orderRes.data?.order) {
+                        const orderData = orderRes.data.order;
+                        
+                        initializeRazorpayPayment({
+                            amount: orderData.amount,
+                            currency: orderData.currency,
+                            order_id: orderData.order_id,
+                            name: 'Pawber',
+                            description: 'Service Booking Payment',
+                            handler: async (response: any) => {
+                                try {
+                                    setIsSubmitting(true);
+                                    const verifyRes = await paymentsApi.verify({
+                                        razorpay_order_id: response.razorpay_order_id,
+                                        razorpay_payment_id: response.razorpay_payment_id,
+                                        razorpay_signature: response.razorpay_signature,
+                                    });
+                                    if (verifyRes.success && verifyRes.data?.verified) {
+                                        setBookingStatus('confirmed');
+                                    } else {
+                                        alert('Payment verification failed.');
+                                    }
+                                } catch (err) {
+                                    console.error('Verify payment error:', err);
+                                    alert('Payment verification error.');
+                                } finally {
+                                    setIsSubmitting(false);
+                                }
+                            },
+                            modal: {
+                                ondismiss: () => {
+                                    setIsSubmitting(false);
+                                }
+                            }
+                        });
+                        return; // Wait for Razorpay handler callback
+                    }
+                }
+            }
+
+            // Fallback for native/mock environments
+            console.log('⚡ Using Mock Payment confirmation fallback');
             const res = await bookingsApi.confirmPayment(createdBooking.id);
             if (res.success) {
                 setBookingStatus('confirmed');
+            } else {
+                alert('Payment failed. Please try again.');
             }
-        } catch (error) {
+        } catch (error: any) {
+            console.error('Payment error:', error);
             alert('Payment failed. Please try again.');
         } finally {
             setIsSubmitting(false);

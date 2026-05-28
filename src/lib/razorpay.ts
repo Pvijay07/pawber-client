@@ -43,7 +43,7 @@ export const loadRazorpay = () => {
 
 export const initializeRazorpayPayment = (options: RazorpayOptions) => {
     const rzp = new window.Razorpay({
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_mock_key',
+        key: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_mock_key',
         ...options,
         name: 'Pawber',
         theme: {

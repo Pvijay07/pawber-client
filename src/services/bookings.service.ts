@@ -38,4 +38,12 @@ export const bookingsApi = {
 
     confirmPayment: (id: string) =>
         api.post<{ success: true; data: { booking: Booking } }>(`/bookings/${id}/confirm`),
+
+    // ─── Bid Flow ────────────────────────────────
+    
+    getBids: (bookingId: string) =>
+        api.get<{ bids: any[] }>(`/bookings/${bookingId}/bids`),
+
+    selectBid: (bookingId: string, bidId: string) =>
+        api.post<{ booking: Booking }>(`/bookings/${bookingId}/select-bid`, { bid_id: bidId }),
 };

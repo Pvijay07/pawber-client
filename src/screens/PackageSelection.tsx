@@ -340,7 +340,12 @@ export default function PackageSelection({ navigation, route }: any) {
                             </View>
                         </View>
                         <TouchableOpacity
-                            onPress={() => navigation.navigate('BookingFlow', { serviceId: service?.id || serviceId, packageId: selectedPackage, addonIds: selectedAddons })}
+                            onPress={() => navigation.navigate('BookingFlow', { 
+                                serviceId: service?.id || serviceId, 
+                                packageId: selectedPackage, 
+                                addonIds: selectedAddons,
+                                bookingType: bookingType 
+                            })}
                             style={styles.bookBtn}
                         >
                             <Text style={styles.bookBtnText}>BOOK NOW</Text>
