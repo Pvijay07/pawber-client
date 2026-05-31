@@ -211,7 +211,7 @@ export default function EditProfile({ navigation }: any) {
                             <Mail size={20} color={colors.textSecondary} style={styles.inputIcon} />
                             <TextInput
                                 style={[styles.input, { color: colors.textMuted }]}
-                                value={userData?.email}
+                                value={userData?.email?.startsWith('phone_') && userData?.email?.endsWith('@pawber.com') ? 'Phone Sign-in' : userData?.email}
                                 editable={false}
                             />
                         </View>
