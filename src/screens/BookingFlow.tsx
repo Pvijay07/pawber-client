@@ -178,6 +178,14 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
             });
             setBookingStatus('accepted');
             setStep(3);
+        } else if (route?.params?.bookingId && !route?.params?.fromBidding) {
+            console.log('🔄 Re-opening active search screen for booking:', route.params.bookingId);
+            setCreatedBooking({
+                id: route.params.bookingId,
+                total_amount: route.params.totalAmount || 0,
+            });
+            setBookingStatus('pending');
+            setStep(3);
         }
     }, [route?.params]);
 
@@ -259,6 +267,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         const submitBooking = async () => {
         setIsSubmitting(true);
         try {
+            const addrObj = addresses.find(a => a.id === selectedAddress);
             const res = await bookingsApi.create({
                 service_id: serviceId,
                 package_id: selectedPackage!,
@@ -266,7 +275,9 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 pet_ids: selectedPets,
                 addon_ids: selectedAddons,
                 booking_date: selectedDate!,
-                address: addresses.find(a => a.id === selectedAddress)?.address,
+                address: addrObj?.address,
+                latitude: addrObj?.latitude,
+                longitude: addrObj?.longitude,
                 notes: instructions,
                 coupon_code: couponCode,
                 points_to_use: usePoints ? Math.min(pointsBalance, calculateTotal()) : 0

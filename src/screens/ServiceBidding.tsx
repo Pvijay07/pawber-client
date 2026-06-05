@@ -223,16 +223,16 @@ export default function ServiceBidding({ navigation, route }: any) {
     const [isLocking, setIsLocking] = useState<string | null>(null);
     const [isSearching, setIsSearching] = useState(true);
     const [radiusKm, setRadiusKm] = useState(5);
-    const { on, emit } = useSocket();
+    const { on, emit, isConnected } = useSocket();
 
     // Join booking room for real-time bid updates
     useEffect(() => {
-        if (!bookingId) return;
+        if (!bookingId || !isConnected) return;
         emit('join_booking', bookingId);
         return () => {
             emit('leave_booking', bookingId);
         };
-    }, [bookingId, emit]);
+    }, [bookingId, isConnected, emit]);
 
     // Listen for real-time bids via socket
     useEffect(() => {

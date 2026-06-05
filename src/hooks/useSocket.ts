@@ -6,6 +6,7 @@ const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
 
 export const useSocket = () => {
     const socketRef = useRef<Socket | null>(null);
+    const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
@@ -23,30 +24,33 @@ export const useSocket = () => {
             console.log('Connecting to socket at:', SOCKET_URL);
             
             // Initialize socket with authentication
-            const socket = io(SOCKET_URL, {
+            const newSocket = io(SOCKET_URL, {
                 auth: {
                     token: session.access_token
                 },
                 transports: ['websocket'],
                 reconnection: true,
-                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                timeout: 20000,
             });
 
-            socket.on('connect', () => {
-                console.log('Socket.io connected:', socket.id);
+            newSocket.on('connect', () => {
+                console.log('Socket.io connected:', newSocket.id);
                 setIsConnected(true);
             });
 
-            socket.on('disconnect', (reason) => {
+            newSocket.on('disconnect', (reason) => {
                 console.log('Socket.io disconnected:', reason);
                 setIsConnected(false);
             });
 
-            socket.on('connect_error', (err) => {
+            newSocket.on('connect_error', (err) => {
                 console.error('Socket.io connection error:', err.message);
             });
 
-            socketRef.current = socket;
+            socketRef.current = newSocket;
+            setSocket(newSocket);
         };
 
         // Initialize on mount
@@ -61,6 +65,7 @@ export const useSocket = () => {
                     socketRef.current.disconnect();
                     socketRef.current = null;
                 }
+                setSocket(null);
                 setIsConnected(false);
             }
         });
@@ -72,32 +77,33 @@ export const useSocket = () => {
                 socketRef.current.disconnect();
                 socketRef.current = null;
             }
+            setSocket(null);
         };
     }, []);
 
     const emit = useCallback((event: string, data: any) => {
-        if (socketRef.current && isConnected) {
-            socketRef.current.emit(event, data);
+        if (socket && isConnected) {
+            socket.emit(event, data);
         } else {
             console.warn(`Cannot emit event ${event}: Socket not connected`);
         }
-    }, [isConnected]);
+    }, [socket, isConnected]);
 
     const on = useCallback((event: string, callback: (...args: any[]) => void) => {
-        if (socketRef.current) {
-            socketRef.current.on(event, callback);
+        if (socket) {
+            socket.on(event, callback);
+            return () => {
+                socket.off(event, callback);
+            };
         }
-        return () => {
-            if (socketRef.current) {
-                socketRef.current.off(event, callback);
-            }
-        };
-    }, []);
+        return () => {};
+    }, [socket]);
 
     return { 
-        socket: socketRef.current, 
+        socket, 
         isConnected, 
         emit, 
         on 
     };
 };
+

@@ -111,7 +111,7 @@ export default function Home({ navigation }: HomeProps) {
                 authApi.getProfile(),
                 loyaltyApi.getStatus(),
                 servicesApi.listCategories(),
-                bookingsApi.list({ status: 'confirmed,in_progress', limit: 1 })
+                bookingsApi.list({ status: 'pending,confirmed,in_progress', limit: 1 })
             ]);
 
             // Helper to get result data
@@ -434,22 +434,64 @@ export default function Home({ navigation }: HomeProps) {
                 {upcomingBooking && (
                     <View style={styles.upcomingSection}>
                         <View style={styles.sectionHeader}>
-                            <Text style={[styles.sectionTitle, { color: colors.text }]}>UPCOMING SESSION</Text>
-                            <View style={[styles.timeTag, { backgroundColor: colors.primaryLight }]}>
-                                <Icons.Clock size={12} color={colors.primary} />
-                                <Text style={[styles.timeTagText, { color: colors.primary }]}>
-                                    {new Date(upcomingBooking.booking_date).toLocaleDateString()} • {new Date(upcomingBooking.booking_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </Text>
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                                {upcomingBooking.status === 'pending' ? 'FINDING EXPERTS' : 'UPCOMING SESSION'}
+                            </Text>
+                            <View style={[styles.timeTag, { backgroundColor: upcomingBooking.status === 'pending' ? 'rgba(255, 122, 61, 0.1)' : colors.primaryLight }]}>
+                                {upcomingBooking.status === 'pending' ? (
+                                    <>
+                                        <Icons.Sparkles size={12} color="#FF7A3D" />
+                                        <Text style={[styles.timeTagText, { color: '#FF7A3D' }]}>SEARCHING LIVE</Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Icons.Clock size={12} color={colors.primary} />
+                                        <Text style={[styles.timeTagText, { color: colors.primary }]}>
+                                            {new Date(upcomingBooking.booking_date).toLocaleDateString()} • {new Date(upcomingBooking.booking_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </Text>
+                                    </>
+                                )}
                             </View>
                         </View>
 
-                        <TouchableOpacity style={[styles.appointmentCard, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Bookings')}>
-                            <View style={[styles.appointmentIcon, { backgroundColor: isDark ? colors.surfaceSecondary : '#fff7ed' }]}>
-                                <Icons.Sparkles size={22} color={colors.accent} />
+                        <TouchableOpacity 
+                            style={[styles.appointmentCard, { backgroundColor: colors.surface, borderColor: colors.border }]} 
+                            onPress={() => {
+                                if (upcomingBooking.status === 'pending') {
+                                    if (upcomingBooking.booking_type === 'scheduled') {
+                                        navigation.navigate('ServiceBidding', {
+                                            bookingId: upcomingBooking.id,
+                                            serviceId: upcomingBooking.service_id,
+                                            totalAmount: upcomingBooking.total_amount
+                                        });
+                                    } else {
+                                        // Instant booking, go back to radar screen!
+                                        navigation.navigate('BookingFlow', {
+                                            bookingId: upcomingBooking.id,
+                                            serviceId: upcomingBooking.service_id,
+                                            bookingType: upcomingBooking.booking_type,
+                                            totalAmount: upcomingBooking.total_amount
+                                        });
+                                    }
+                                } else {
+                                    navigation.navigate('Bookings');
+                                }
+                            }}
+                        >
+                            <View style={[styles.appointmentIcon, { backgroundColor: upcomingBooking.status === 'pending' ? 'rgba(255, 122, 61, 0.1)' : (isDark ? colors.surfaceSecondary : '#fff7ed') }]}>
+                                {upcomingBooking.status === 'pending' ? (
+                                    <Icons.Zap size={22} color="#FF7A3D" />
+                                ) : (
+                                    <Icons.Sparkles size={22} color={colors.accent} />
+                                )}
                             </View>
                             <View style={styles.appointmentInfo}>
-                                <Text style={[styles.appointmentTitle, { color: colors.text }]}>{upcomingBooking.service?.name || 'Pet Service'}</Text>
-                                <Text style={styles.appointmentDate}>{upcomingBooking.booking_pets?.[0]?.pet?.name || 'Your Pet'} • {upcomingBooking.address || 'Your Location'}</Text>
+                                <Text style={[styles.appointmentTitle, { color: colors.text }]}>
+                                    {upcomingBooking.status === 'pending' ? 'Finding Nearby Professionals' : (upcomingBooking.service?.name || 'Pet Service')}
+                                </Text>
+                                <Text style={styles.appointmentDate}>
+                                    {upcomingBooking.status === 'pending' ? `For ${upcomingBooking.service?.name || 'Service'}` : (upcomingBooking.booking_pets?.[0]?.pet?.name || 'Your Pet')} • {upcomingBooking.address || 'Your Location'}
+                                </Text>
                             </View>
                             <Icons.ChevronRight size={18} color={colors.textMuted} />
                         </TouchableOpacity>

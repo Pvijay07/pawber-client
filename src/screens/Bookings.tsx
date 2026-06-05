@@ -111,7 +111,7 @@ export default function Bookings({ navigation }: any) {
     };
 
     const renderBookingItem = ({ item }: { item: Booking }) => {
-        const serviceName = (item as any).services?.name || 'Service';
+        const serviceName = item.service?.name || 'Service';
         const visuals = getServiceIconVisual(serviceName);
         
         return (
