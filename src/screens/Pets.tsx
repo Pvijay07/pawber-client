@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    SafeAreaView,
+    
     Image,
     Dimensions,
     TextInput,
@@ -16,7 +17,7 @@ import {
     Alert,
     Modal,
     FlatList,
-    Switch,
+    Switch
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {

@@ -1,18 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
     StyleSheet,
     TextInput,
     TouchableOpacity,
-    SafeAreaView,
+    
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
     StatusBar,
     Modal,
-    FlatList,
+    FlatList
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -114,7 +115,7 @@ export default function Auth({ navigation }: AuthProps) {
 
         setIsLoading(true);
         try {
-            const API_BASE = 'https://pawber.onrender.com';
+            const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://pawber.onrender.com';
             const fullPhone = `${selectedCountry.code}${phone.replace(/\D/g, '')}`;
             const res = await fetch(`${API_BASE}/api/auth/phone/send-otp`, {
                 method: 'POST',
@@ -147,7 +148,7 @@ export default function Auth({ navigation }: AuthProps) {
 
         setIsLoading(true);
         try {
-            const API_BASE = 'https://pawber.onrender.com';
+            const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://pawber.onrender.com';
             const fullPhone = `${selectedCountry.code}${phone.replace(/\D/g, '')}`;
             const res = await fetch(`${API_BASE}/api/auth/phone/verify-otp`, {
                 method: 'POST',
@@ -205,7 +206,7 @@ export default function Auth({ navigation }: AuthProps) {
 
         setIsLoading(true);
         try {
-            const API_BASE = 'https://pawber.onrender.com';
+            const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://pawber.onrender.com';
             if (mode === 'login') {
                 const res = await fetch(`${API_BASE}/api/auth/signin`, {
                     method: 'POST',

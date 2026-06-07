@@ -1,15 +1,16 @@
 import React, { useState, useRef } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    SafeAreaView,
+    
     Image,
     Alert,
     ActivityIndicator,
-    Dimensions,
+    Dimensions
 } from 'react-native';
 import { Camera, CameraView } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';

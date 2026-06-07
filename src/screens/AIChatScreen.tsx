@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
@@ -8,10 +9,10 @@ import {
     FlatList,
     KeyboardAvoidingView,
     Platform,
-    SafeAreaView,
+    
     ActivityIndicator,
     Image,
-    Dimensions,
+    Dimensions
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Send, ArrowLeft, Bot, User, Sparkles, ChevronRight, MessageSquare } from 'lucide-react-native';

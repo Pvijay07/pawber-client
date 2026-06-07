@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    SafeAreaView,
+    
     TextInput,
     ActivityIndicator,
     KeyboardAvoidingView,
-    Platform,
+    Platform
 } from 'react-native';
 import {
     Mail,

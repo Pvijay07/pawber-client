@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  View,
+    View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
+  
   Image,
-  Dimensions,
+  Dimensions
 } from 'react-native';
 import {
   ArrowLeft,

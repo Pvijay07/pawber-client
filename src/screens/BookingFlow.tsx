@@ -5,14 +5,14 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    SafeAreaView,
+    
     Image,
     Dimensions,
     TextInput,
     LayoutAnimation,
     Platform,
     UIManager,
-    ActivityIndicator,
+    ActivityIndicator
 } from 'react-native';
 import {
     ArrowLeft,
@@ -47,6 +47,7 @@ import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSocket } from '../hooks/useSocket';
 import { Animated, Easing } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ServiceDetail, Pet } from '../shared/types';
 

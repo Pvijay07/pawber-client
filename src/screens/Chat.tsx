@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    SafeAreaView,
+    
     Image,
     Dimensions,
     TextInput,
@@ -13,7 +14,7 @@ import {
     Platform,
     ActivityIndicator,
     Linking,
-    StatusBar,
+    StatusBar
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {

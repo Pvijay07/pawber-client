@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
     ScrollView,
-    SafeAreaView,
+    
     Share,
     Dimensions,
     ActivityIndicator,
-    Clipboard,
+    Clipboard
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 

@@ -5,12 +5,12 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    SafeAreaView,
+    
     Image,
     Dimensions,
     Animated,
     Platform,
-    ActivityIndicator,
+    ActivityIndicator
 } from 'react-native';
 import {
     ArrowLeft,

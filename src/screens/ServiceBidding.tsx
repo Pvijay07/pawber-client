@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    SafeAreaView,
+    
     Image,
     Dimensions,
     Animated,
     ActivityIndicator,
-    Easing,
+    Easing
 } from 'react-native';
 import {
     ArrowLeft,

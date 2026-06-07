@@ -5,7 +5,7 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    SafeAreaView,
+    
     Image,
     Dimensions,
     TextInput,

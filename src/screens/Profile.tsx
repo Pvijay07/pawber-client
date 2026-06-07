@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    SafeAreaView,
+    
     Image,
     Dimensions,
     Switch,
-    Platform,
+    Platform
 } from 'react-native';
 import {
     User,
@@ -95,6 +96,7 @@ export default function Profile({ navigation }: ProfileProps) {
 
     return (
         <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
+            <StatusBar style="light" />
             <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
                 {/* Header Section */}
                 <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 16, backgroundColor: isDark ? colors.surface : '#0f172a' }]}>

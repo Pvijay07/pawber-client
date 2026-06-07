@@ -1,14 +1,15 @@
 import React, { useState, useRef } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    SafeAreaView,
+    
     Dimensions,
     TextInput,
     Animated,
-    Platform,
+    Platform
 } from 'react-native';
 import {
     ChevronRight,

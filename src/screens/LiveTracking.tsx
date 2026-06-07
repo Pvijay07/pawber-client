@@ -4,13 +4,13 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    SafeAreaView,
+    
     Image,
     Dimensions,
     Animated,
     Platform,
     ActivityIndicator,
-    StatusBar,
+    StatusBar
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Import MapView dynamically to avoid web errors

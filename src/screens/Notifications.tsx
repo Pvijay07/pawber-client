@@ -5,7 +5,7 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    SafeAreaView,
+    
     Dimensions,
     ActivityIndicator,
     Platform,

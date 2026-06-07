@@ -5,13 +5,13 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    SafeAreaView,
+    
     Dimensions,
     LayoutAnimation,
     Switch,
     Platform,
     ActivityIndicator,
-    StatusBar,
+    StatusBar
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';

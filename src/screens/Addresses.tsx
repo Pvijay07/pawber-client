@@ -5,7 +5,7 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    SafeAreaView,
+    
     TextInput,
     LayoutAnimation,
     Platform,
@@ -15,7 +15,7 @@ import {
     ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
-    Image,
+    Image
 } from 'react-native';
 import { MapWrapper as MapView, MapMarker as Marker } from '../components/common/MapViewWrapper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
