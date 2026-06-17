@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { supabase } from '../lib/supabase';
 
-const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
+const rawSocketUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
+const SOCKET_URL = rawSocketUrl.replace(/^['"]|['"]$/g, '');
 
 export const useSocket = () => {
     const socketRef = useRef<Socket | null>(null);

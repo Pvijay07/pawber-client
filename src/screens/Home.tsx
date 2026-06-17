@@ -6,7 +6,7 @@ import {
     ScrollView,
     TouchableOpacity,
     TextInput,
-    
+
     Dimensions,
     ActivityIndicator,
     Image,
@@ -134,9 +134,9 @@ export default function Home({ navigation }: HomeProps) {
             // Handle Categories (Final Dynamic Services)
             if (categoriesRes?.success && categoriesRes.data?.categories) {
                 const mapped = categoriesRes.data.categories.map((c: any) => {
-                    const isManualDisabled = DISABLED_SERVICES.includes(c.id) || 
-                                           DISABLED_SERVICES.includes(c.slug) || 
-                                           DISABLED_SERVICES.includes(c.name.toLowerCase());
+                    const isManualDisabled = DISABLED_SERVICES.includes(c.id) ||
+                        DISABLED_SERVICES.includes(c.slug) ||
+                        DISABLED_SERVICES.includes(c.name.toLowerCase());
                     return {
                         ...c,
                         is_active: isManualDisabled ? false : c.is_active,
@@ -230,7 +230,7 @@ export default function Home({ navigation }: HomeProps) {
 
 
                 {/* Search */}
-                <View style={styles.searchContainer}>
+                {/* <View style={styles.searchContainer}>
                     <View style={styles.searchWrapper}>
                         <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
                         <TextInput
@@ -239,7 +239,7 @@ export default function Home({ navigation }: HomeProps) {
                             placeholderTextColor={colors.textMuted}
                         />
                     </View>
-                </View>
+                </View> */}
 
                 {/* Commented out per User Request: Loyalty, Emergency, Stats */}
                 {/* 
@@ -306,10 +306,10 @@ export default function Home({ navigation }: HomeProps) {
                 {/* dynamic Banners - Above Explore Services */}
                 {banners && banners.length > 0 && (
                     <View style={{ marginBottom: 32 }}>
-                        <ScrollView 
-                            horizontal 
-                            showsHorizontalScrollIndicator={false} 
-                            pagingEnabled 
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            pagingEnabled
                             contentContainerStyle={{ paddingLeft: 24, paddingRight: 8 }}
                         >
                             {banners.map((banner: any, index: number) => (
@@ -454,8 +454,8 @@ export default function Home({ navigation }: HomeProps) {
                             </View>
                         </View>
 
-                        <TouchableOpacity 
-                            style={[styles.appointmentCard, { backgroundColor: colors.surface, borderColor: colors.border }]} 
+                        <TouchableOpacity
+                            style={[styles.appointmentCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                             onPress={() => {
                                 if (upcomingBooking.status === 'pending') {
                                     if (upcomingBooking.booking_type === 'scheduled') {

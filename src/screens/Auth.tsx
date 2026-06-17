@@ -115,7 +115,8 @@ export default function Auth({ navigation }: AuthProps) {
 
         setIsLoading(true);
         try {
-            const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://pawber.onrender.com';
+            const rawApiBase = process.env.EXPO_PUBLIC_API_URL || 'https://pawber.onrender.com';
+            const API_BASE = rawApiBase.replace(/^['"]|['"]$/g, '');
             const fullPhone = `${selectedCountry.code}${phone.replace(/\D/g, '')}`;
             const res = await fetch(`${API_BASE}/api/auth/phone/send-otp`, {
                 method: 'POST',
@@ -148,7 +149,8 @@ export default function Auth({ navigation }: AuthProps) {
 
         setIsLoading(true);
         try {
-            const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://pawber.onrender.com';
+            const rawApiBase = process.env.EXPO_PUBLIC_API_URL || 'https://pawber.onrender.com';
+            const API_BASE = rawApiBase.replace(/^['"]|['"]$/g, '');
             const fullPhone = `${selectedCountry.code}${phone.replace(/\D/g, '')}`;
             const res = await fetch(`${API_BASE}/api/auth/phone/verify-otp`, {
                 method: 'POST',
@@ -206,7 +208,8 @@ export default function Auth({ navigation }: AuthProps) {
 
         setIsLoading(true);
         try {
-            const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://pawber.onrender.com';
+            const rawApiBase = process.env.EXPO_PUBLIC_API_URL || 'https://pawber.onrender.com';
+            const API_BASE = rawApiBase.replace(/^['"]|['"]$/g, '');
             if (mode === 'login') {
                 const res = await fetch(`${API_BASE}/api/auth/signin`, {
                     method: 'POST',

@@ -45,9 +45,9 @@ export default function MainTabNavigator() {
           return (
             <View style={{ alignItems: 'center' }}>
               {IconComponent && (
-                <IconComponent 
-                  size={24} 
-                  color={color} 
+                <IconComponent
+                  size={24}
+                  color={color}
                   strokeWidth={focused ? 2.5 : 2}
                   fill={focused ? 'rgba(255, 122, 61, 0.1)' : 'transparent'}
                 />
@@ -77,11 +77,6 @@ export default function MainTabNavigator() {
         name="BookingsTab"
         component={Bookings}
         options={{ tabBarLabel: 'Bookings' }}
-      />
-      <Tab.Screen
-        name="NearbyTab"
-        component={Nearby}
-        options={{ tabBarLabel: 'Nearby' }}
       />
       <Tab.Screen
         name="WalletTab"

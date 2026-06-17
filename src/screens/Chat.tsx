@@ -69,12 +69,23 @@ export default function Chat({ navigation, route }: any) {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) currentUserId.current = user.id;
 
-            if (bookingId) {
-                const { data: thread } = await supabase
+            const passedThreadId = route?.params?.threadId;
+            const providerUserId = route?.params?.providerUserId;
+
+            if (passedThreadId) {
+                setThreadId(passedThreadId);
+                await loadMessages(passedThreadId);
+            } else if (bookingId) {
+                let query = supabase
                     .from('chat_threads')
                     .select('id')
-                    .eq('booking_id', bookingId)
-                    .single();
+                    .eq('booking_id', bookingId);
+                
+                if (providerUserId) {
+                    query = query.eq('provider_user_id', providerUserId);
+                }
+
+                const { data: thread } = await query.maybeSingle();
 
                 if (thread) {
                     setThreadId(thread.id);
@@ -82,7 +93,7 @@ export default function Chat({ navigation, route }: any) {
                 }
             }
 
-            if (!bookingId) {
+            if (!passedThreadId && !bookingId) {
                 loadDemoMessages();
             }
 
@@ -90,7 +101,7 @@ export default function Chat({ navigation, route }: any) {
         };
 
         init();
-    }, [bookingId]);
+    }, [bookingId, route?.params?.threadId, route?.params?.providerUserId]);
 
     useEffect(() => {
         if (!threadId) return;

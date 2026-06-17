@@ -1,5 +1,5 @@
-// Use your local IP for mobile Expo Go, or 10.0.2.2 for Android Emulator fallback
-const BASE = process.env.EXPO_PUBLIC_API_URL || 'https://pawber.onrender.com';
+const rawBase = process.env.EXPO_PUBLIC_API_URL || 'https://pawber.onrender.com';
+const BASE = rawBase.replace(/^['"]|['"]$/g, '');
 export const API_BASE_URL = `${BASE}/api`;
 
 export const APP_NAME = 'Pawber';

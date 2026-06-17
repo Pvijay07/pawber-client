@@ -31,7 +31,7 @@ import {
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { bookingsApi } from '../services/bookings.service';
+import { bookingsApi, api } from '../services';
 import { useSocket } from '../hooks/useSocket';
 import { supabase } from '../lib/supabase';
 
@@ -100,10 +100,11 @@ const radarStyles = StyleSheet.create({
 });
 
 // Bid card slide-in animation
-const BidCard = ({ bid, index, onAccept, isLocking, lockingId }: {
+const BidCard = ({ bid, index, onAccept, onChat, isLocking, lockingId }: {
     bid: Bid;
     index: number;
     onAccept: (bidId: string) => void;
+    onChat: (providerId: string) => void;
     isLocking: boolean;
     lockingId: string | null;
 }) => {
@@ -207,7 +208,7 @@ const BidCard = ({ bid, index, onAccept, isLocking, lockingId }: {
                                 </>
                             )}
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.messageBtn}>
+                        <TouchableOpacity style={styles.messageBtn} onPress={() => onChat(bid.provider_id)}>
                             <MessageSquare size={18} color="#1A1612" />
                         </TouchableOpacity>
                     </View>
@@ -370,6 +371,26 @@ export default function ServiceBidding({ navigation, route }: any) {
         }
     };
 
+    const handleChat = async (providerId: string) => {
+        try {
+            const res = await api.post<any>('/chat/threads', {
+                booking_id: bookingId,
+                provider_user_id: providerId
+            });
+            if (res.success && res.data?.thread?.id) {
+                navigation.navigate('Chat', {
+                    threadId: res.data.thread.id,
+                    bookingId: bookingId,
+                    providerUserId: providerId
+                });
+            } else {
+                alert(res.error?.message || 'Failed to open chat thread');
+            }
+        } catch (error: any) {
+            alert(error.message || 'Failed to initiate chat');
+        }
+    };
+
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
@@ -434,6 +455,7 @@ export default function ServiceBidding({ navigation, route }: any) {
                                     bid={bid}
                                     index={index}
                                     onAccept={handleAcceptBid}
+                                    onChat={handleChat}
                                     isLocking={isLocking !== null}
                                     lockingId={isLocking}
                                 />
