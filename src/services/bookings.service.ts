@@ -46,4 +46,13 @@ export const bookingsApi = {
 
     selectBid: (bookingId: string, bidId: string) =>
         api.post<{ booking: Booking }>(`/bookings/${bookingId}/select-bid`, { bid_id: bidId }),
+
+    releasePayment: (id: string) =>
+        api.post<{ success: boolean; data: any }>(`/bookings/${id}/release-payment`),
+
+    approveGrooming: (id: string) =>
+        api.post<{ success: boolean; data: any }>(`/bookings/${id}/grooming/approve`),
+
+    handleIncompleteWalkPackage: (id: string, option: 'reschedule' | 'extend' | 'refund_cash' | 'refund_credit', details?: { newDate?: string; extensionDays?: number }) =>
+        api.post<{ success: boolean; data: any }>(`/bookings/${id}/walk/incomplete`, { option, details }),
 };

@@ -5,13 +5,14 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    
     Dimensions,
     LayoutAnimation,
     Switch,
     Platform,
     ActivityIndicator,
-    StatusBar
+    StatusBar,
+    Modal,
+    TextInput
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -52,6 +53,10 @@ export default function Wallet({ navigation }: WalletProps) {
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+    const [addAmount, setAddAmount] = useState('');
+    const [isAdding, setIsAdding] = useState(false);
+
     React.useEffect(() => {
         fetchWalletData();
     }, [filter]);
@@ -75,6 +80,30 @@ export default function Wallet({ navigation }: WalletProps) {
             console.error('Failed to fetch wallet:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleAddFunds = async () => {
+        const amt = parseFloat(addAmount);
+        if (isNaN(amt) || amt <= 0) {
+            alert('Please enter a valid amount');
+            return;
+        }
+        setIsAdding(true);
+        try {
+            const res = await walletApi.addFunds(amt);
+            if (res.success && res.data) {
+                setWallet(res.data.wallet);
+                setIsAddModalVisible(false);
+                fetchWalletData(); // Refresh history
+            } else {
+                alert(res.error?.message || 'Failed to add funds');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('An error occurred');
+        } finally {
+            setIsAdding(false);
         }
     };
 
@@ -124,7 +153,13 @@ export default function Wallet({ navigation }: WalletProps) {
                         </View>
 
                         <View style={styles.cardActions}>
-                            <TouchableOpacity style={styles.addFundsBtn}>
+                            <TouchableOpacity 
+                                style={styles.addFundsBtn}
+                                onPress={() => {
+                                    setAddAmount('');
+                                    setIsAddModalVisible(true);
+                                }}
+                            >
                                 <LinearGradient
                                     colors={['#FF7A3D', '#FF9D6C']}
                                     style={StyleSheet.absoluteFill}
@@ -239,6 +274,68 @@ export default function Wallet({ navigation }: WalletProps) {
                     </View>
                 </ScrollView>
             </View>
+
+            <Modal
+                visible={isAddModalVisible}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setIsAddModalVisible(false)}
+            >
+                <View style={styles.modalBackdrop}>
+                    <BlurView intensity={90} tint={isDark ? "dark" : "light"} style={styles.modalContainer}>
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>Add Funds to Wallet</Text>
+                        <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                            Enter the amount you would like to add to your balance.
+                        </Text>
+                        
+                        <View style={[styles.inputWrapper, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                            <Text style={[styles.currencyPrefix, { color: colors.textMuted }]}>₹</Text>
+                            <TextInput
+                                style={[styles.amountInput, { color: colors.text }]}
+                                placeholder="0.00"
+                                placeholderTextColor={colors.textMuted}
+                                keyboardType="numeric"
+                                value={addAmount}
+                                onChangeText={setAddAmount}
+                                autoFocus={true}
+                            />
+                        </View>
+
+                        <View style={styles.quickAmountContainer}>
+                            {[500, 1000, 2000, 5000].map(amt => (
+                                <TouchableOpacity
+                                    key={amt}
+                                    style={[styles.quickAmountBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                                    onPress={() => setAddAmount(String(amt))}
+                                >
+                                    <Text style={[styles.quickAmountText, { color: colors.primary }]}>+₹{amt}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity
+                                style={[styles.modalCancelBtn, { borderColor: colors.border }]}
+                                onPress={() => setIsAddModalVisible(false)}
+                                disabled={isAdding}
+                            >
+                                <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>CANCEL</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.modalSubmitBtn}
+                                onPress={handleAddFunds}
+                                disabled={isAdding}
+                            >
+                                {isAdding ? (
+                                    <ActivityIndicator color="white" size="small" />
+                                ) : (
+                                    <Text style={styles.modalSubmitText}>CONFIRM</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </BlurView>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -294,5 +391,107 @@ const styles = StyleSheet.create({
     receiptRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     receiptText: { fontSize: 10, fontWeight: '900' },
     emptyTransactions: { paddingVertical: 60, alignItems: 'center', justifyContent: 'center', borderRadius: 32, borderStyle: 'dashed', borderWidth: 1, borderColor: '#DEC9B5', gap: 12 },
-    emptyText: { fontSize: 13, fontWeight: '900', color: '#7A5540' }
+    emptyText: { fontSize: 13, fontWeight: '900', color: '#7A5540' },
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    modalContainer: {
+        width: '100%',
+        maxWidth: 400,
+        borderRadius: 32,
+        padding: 24,
+        alignItems: 'center',
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '900',
+        marginBottom: 8,
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        textAlign: 'center',
+        marginBottom: 24,
+        fontWeight: '500',
+    },
+    inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        width: '100%',
+        height: 56,
+        marginBottom: 16,
+    },
+    currencyPrefix: {
+        fontSize: 20,
+        fontWeight: '900',
+        marginRight: 8,
+    },
+    amountInput: {
+        flex: 1,
+        fontSize: 20,
+        fontWeight: '900',
+        padding: 0,
+    },
+    quickAmountContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        width: '100%',
+        gap: 8,
+        marginBottom: 24,
+    },
+    quickAmountBtn: {
+        flex: 1,
+        minWidth: '22%',
+        height: 40,
+        borderRadius: 12,
+        borderWidth: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    quickAmountText: {
+        fontSize: 12,
+        fontWeight: '900',
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    modalCancelBtn: {
+        flex: 1,
+        height: 52,
+        borderRadius: 16,
+        borderWidth: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalCancelText: {
+        fontSize: 12,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    modalSubmitBtn: {
+        flex: 1,
+        height: 52,
+        borderRadius: 16,
+        backgroundColor: '#FF7A3D',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalSubmitText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
 });

@@ -42,6 +42,7 @@ import { Booking } from '../shared/types';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../theme/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import BookingDetailsModal from '../components/BookingDetailsModal';
 
 const { width } = Dimensions.get('window');
 
@@ -51,6 +52,9 @@ export default function Bookings({ navigation }: any) {
     const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+    const [isDetailsVisible, setIsDetailsVisible] = useState(false);
 
     React.useEffect(() => {
         fetchBookings();
@@ -88,7 +92,7 @@ export default function Bookings({ navigation }: any) {
         setIsLoading(true);
         try {
             const statuses = activeTab === 'upcoming' 
-                ? 'pending,confirmed,in_progress' 
+                ? 'pending,confirmed,in_progress,service_completed' 
                 : 'completed,cancelled';
             
             const res = await bookingsApi.list({ status: statuses });
@@ -172,16 +176,42 @@ export default function Bookings({ navigation }: any) {
 
                             <View style={styles.actionButtons}>
                                 <TouchableOpacity
-                                    style={styles.mainBtn}
-                                    onPress={() => navigation.navigate('LiveTracking', { bookingId: item.id })}
+                                    style={[styles.mainBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
+                                    onPress={() => {
+                                        setSelectedBookingId(item.id);
+                                        setIsDetailsVisible(true);
+                                    }}
                                 >
-                                    <LinearGradient
-                                        colors={['#1A1612', '#2D2824']}
-                                        style={StyleSheet.absoluteFill}
-                                        borderRadius={18}
-                                    />
-                                    <Text style={styles.mainBtnText}>TRACK ORDER</Text>
+                                    <Text style={[styles.mainBtnText, { color: colors.text }]}>DETAILS</Text>
                                 </TouchableOpacity>
+                                {item.status === 'service_completed' ? (
+                                    <TouchableOpacity
+                                        style={styles.mainBtn}
+                                        onPress={() => {
+                                            setSelectedBookingId(item.id);
+                                            setIsDetailsVisible(true);
+                                        }}
+                                    >
+                                        <LinearGradient
+                                            colors={['#10b981', '#059669']}
+                                            style={StyleSheet.absoluteFill}
+                                            borderRadius={18}
+                                        />
+                                        <Text style={styles.mainBtnText}>APPROVE</Text>
+                                    </TouchableOpacity>
+                                ) : (
+                                    <TouchableOpacity
+                                        style={styles.mainBtn}
+                                        onPress={() => navigation.navigate('LiveTracking', { bookingId: item.id })}
+                                    >
+                                        <LinearGradient
+                                            colors={['#1A1612', '#2D2824']}
+                                            style={StyleSheet.absoluteFill}
+                                            borderRadius={18}
+                                        />
+                                        <Text style={styles.mainBtnText}>TRACK</Text>
+                                    </TouchableOpacity>
+                                )}
                                 <TouchableOpacity
                                     style={styles.chatBtn}
                                     onPress={() => navigation.navigate('Chat', { bookingId: item.id })}
@@ -194,9 +224,15 @@ export default function Bookings({ navigation }: any) {
                         </View>
                     ) : (
                         <View style={styles.pastFooter}>
-                            <TouchableOpacity style={styles.rebookBtn}>
-                                <RefreshCcw size={16} color="#4f46e5" />
-                                <Text style={styles.rebookText}>REBOOK</Text>
+                            <TouchableOpacity 
+                                style={styles.rebookBtn}
+                                onPress={() => {
+                                    setSelectedBookingId(item.id);
+                                    setIsDetailsVisible(true);
+                                }}
+                            >
+                                <FileText size={16} color="#4f46e5" />
+                                <Text style={styles.rebookText}>VIEW LOGS</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.rateBtn}>
                                 <Text style={styles.rateText}>RATE PROVIDER</Text>
@@ -278,6 +314,13 @@ export default function Bookings({ navigation }: any) {
                         </TouchableOpacity>
                     </>
                 )}
+                
+                <BookingDetailsModal
+                    visible={isDetailsVisible}
+                    bookingId={selectedBookingId}
+                    onClose={() => setIsDetailsVisible(false)}
+                    onStatusChange={fetchBookings}
+                />
             </View>
         </View>
     );
