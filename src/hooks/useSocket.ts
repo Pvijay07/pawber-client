@@ -29,7 +29,7 @@ export const useSocket = () => {
                 auth: {
                     token: session.access_token
                 },
-                transports: ['websocket'],
+                transports: ['polling', 'websocket'],
                 reconnection: true,
                 reconnectionDelay: 1000,
                 reconnectionDelayMax: 5000,
