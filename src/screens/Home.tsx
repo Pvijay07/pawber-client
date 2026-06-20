@@ -111,7 +111,7 @@ export default function Home({ navigation }: HomeProps) {
                 authApi.getProfile(),
                 loyaltyApi.getStatus(),
                 servicesApi.listCategories(),
-                bookingsApi.list({ status: 'pending,confirmed,in_progress', limit: 1 })
+                bookingsApi.list({ status: 'requested,bidding,bid_selected,pending,confirmed,in_progress', limit: 1 })
             ]);
 
             // Helper to get result data

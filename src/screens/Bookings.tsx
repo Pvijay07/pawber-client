@@ -92,7 +92,7 @@ export default function Bookings({ navigation }: any) {
         setIsLoading(true);
         try {
             const statuses = activeTab === 'upcoming' 
-                ? 'pending,confirmed,in_progress,service_completed' 
+                ? 'requested,bidding,bid_selected,pending,confirmed,in_progress,service_completed' 
                 : 'completed,cancelled';
             
             const res = await bookingsApi.list({ status: statuses });
