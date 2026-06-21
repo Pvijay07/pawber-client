@@ -55,4 +55,7 @@ export const bookingsApi = {
 
     handleIncompleteWalkPackage: (id: string, option: 'reschedule' | 'extend' | 'refund_cash' | 'refund_credit', details?: { newDate?: string; extensionDays?: number }) =>
         api.post<{ success: boolean; data: any }>(`/bookings/${id}/walk/incomplete`, { option, details }),
+
+    resolveMissedWalk: (id: string, resolutionType: 'reschedule' | 'extend' | 'refund' | 'credits', newDate?: string) =>
+        api.post<any>(`/bookings/${id}/resolve`, { resolutionType, newDate }),
 };

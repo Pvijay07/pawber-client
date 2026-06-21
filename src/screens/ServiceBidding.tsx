@@ -221,9 +221,10 @@ const BidCard = ({ bid, index, onAccept, onChat, isLocking, lockingId }: {
 export default function ServiceBidding({ navigation, route }: any) {
     const bookingId = route?.params?.bookingId;
     const bookingAmount = route?.params?.totalAmount;
+    const bookingType = route?.params?.bookingType;
     const [bids, setBids] = useState<Bid[]>([]);
     const [isLocking, setIsLocking] = useState<string | null>(null);
-    const [isSearching, setIsSearching] = useState(true);
+    const [isSearching, setIsSearching] = useState(bookingType !== 'scheduled');
     const [radiusKm, setRadiusKm] = useState(5);
     const { on, emit, isConnected } = useSocket();
 
@@ -251,11 +252,11 @@ export default function ServiceBidding({ navigation, route }: any) {
                     provider_id: b.provider_id,
                     provider_name: b.provider_name || 'Provider',
                     provider_image: b.provider_image || `https://i.pravatar.cc/100?u=${b.provider_id}`,
-                    rating: b.provider_rating || 5.0,
-                    amount: b.amount,
+                    rating: parseFloat(b.provider_rating) || 5.0,
+                    amount: parseFloat(b.amount) || 0,
                     eta: b.eta || '15 min',
                     message: b.message || '',
-                    is_gold: b.provider_rating >= 4.8,
+                    is_gold: (parseFloat(b.provider_rating) || 0) >= 4.8,
                     created_at: b.created_at,
                 }];
             });
@@ -273,18 +274,18 @@ export default function ServiceBidding({ navigation, route }: any) {
         const fetchBids = async () => {
             try {
                 const res = await bookingsApi.getBids(bookingId);
-                if (res.success && res.data?.bids && res.data.bids.length > 0) {
+                if (res.success && res.data?.bids) {
                     setIsSearching(false);
                     const formatted = res.data.bids.map((b: any) => ({
                         id: b.id,
                         provider_id: b.provider_id,
                         provider_name: b.provider?.business_name || b.provider?.user?.full_name || 'Provider',
                         provider_image: b.provider?.user?.avatar_url || `https://i.pravatar.cc/100?u=${b.provider_id}`,
-                        rating: b.provider?.rating || 5.0,
-                        amount: b.amount,
+                        rating: parseFloat(b.provider?.rating) || 5.0,
+                        amount: parseFloat(b.amount) || 0,
                         eta: b.eta || '15 min',
                         message: b.message || '',
-                        is_gold: (b.provider?.rating || 0) >= 4.8,
+                        is_gold: (parseFloat(b.provider?.rating) || 0) >= 4.8,
                         created_at: b.created_at,
                     }));
                     setBids(formatted);
@@ -333,11 +334,12 @@ export default function ServiceBidding({ navigation, route }: any) {
                             provider_id: b.provider_id,
                             provider_name: b.provider?.business_name || b.provider?.user?.full_name || 'Provider',
                             provider_image: b.provider?.user?.avatar_url || `https://i.pravatar.cc/100?u=${b.provider_id}`,
-                            rating: b.provider?.rating || 5.0,
-                            amount: b.amount,
+                            rating: parseFloat(b.provider?.rating) || 5.0,
+                            amount: parseFloat(b.amount) || 0,
                             eta: b.eta || '15 min',
                             message: b.message || '',
-                            is_gold: (b.provider?.rating || 0) >= 4.8,
+                            is_gold: (parseFloat(b.provider?.rating) || 0) >= 4.8,
+                            created_at: b.created_at,
                         }));
                         setBids(formatted);
                     }

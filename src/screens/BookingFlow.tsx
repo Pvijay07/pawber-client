@@ -111,7 +111,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     const [addresses, setAddresses] = useState<any[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
 
-    const [selectedPets, setSelectedPets] = useState<string[]>([]);
+    const [selectedPets, setSelectedPets] = useState<string[]>(route?.params?.petIds || []);
     const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
     const [selectedPackage, setSelectedPackage] = useState<string | null>(route?.params?.packageId || null);
     const [serviceLocation, setServiceLocation] = useState<'home' | 'center'>('home');
@@ -120,16 +120,87 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
     const [recurringType, setRecurringType] = useState<'none' | 'weekly' | 'monthly'>('none');
 
+    // Phase 2 walk session wizard states
+    const [frequency, setFrequency] = useState<'onetime' | 'daily' | 'weekly'>(route?.params?.frequency || 'onetime');
+    const [specificDays, setSpecificDays] = useState<string[]>(route?.params?.specificDays || []);
+    const [startDate, setStartDate] = useState<string | null>(null);
+    const [endDate, setEndDate] = useState<string | null>(null);
+    const [durationChoice, setDurationChoice] = useState<'1week' | '2weeks' | '4weeks' | 'custom'>('1week');
+    const [walkDuration, setWalkDuration] = useState<number>(route?.params?.walkDuration || 30);
+    const [specialChecklist, setSpecialChecklist] = useState<string[]>([]);
+
     const [selectedAddons, setSelectedAddons] = useState<string[]>(route?.params?.addonIds || []);
     const [instructions, setInstructions] = useState('');
 
     const [paymentMode, setPaymentMode] = useState<'wallet' | 'gateway' | 'split'>('wallet');
+    const [splitWalletPortion, setSplitWalletPortion] = useState(0);
+    const [walletBalance, setWalletBalance] = useState(0);
     const [couponCode, setCouponCode] = useState('');
     const [holdTimer, setHoldTimer] = useState(300);
     const [usePoints, setUsePoints] = useState(false);
     const [pointsBalance, setPointsBalance] = useState(0);
     const [createdBooking, setCreatedBooking] = useState<any>(null);
     const [bookingStatus, setBookingStatus] = useState<string>('pending');
+
+    const isWalkingService = serviceData?.slug === 'walking' || serviceData?.category?.slug === 'exercise';
+
+    const calculateTotalWalksClient = (start: string | null, end: string | null, freq: string, days: string[]): number => {
+        if (freq === 'onetime' || !start) return 1;
+        const targetEnd = freq === 'onetime' ? start : end;
+        if (!targetEnd) return 1;
+
+        const startDt = new Date(start);
+        const endDt = new Date(targetEnd);
+        if (isNaN(startDt.getTime()) || isNaN(endDt.getTime()) || startDt > endDt) return 1;
+
+        let count = 0;
+        let curr = new Date(startDt);
+        const dayMap: Record<string, number> = {
+            'sun': 0, 'sunday': 0, 'mon': 1, 'monday': 1, 'tue': 2, 'tuesday': 2,
+            'wed': 3, 'wednesday': 3, 'thu': 4, 'thursday': 4, 'fri': 5, 'friday': 5,
+            'sat': 6, 'saturday': 6
+        };
+        const targetDays = days.map(d => dayMap[d.toLowerCase()]).filter(d => d !== undefined);
+
+        while (curr <= endDt) {
+            if (freq === 'daily') {
+                count++;
+            } else if (freq === 'weekly' && targetDays.length > 0) {
+                if (targetDays.includes(curr.getDay())) {
+                    count++;
+                }
+            } else {
+                count++;
+            }
+            curr.setDate(curr.getDate() + 1);
+            if (curr.getTime() - startDt.getTime() > 365 * 24 * 60 * 60 * 1000) break; // safety limit
+        }
+        return count || 1;
+    };
+
+    const getCustomEndDates = (startStr: string | null) => {
+        if (!startStr) return [];
+        const dates = [];
+        const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+        const baseDate = new Date(startStr);
+        for (let i = 0; i < 30; i++) {
+            const d = new Date(baseDate);
+            d.setDate(d.getDate() + i + 1); // start from start date + 1 day
+            dates.push({
+                full: d.toISOString().split('T')[0],
+                day: d.getDate(),
+                month: monthNames[d.getMonth()],
+                label: d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
+            });
+        }
+        return dates;
+    };
+
+    const toggleSpecialChecklist = (id: string) => {
+        setSpecialChecklist(prev =>
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
 
     const fetchInitialData = useCallback(async (showLoading = true) => {
         if (showLoading) setIsLoadingData(true);
@@ -144,7 +215,10 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
             if (svcRes.success && svcRes.data) setServiceData(svcRes.data.service);
             if (petsRes.success && petsRes.data) setPets(petsRes.data.pets);
             if (addrJson) setAddresses(JSON.parse(addrJson));
-            if (wallRes.success && wallRes.data) setPointsBalance(wallRes.data.wallet.points_balance || 0);
+            if (wallRes.success && wallRes.data) {
+                setPointsBalance(wallRes.data.wallet.points_balance || 0);
+                setWalletBalance(wallRes.data.wallet.balance || 0);
+            }
 
         } catch (error) {
             console.error('Failed to load booking data:', error);
@@ -214,6 +288,28 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     };
 
     const dates = getNextDates();
+
+    useEffect(() => {
+        if (dates.length > 0) {
+            if (!startDate) setStartDate(dates[0].full);
+            if (!selectedDate) setSelectedDate(dates[0].full);
+        }
+    }, [dates]);
+
+    useEffect(() => {
+        if (!startDate) return;
+        const start = new Date(startDate);
+        if (durationChoice === '1week') {
+            start.setDate(start.getDate() + 6);
+            setEndDate(start.toISOString().split('T')[0]);
+        } else if (durationChoice === '2weeks') {
+            start.setDate(start.getDate() + 13);
+            setEndDate(start.toISOString().split('T')[0]);
+        } else if (durationChoice === '4weeks') {
+            start.setDate(start.getDate() + 27);
+            setEndDate(start.toISOString().split('T')[0]);
+        }
+    }, [startDate, durationChoice]);
     const times = [
         { time: '09:00 AM', available: true },
         { time: '10:30 AM', available: false },
@@ -234,7 +330,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         );
     };
 
-    const calculateTotal = () => {
+    const calculateDiscountedSubtotal = () => {
         if (!serviceData) return 0;
         const pkg = serviceData.packages?.find(p => p.id === selectedPackage);
         let base = (pkg?.price || 0) * selectedPets.length;
@@ -244,7 +340,21 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
             if (addon) base += addon.price * selectedPets.length;
         });
 
-        if (recurringType !== 'none') base = base * 0.9;
+        // Multiply by walk count if walking service
+        if (isWalkingService) {
+            let durationMultiplier = 1.0;
+            if (walkDuration === 15) durationMultiplier = 0.8;
+            else if (walkDuration === 45) durationMultiplier = 1.2;
+            else if (walkDuration === 60) durationMultiplier = 1.5;
+            base = base * durationMultiplier;
+
+            const walkCount = calculateTotalWalksClient(startDate, endDate, frequency, specificDays);
+            base = base * walkCount;
+        }
+
+        const isRecurring = isWalkingService ? (frequency !== 'onetime') : (recurringType !== 'none');
+        if (isRecurring) base = base * 0.9;
+        
         if (couponCode === 'SAVE20') base = base * 0.8;
 
         if (usePoints) {
@@ -253,6 +363,13 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         }
 
         return Math.max(0, base);
+    };
+
+    const calculateTotal = () => {
+        const sub = calculateDiscountedSubtotal();
+        const platformFee = Math.round(sub * 0.10 * 100) / 100;
+        const gst = Math.round(sub * 0.18 * 100) / 100;
+        return sub + platformFee + gst;
     };
 
     const handleNext = () => {
@@ -265,23 +382,32 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         }
     };
 
-        const submitBooking = async () => {
+    const submitBooking = async () => {
         setIsSubmitting(true);
         try {
             const addrObj = addresses.find(a => a.id === selectedAddress);
+            const walkCount = isWalkingService ? calculateTotalWalksClient(startDate, endDate, frequency, specificDays) : 1;
+            
             const res = await bookingsApi.create({
                 service_id: serviceId,
                 package_id: selectedPackage!,
                 booking_type: bookingType,
                 pet_ids: selectedPets,
                 addon_ids: selectedAddons,
-                booking_date: selectedDate!,
+                booking_date: isWalkingService ? (startDate || new Date().toISOString().split('T')[0]) : (selectedDate || new Date().toISOString().split('T')[0]),
                 address: addrObj?.address,
                 latitude: addrObj?.latitude,
                 longitude: addrObj?.longitude,
                 notes: instructions,
                 coupon_code: couponCode,
-                points_to_use: usePoints ? Math.min(pointsBalance, calculateTotal()) : 0
+                points_to_use: usePoints ? Math.min(pointsBalance, calculateDiscountedSubtotal()) : 0,
+                frequency: isWalkingService ? frequency : 'onetime',
+                specific_days: isWalkingService && frequency === 'weekly' ? specificDays : undefined,
+                start_date: isWalkingService ? startDate : undefined,
+                end_date: isWalkingService ? (frequency === 'onetime' ? startDate : endDate) : undefined,
+                walk_duration_minutes: isWalkingService ? walkDuration : undefined,
+                total_walks: walkCount,
+                special_instructions: isWalkingService ? specialChecklist : undefined
             });
 
             if (res.success && res.data) {
@@ -358,12 +484,40 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 return;
             }
 
-            // Attempt Razorpay Payment if on Web
+            // 1. 100% Wallet Payment
+            if (paymentMode === 'wallet') {
+                const res = await walletApi.pay(createdBooking.id, amount);
+                if (res.success) {
+                    setBookingStatus('confirmed');
+                } else {
+                    alert('Wallet payment failed: ' + (res.error?.message || 'Insufficient balance'));
+                }
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Calculate portions for split/gateway payment
+            const walletPortion = paymentMode === 'split' ? splitWalletPortion : 0;
+            const gatewayPortion = amount - walletPortion;
+
+            if (gatewayPortion <= 0) {
+                // If gateway portion is 0 or negative, it's essentially 100% wallet payment
+                const res = await walletApi.pay(createdBooking.id, amount);
+                if (res.success) {
+                    setBookingStatus('confirmed');
+                } else {
+                    alert('Wallet payment failed: ' + (res.error?.message || 'Insufficient balance'));
+                }
+                setIsSubmitting(false);
+                return;
+            }
+
+            // 2. Web Razorpay Payment Flow (Supports Split/Card)
             if (Platform.OS === 'web') {
                 const { loadRazorpay, initializeRazorpayPayment } = require('../lib/razorpay');
                 const loaded = await loadRazorpay();
                 if (loaded) {
-                    const orderRes = await paymentsApi.createOrder(createdBooking.id, amount);
+                    const orderRes = await paymentsApi.createOrder(createdBooking.id, gatewayPortion, walletPortion);
                     if (orderRes.success && orderRes.data?.order) {
                         const orderData = orderRes.data.order;
                         
@@ -372,7 +526,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                             currency: orderData.currency,
                             order_id: orderData.order_id,
                             name: 'Pawber',
-                            description: 'Service Booking Payment',
+                            description: walletPortion > 0 ? `Split Payment (Wallet: ₹${walletPortion})` : 'Service Booking Payment',
                             handler: async (response: any) => {
                                 try {
                                     setIsSubmitting(true);
@@ -404,13 +558,27 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 }
             }
 
-            // Fallback for native/mock environments
-            console.log('⚡ Using Mock Payment confirmation fallback');
-            const res = await bookingsApi.confirmPayment(createdBooking.id);
-            if (res.success) {
-                setBookingStatus('confirmed');
+            // 3. Fallback/Mock for native/mobile environments
+            console.log('⚡ Using Mock Payment confirmation flow');
+            const orderRes = await paymentsApi.createOrder(createdBooking.id, gatewayPortion, walletPortion);
+            if (orderRes.success && orderRes.data?.order) {
+                const verifyRes = await paymentsApi.verify({
+                    razorpay_order_id: orderRes.data.order.order_id,
+                    razorpay_payment_id: 'pay_mock_' + Date.now(),
+                    razorpay_signature: 'sig_mock_pass'
+                });
+                if (verifyRes.success && verifyRes.data?.verified) {
+                    setBookingStatus('confirmed');
+                } else {
+                    alert('Mock payment verification failed.');
+                }
             } else {
-                alert('Payment failed. Please try again.');
+                const res = await bookingsApi.confirmPayment(createdBooking.id);
+                if (res.success) {
+                    setBookingStatus('confirmed');
+                } else {
+                    alert('Payment failed. Please try again.');
+                }
             }
         } catch (error: any) {
             console.error('Payment error:', error);
@@ -427,7 +595,18 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     };
 
     const isNextDisabled = () => {
-        if (step === 1) return selectedPets.length === 0 || !selectedPackage || !selectedAddress || !selectedDate || !selectedTime;
+        if (step === 1) {
+            const basicCheck = selectedPets.length === 0 || !selectedPackage || !selectedAddress || !selectedTime;
+            if (basicCheck) return true;
+            if (isWalkingService) {
+                if (!startDate) return true;
+                if (frequency !== 'onetime' && !endDate) return true;
+                if (frequency === 'weekly' && specificDays.length === 0) return true;
+                return false;
+            } else {
+                return !selectedDate;
+            }
+        }
         if (step === 2) return false;
         return false;
     };
@@ -553,61 +732,255 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
 
 
 
-                                {/* Frequency */}
-                                <View style={styles.sectionBlock}>
-                                    <Text style={styles.sectionTitle}>FREQUENCY</Text>
-                                    <View style={styles.frequencyTabs}>
-                                        {(['none', 'weekly', 'monthly'] as const).map(t => (
-                                            <TouchableOpacity
-                                                key={t}
-                                                onPress={() => setRecurringType(t)}
-                                                style={StyleSheet.flatten([styles.freqTab, recurringType === t && styles.freqTabActive])}
+                                {isWalkingService ? (
+                                    <>
+                                        {/* Frequency Selection */}
+                                        <View style={styles.sectionBlock}>
+                                            <Text style={styles.sectionTitle}>FREQUENCY</Text>
+                                            <View style={styles.frequencyTabs}>
+                                                {(['onetime', 'daily', 'weekly'] as const).map(f => (
+                                                    <TouchableOpacity
+                                                        key={f}
+                                                        onPress={() => setFrequency(f)}
+                                                        style={StyleSheet.flatten([styles.freqTab, frequency === f && styles.freqTabActive])}
+                                                    >
+                                                        <Text style={StyleSheet.flatten([styles.freqTabText, frequency === f && styles.freqTabTextActive])}>
+                                                            {f === 'onetime' ? 'ONE-TIME' : f.toUpperCase()}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+
+                                            {/* Specific Days (if Weekly frequency is chosen) */}
+                                            {frequency === 'weekly' && (
+                                                <View style={{ marginTop: 12 }}>
+                                                    <Text style={[styles.sectionTitle, { fontSize: 10, marginBottom: 8 }]}>SPECIFIC DAYS OF WEEK</Text>
+                                                    <View style={styles.daysContainer}>
+                                                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
+                                                            const isSelected = specificDays.includes(day);
+                                                            return (
+                                                                <TouchableOpacity
+                                                                    key={day}
+                                                                    onPress={() => {
+                                                                        if (isSelected) {
+                                                                            setSpecificDays(prev => prev.filter(d => d !== day));
+                                                                        } else {
+                                                                            setSpecificDays(prev => [...prev, day]);
+                                                                        }
+                                                                    }}
+                                                                    style={StyleSheet.flatten([styles.dayChip, isSelected && styles.dayChipActive])}
+                                                                >
+                                                                    <Text style={StyleSheet.flatten([styles.dayChipText, isSelected && styles.dayChipTextActive])}>
+                                                                        {day}
+                                                                    </Text>
+                                                                </TouchableOpacity>
+                                                            );
+                                                        })}
+                                                    </View>
+                                                </View>
+                                            )}
+                                        </View>
+
+                                        {/* Start Date */}
+                                        <View style={styles.sectionBlock}>
+                                            <Text style={styles.sectionTitle}>START DATE</Text>
+                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateList}>
+                                                {dates.map(d => (
+                                                    <TouchableOpacity
+                                                        key={d.full}
+                                                        onPress={() => {
+                                                            setStartDate(d.full);
+                                                            setSelectedDate(d.full); // sync selectedDate as well
+                                                        }}
+                                                        style={StyleSheet.flatten([styles.dateCard, startDate === d.full && styles.dateCardActive])}
+                                                    >
+                                                        <Text style={StyleSheet.flatten([styles.dateMonth, startDate === d.full && styles.textWhite])}>{d.month}</Text>
+                                                        <Text style={StyleSheet.flatten([styles.dateDay, startDate === d.full && styles.textWhite])}>{d.day}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </ScrollView>
+                                        </View>
+
+                                        {/* Duration of Package (only if not one-time) */}
+                                        {frequency !== 'onetime' && (
+                                            <View style={styles.sectionBlock}>
+                                                <Text style={styles.sectionTitle}>DURATION OF PACKAGE</Text>
+                                                <View style={styles.durationChoiceGrid}>
+                                                    {[
+                                                        { id: '1week', label: '1 Week' },
+                                                        { id: '2weeks', label: '2 Weeks' },
+                                                        { id: '4weeks', label: '4 Weeks' },
+                                                        { id: 'custom', label: 'Custom' }
+                                                    ].map(item => (
+                                                        <TouchableOpacity
+                                                            key={item.id}
+                                                            onPress={() => setDurationChoice(item.id as any)}
+                                                            style={StyleSheet.flatten([
+                                                                styles.durationChoiceBtn,
+                                                                durationChoice === item.id && styles.durationChoiceBtnActive
+                                                            ])}
+                                                        >
+                                                            <Text style={StyleSheet.flatten([
+                                                                styles.durationChoiceText,
+                                                                durationChoice === item.id && styles.textWhite
+                                                            ])}>{item.label}</Text>
+                                                        </TouchableOpacity>
+                                                    ))}
+                                                </View>
+
+                                                {/* Custom End Date Selector */}
+                                                {durationChoice === 'custom' && (
+                                                    <View style={{ marginTop: 16 }}>
+                                                        <Text style={[styles.sectionTitle, { fontSize: 10, marginBottom: 8 }]}>SELECT END DATE</Text>
+                                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateList}>
+                                                            {getCustomEndDates(startDate).map(d => (
+                                                                <TouchableOpacity
+                                                                    key={d.full}
+                                                                    onPress={() => setEndDate(d.full)}
+                                                                    style={StyleSheet.flatten([styles.dateCard, endDate === d.full && styles.dateCardActive])}
+                                                                >
+                                                                    <Text style={StyleSheet.flatten([styles.dateMonth, endDate === d.full && styles.textWhite])}>{d.month}</Text>
+                                                                    <Text style={StyleSheet.flatten([styles.dateDay, endDate === d.full && styles.textWhite])}>{d.day}</Text>
+                                                                </TouchableOpacity>
+                                                            ))}
+                                                        </ScrollView>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        )}
+
+                                        {/* Walk Duration */}
+                                        <View style={styles.sectionBlock}>
+                                            <Text style={styles.sectionTitle}>WALK DURATION PER WALK</Text>
+                                            <View style={styles.durationGrid}>
+                                                {[15, 30, 45, 60].map(minutes => (
+                                                    <TouchableOpacity
+                                                        key={minutes}
+                                                        onPress={() => setWalkDuration(minutes)}
+                                                        style={StyleSheet.flatten([
+                                                            styles.durationBtn,
+                                                            walkDuration === minutes && styles.durationBtnActive
+                                                        ])}
+                                                    >
+                                                        <Text style={StyleSheet.flatten([
+                                                            styles.durationText,
+                                                            walkDuration === minutes && styles.textWhite
+                                                        ])}>
+                                                            {minutes} min
+                                                        </Text>
+                                                        <Text style={StyleSheet.flatten([
+                                                            styles.durationPriceLabel,
+                                                            walkDuration === minutes ? styles.textWhiteMuted : { color: '#94A3B8' }
+                                                        ])}>
+                                                            {minutes === 15 ? '0.8x price' : minutes === 30 ? 'Standard' : minutes === 45 ? '1.2x price' : '1.5x price'}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        </View>
+
+                                        {/* Walk count indicator badge */}
+                                        <View style={styles.walkCountBadgeContainer}>
+                                            <LinearGradient
+                                                colors={['#E0F5F0', '#F0FDF4']}
+                                                start={{ x: 0, y: 0 }}
+                                                end={{ x: 1, y: 0 }}
+                                                style={styles.walkCountBadge}
                                             >
-                                                <Text style={StyleSheet.flatten([styles.freqTabText, recurringType === t && styles.freqTabTextActive])}>
-                                                    {t === 'none' ? 'ONCE' : t.toUpperCase()}
+                                                <Text style={styles.walkCountText}>
+                                                    Estimated package size:{' '}
+                                                    <Text style={{ fontWeight: '900', color: '#1D9E86' }}>
+                                                        {calculateTotalWalksClient(startDate, endDate, frequency, specificDays)} walks
+                                                    </Text>
                                                 </Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
-                                </View>
+                                                {frequency !== 'onetime' && startDate && endDate && (
+                                                    <Text style={styles.walkCountSubText}>
+                                                        Active from {startDate} to {endDate}
+                                                    </Text>
+                                                )}
+                                            </LinearGradient>
+                                        </View>
 
-                                {/* Date */}
-                                <View style={styles.sectionBlock}>
-                                    <Text style={styles.sectionTitle}>SELECT DATE</Text>
-                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateList}>
-                                        {dates.map(d => (
-                                            <TouchableOpacity
-                                                key={d.full}
-                                                onPress={() => setSelectedDate(d.full)}
-                                                style={StyleSheet.flatten([styles.dateCard, selectedDate === d.full && styles.dateCardActive])}
-                                            >
-                                                <Text style={StyleSheet.flatten([styles.dateMonth, selectedDate === d.full && styles.textWhite])}>{d.month}</Text>
-                                                <Text style={StyleSheet.flatten([styles.dateDay, selectedDate === d.full && styles.textWhite])}>{d.day}</Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </ScrollView>
-                                </View>
+                                        {/* Select Walk Time */}
+                                        <View style={styles.sectionBlock}>
+                                            <Text style={styles.sectionTitle}>SELECT TIME</Text>
+                                            <View style={styles.timeGrid}>
+                                                {times.map(t => (
+                                                    <TouchableOpacity
+                                                        key={t.time}
+                                                        onPress={() => t.available && setSelectedTime(t.time)}
+                                                        disabled={!t.available}
+                                                        style={StyleSheet.flatten([
+                                                            styles.timeBtn,
+                                                            !t.available && styles.timeBtnDisabled,
+                                                            selectedTime === t.time && styles.timeBtnActive
+                                                        ])}
+                                                    >
+                                                        <Text style={StyleSheet.flatten([styles.timeText, selectedTime === t.time && styles.textWhite])}>{t.time}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        </View>
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Frequency */}
+                                        <View style={styles.sectionBlock}>
+                                            <Text style={styles.sectionTitle}>FREQUENCY</Text>
+                                            <View style={styles.frequencyTabs}>
+                                                {(['none', 'weekly', 'monthly'] as const).map(t => (
+                                                    <TouchableOpacity
+                                                        key={t}
+                                                        onPress={() => setRecurringType(t)}
+                                                        style={StyleSheet.flatten([styles.freqTab, recurringType === t && styles.freqTabActive])}
+                                                    >
+                                                        <Text style={StyleSheet.flatten([styles.freqTabText, recurringType === t && styles.freqTabTextActive])}>
+                                                            {t === 'none' ? 'ONCE' : t.toUpperCase()}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        </View>
 
-                                {/* Time */}
-                                <View style={styles.sectionBlock}>
-                                    <Text style={styles.sectionTitle}>SELECT TIME</Text>
-                                    <View style={styles.timeGrid}>
-                                        {times.map(t => (
-                                            <TouchableOpacity
-                                                key={t.time}
-                                                onPress={() => t.available && setSelectedTime(t.time)}
-                                                disabled={!t.available}
-                                                style={StyleSheet.flatten([
-                                                    styles.timeBtn,
-                                                    !t.available && styles.timeBtnDisabled,
-                                                    selectedTime === t.time && styles.timeBtnActive
-                                                ])}
-                                            >
-                                                <Text style={StyleSheet.flatten([styles.timeText, selectedTime === t.time && styles.textWhite])}>{t.time}</Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
-                                </View>
+                                        {/* Date */}
+                                        <View style={styles.sectionBlock}>
+                                            <Text style={styles.sectionTitle}>SELECT DATE</Text>
+                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateList}>
+                                                {dates.map(d => (
+                                                    <TouchableOpacity
+                                                        key={d.full}
+                                                        onPress={() => setSelectedDate(d.full)}
+                                                        style={StyleSheet.flatten([styles.dateCard, selectedDate === d.full && styles.dateCardActive])}
+                                                    >
+                                                        <Text style={StyleSheet.flatten([styles.dateMonth, selectedDate === d.full && styles.textWhite])}>{d.month}</Text>
+                                                        <Text style={StyleSheet.flatten([styles.dateDay, selectedDate === d.full && styles.textWhite])}>{d.day}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </ScrollView>
+                                        </View>
+
+                                        {/* Time */}
+                                        <View style={styles.sectionBlock}>
+                                            <Text style={styles.sectionTitle}>SELECT TIME</Text>
+                                            <View style={styles.timeGrid}>
+                                                {times.map(t => (
+                                                    <TouchableOpacity
+                                                        key={t.time}
+                                                        onPress={() => t.available && setSelectedTime(t.time)}
+                                                        disabled={!t.available}
+                                                        style={StyleSheet.flatten([
+                                                            styles.timeBtn,
+                                                            !t.available && styles.timeBtnDisabled,
+                                                            selectedTime === t.time && styles.timeBtnActive
+                                                        ])}
+                                                    >
+                                                        <Text style={StyleSheet.flatten([styles.timeText, selectedTime === t.time && styles.textWhite])}>{t.time}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        </View>
+                                    </>
+                                )}
                                 {/* Address Selection */}
                                 <View style={styles.sectionBlock}>
                                     <Text style={styles.sectionTitle}>ADDRESS</Text>
@@ -651,9 +1024,51 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
 
 
 
-                                {/* Instructions moved from step 3 */}
+                                {/* Instructions checklist and notes */}
                                 <View style={styles.sectionBlock}>
-                                    <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>SPECIAL INSTRUCTIONS</Text>
+                                    <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>COMPLIANCE & SPECIAL CHECKLIST</Text>
+                                    <View style={styles.checklistGrid}>
+                                        {[
+                                            { id: 'leash_required', label: 'Leash Required' },
+                                            { id: 'avoid_dogs', label: 'Avoid Other Dogs' },
+                                            { id: 'medication', label: 'Medication Administration' },
+                                            { id: 'key_pickup', label: 'Key Pickup' },
+                                            { id: 'emergency_vet', label: 'Emergency Vet Info' }
+                                        ].map(item => {
+                                            const isSelected = specialChecklist.includes(item.id);
+                                            return (
+                                                <TouchableOpacity
+                                                    key={item.id}
+                                                    onPress={() => toggleSpecialChecklist(item.id)}
+                                                    style={StyleSheet.flatten([
+                                                        styles.checklistCard,
+                                                        isSelected && styles.checklistCardActive
+                                                    ])}
+                                                >
+                                                    <View style={StyleSheet.flatten([
+                                                        styles.checklistIconCircle,
+                                                        isSelected && styles.checklistIconCircleActive
+                                                    ])}>
+                                                        {isSelected ? (
+                                                            <Check size={10} color="white" strokeWidth={5} />
+                                                        ) : (
+                                                            <Plus size={10} color="#7A5540" />
+                                                        )}
+                                                    </View>
+                                                    <Text style={StyleSheet.flatten([
+                                                        styles.checklistText,
+                                                        isSelected && styles.checklistTextActive
+                                                    ])}>
+                                                        {item.label}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
+
+                                <View style={styles.sectionBlock}>
+                                    <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>ADDITIONAL NOTES & INSTRUCTIONS</Text>
                                     <View style={styles.instructionBox}>
                                         <MessageSquare size={20} color="#B09080" style={styles.instructionIcon} />
                                         <TextInput
@@ -673,47 +1088,169 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                     <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>REVIEW & CHECKOUT</Text>
                                     <View style={styles.summaryCard}>
                                         <View style={styles.summaryHeader}>
-                                        <Receipt size={24} color="#FF7A3D" />
-                                        <View>
-                                            <Text style={styles.summaryTitle}>{serviceData?.name} ({selectedPets.length} Pets)</Text>
-                                            <Text style={styles.summaryMeta}>{selectedDate}, {selectedTime}</Text>
+                                            <Receipt size={24} color="#FF7A3D" />
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.summaryTitle}>{serviceData?.name}</Text>
+                                                <Text style={styles.summaryMeta} numberOfLines={1}>
+                                                    {selectedPets.length} pet{selectedPets.length > 1 ? 's' : ''}: {pets.filter(p => selectedPets.includes(p.id)).map(p => p.name).join(', ')}
+                                                </Text>
+                                            </View>
+                                            <TouchableOpacity onPress={() => setStep(1)} style={styles.quickEditBtn}>
+                                                <Text style={styles.quickEditText}>Edit</Text>
+                                            </TouchableOpacity>
                                         </View>
-                                    </View>
 
-                                    <View style={styles.summaryDetails}>
-                                        <View style={styles.summaryRow}>
-                                            <Text style={styles.summaryLabel}>Base Price</Text>
-                                            <Text style={styles.summaryVal}>₹{calculateTotal().toFixed(0)}</Text>
-                                        </View>
-                                        {selectedAddons.length > 0 && (
+                                        <View style={styles.summaryDetails}>
                                             <View style={styles.summaryRow}>
-                                                <Text style={styles.summaryLabel}>Addons ({selectedAddons.length})</Text>
-                                                <Text style={styles.summaryVal}>Included</Text>
+                                                <Text style={styles.summaryLabel}>Package Selected</Text>
+                                                <Text style={styles.summaryVal}>
+                                                    {serviceData?.packages?.find(p => p.id === selectedPackage)?.package_name || 'Standard Plan'}
+                                                </Text>
                                             </View>
-                                        )}
-                                    </View>
 
-                                    <TextInput
-                                        placeholder="APPLY COUPON (SAVE20)"
-                                        style={styles.couponInput}
-                                        value={couponCode}
-                                        onChangeText={setCouponCode}
-                                    />
+                                            <View style={styles.summaryRow}>
+                                                <Text style={styles.summaryLabel}>Service Address</Text>
+                                                <Text style={styles.summaryVal} numberOfLines={1}>
+                                                    {addresses.find(a => a.id === selectedAddress)?.label || 'Selected Location'}
+                                                </Text>
+                                            </View>
 
-                                    {pointsBalance > 0 && (
-                                        <TouchableOpacity
-                                            style={StyleSheet.flatten([styles.pointsRedeem, usePoints && styles.pointsRedeemActive])}
-                                            onPress={() => setUsePoints(!usePoints)}
-                                        >
-                                            <View style={styles.pointsInfo}>
-                                                <Star size={20} color={usePoints ? 'white' : '#1D9E86'} fill={usePoints ? 'white' : '#1D9E86'} />
-                                                <View>
-                                                    <Text style={StyleSheet.flatten([styles.pointsTitle, usePoints && { color: 'white' }])}>Use Loyalty Points</Text>
-                                                    <Text style={StyleSheet.flatten([styles.pointsSubtitle, usePoints && { color: 'rgba(255,255,255,0.8)' }])}>Balance: {pointsBalance} pts (₹1 = 1 pt)</Text>
+                                            {isWalkingService ? (
+                                                <>
+                                                    <View style={styles.summaryRow}>
+                                                        <Text style={styles.summaryLabel}>Frequency</Text>
+                                                        <Text style={styles.summaryVal}>
+                                                            {frequency === 'onetime' ? 'One-time walk' : frequency === 'daily' ? 'Daily walks' : `Weekly walks`}
+                                                        </Text>
+                                                    </View>
+                                                    {frequency === 'weekly' && specificDays.length > 0 && (
+                                                        <View style={styles.summaryRow}>
+                                                            <Text style={styles.summaryLabel}>Selected Days</Text>
+                                                            <Text style={styles.summaryVal}>{specificDays.join(', ')}</Text>
+                                                        </View>
+                                                    )}
+                                                    <View style={styles.summaryRow}>
+                                                        <Text style={styles.summaryLabel}>Date Range</Text>
+                                                        <Text style={styles.summaryVal}>
+                                                            {frequency === 'onetime' ? startDate : `${startDate} to ${endDate}`}
+                                                        </Text>
+                                                    </View>
+                                                    <View style={styles.summaryRow}>
+                                                        <Text style={styles.summaryLabel}>Walk Duration</Text>
+                                                        <Text style={styles.summaryVal}>{walkDuration} mins</Text>
+                                                    </View>
+                                                    <View style={styles.summaryRow}>
+                                                        <Text style={styles.summaryLabel}>Total Walks</Text>
+                                                        <Text style={styles.summaryVal}>
+                                                            {calculateTotalWalksClient(startDate, endDate, frequency, specificDays)} walks
+                                                        </Text>
+                                                    </View>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <View style={styles.summaryRow}>
+                                                        <Text style={styles.summaryLabel}>Scheduled Date</Text>
+                                                        <Text style={styles.summaryVal}>{selectedDate}</Text>
+                                                    </View>
+                                                    <View style={styles.summaryRow}>
+                                                        <Text style={styles.summaryLabel}>Scheduled Time</Text>
+                                                        <Text style={styles.summaryVal}>{selectedTime}</Text>
+                                                    </View>
+                                                </>
+                                            )}
+
+                                            {specialChecklist.length > 0 && (
+                                                <View style={[styles.summaryRow, { flexDirection: 'column', alignItems: 'flex-start', gap: 4, marginTop: 4 }]}>
+                                                    <Text style={[styles.summaryLabel, { fontWeight: '700' }]}>Compliance Requirements</Text>
+                                                    <View style={styles.summaryChecklistItems}>
+                                                        {specialChecklist.map(item => {
+                                                            const labelMap: Record<string, string> = {
+                                                                leash_required: 'Leash Required',
+                                                                avoid_dogs: 'Avoid Other Dogs',
+                                                                medication: 'Medication',
+                                                                key_pickup: 'Key Pickup',
+                                                                emergency_vet: 'Emergency Vet'
+                                                            };
+                                                            return (
+                                                                <View key={item} style={styles.summaryChecklistItem}>
+                                                                    <Check size={10} color="#1D9E86" strokeWidth={5} />
+                                                                    <Text style={styles.summaryChecklistText}>{labelMap[item] || item}</Text>
+                                                                </View>
+                                                            );
+                                                        })}
+                                                    </View>
                                                 </View>
+                                            )}
+                                        </View>
+
+                                        <View style={styles.summaryDetails}>
+                                            <View style={styles.summaryRow}>
+                                                <Text style={styles.summaryLabel}>Base Fare</Text>
+                                                <Text style={styles.summaryVal}>
+                                                    ₹{(() => {
+                                                        if (!serviceData) return 0;
+                                                        const pkg = serviceData.packages?.find(p => p.id === selectedPackage);
+                                                        let val = (pkg?.price || 0) * selectedPets.length;
+                                                        if (isWalkingService) {
+                                                            let durationMultiplier = 1.0;
+                                                            if (walkDuration === 15) durationMultiplier = 0.8;
+                                                            else if (walkDuration === 45) durationMultiplier = 1.2;
+                                                            else if (walkDuration === 60) durationMultiplier = 1.5;
+                                                            val = val * durationMultiplier;
+                                                        }
+                                                        return val;
+                                                    })().toFixed(0)}
+                                                </Text>
                                             </View>
-                                            <View style={StyleSheet.flatten([styles.redeemToggle, usePoints && styles.redeemToggleActive])}>
-                                                {usePoints && <Check size={12} color="#FF7A3D" />}
+                                            {isWalkingService && (
+                                                <View style={styles.summaryRow}>
+                                                    <Text style={styles.summaryLabel}>Walk Package ({calculateTotalWalksClient(startDate, endDate, frequency, specificDays)} walks)</Text>
+                                                    <Text style={styles.summaryVal}>
+                                                        x {calculateTotalWalksClient(startDate, endDate, frequency, specificDays)}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            {selectedAddons.length > 0 && (
+                                                <View style={styles.summaryRow}>
+                                                    <Text style={styles.summaryLabel}>Addons ({selectedAddons.length})</Text>
+                                                    <Text style={styles.summaryVal}>Included</Text>
+                                                </View>
+                                            )}
+                                            <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#DEC9B5', paddingTop: 8, marginTop: 4 }]}>
+                                                <Text style={[styles.summaryLabel, { fontWeight: '700' }]}>Subtotal</Text>
+                                                <Text style={[styles.summaryVal, { fontWeight: '700' }]}>₹{calculateDiscountedSubtotal().toFixed(2)}</Text>
+                                            </View>
+                                            <View style={styles.summaryRow}>
+                                                <Text style={styles.summaryLabel}>Platform Fee (10%)</Text>
+                                                <Text style={styles.summaryVal}>₹{(calculateDiscountedSubtotal() * 0.10).toFixed(2)}</Text>
+                                            </View>
+                                            <View style={styles.summaryRow}>
+                                                <Text style={styles.summaryLabel}>Estimated GST (18%)</Text>
+                                                <Text style={styles.summaryVal}>₹{(calculateDiscountedSubtotal() * 0.18).toFixed(2)}</Text>
+                                            </View>
+                                        </View>
+
+                                        <TextInput
+                                            placeholder="APPLY COUPON (SAVE20)"
+                                            style={styles.couponInput}
+                                            value={couponCode}
+                                            onChangeText={setCouponCode}
+                                        />
+
+                                        {pointsBalance > 0 && (
+                                            <TouchableOpacity
+                                                style={StyleSheet.flatten([styles.pointsRedeem, usePoints && styles.pointsRedeemActive])}
+                                                onPress={() => setUsePoints(!usePoints)}
+                                            >
+                                                <View style={styles.pointsInfo}>
+                                                    <Star size={20} color={usePoints ? 'white' : '#1D9E86'} fill={usePoints ? 'white' : '#1D9E86'} />
+                                                    <View>
+                                                        <Text style={StyleSheet.flatten([styles.pointsTitle, usePoints && { color: 'white' }])}>Use Loyalty Points</Text>
+                                                        <Text style={StyleSheet.flatten([styles.pointsSubtitle, usePoints && { color: 'rgba(255,255,255,0.8)' }])}>Balance: {pointsBalance} pts (₹1 = 1 pt)</Text>
+                                                    </View>
+                                                </View>
+                                                <View style={StyleSheet.flatten([styles.redeemToggle, usePoints && styles.redeemToggleActive])}>
+                                                    {usePoints && <Check size={12} color="#FF7A3D" />}
                                             </View>
                                         </TouchableOpacity>
                                     )}
@@ -734,16 +1271,78 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                             </TouchableOpacity>
                                         ))}
                                     </View>
+                                    
+                                    {paymentMode === 'split' && (
+                                        <View style={styles.splitPaymentContainer}>
+                                            <Text style={styles.splitTitle}>SPLIT AMOUNT SETTINGS</Text>
+                                            <Text style={styles.splitSub}>Available Wallet Balance: <Text style={{ fontWeight: 'bold', color: '#1D9E86' }}>₹{walletBalance.toFixed(2)}</Text></Text>
+                                            
+                                            <View style={styles.splitRow}>
+                                                <View style={styles.splitCol}>
+                                                    <Text style={styles.splitInputLabel}>Wallet Portion</Text>
+                                                    <View style={styles.splitInputWrapper}>
+                                                        <Text style={styles.splitPrefix}>₹</Text>
+                                                        <TextInput
+                                                            keyboardType="numeric"
+                                                            value={String(splitWalletPortion)}
+                                                            onChangeText={(val) => {
+                                                                const amt = parseFloat(val) || 0;
+                                                                const maxRedeem = Math.min(walletBalance, calculateTotal());
+                                                                setSplitWalletPortion(Math.max(0, Math.min(amt, maxRedeem)));
+                                                            }}
+                                                            style={styles.splitInput}
+                                                        />
+                                                    </View>
+                                                </View>
+                                                <View style={styles.splitCol}>
+                                                    <Text style={styles.splitInputLabel}>Card/Gateway Portion</Text>
+                                                    <View style={styles.splitInputWrapper}>
+                                                        <Text style={styles.splitPrefix}>₹</Text>
+                                                        <Text style={styles.splitPortionVal}>
+                                                            {(calculateTotal() - splitWalletPortion).toFixed(2)}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                            </View>
+
+                                            <View style={styles.splitChips}>
+                                                <TouchableOpacity 
+                                                    style={styles.splitChip} 
+                                                    onPress={() => {
+                                                        const half = Math.round((calculateTotal() / 2) * 100) / 100;
+                                                        setSplitWalletPortion(Math.min(walletBalance, half));
+                                                    }}
+                                                >
+                                                    <Text style={styles.splitChipText}>50/50 Split</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity 
+                                                    style={styles.splitChip} 
+                                                    onPress={() => {
+                                                        const max = Math.min(walletBalance, calculateTotal());
+                                                        setSplitWalletPortion(max);
+                                                    }}
+                                                >
+                                                    <Text style={styles.splitChipText}>Use Max Wallet</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity 
+                                                    style={styles.splitChip} 
+                                                    onPress={() => setSplitWalletPortion(0)}
+                                                >
+                                                    <Text style={styles.splitChipText}>Reset</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    )}
                                 </View>
 
                                 <View style={styles.totalBanner}>
                                     <View>
                                         <Text style={styles.totalLabel}>TOTAL PAYABLE</Text>
-                                        <Text style={styles.totalValue}>₹{calculateTotal().toFixed(0)}</Text>
+                                        <Text style={styles.totalValue}>₹{calculateTotal().toFixed(2)}</Text>
                                     </View>
                                     <View style={{ alignItems: 'flex-end' }}>
-                                        <Text style={styles.gstLabel}>ESTIMATED GST</Text>
-                                        <Text style={styles.gstStatus}>INCLUDED</Text>
+                                        <Text style={styles.gstLabel}>GST (18%) & platform fee (10%)</Text>
+                                        <Text style={styles.gstStatus}>ADDED ON TOP</Text>
                                     </View>
                                 </View>
                                 </View>
@@ -1018,4 +1617,47 @@ const styles = StyleSheet.create({
     textWhite: { color: 'white' },
     textWhiteMuted: { color: 'rgba(255,255,255,0.7)' },
     textPrimary: { color: '#FF7A3D' },
+    daysContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+    dayChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: '#F5E6D8', borderWidth: 1.5, borderColor: 'transparent' },
+    dayChipActive: { backgroundColor: '#1A1612', borderColor: '#1A1612' },
+    dayChipText: { fontSize: 12, fontWeight: '800', color: '#7A5540' },
+    dayChipTextActive: { color: 'white' },
+    durationChoiceGrid: { flexDirection: 'row', gap: 8, marginTop: 8 },
+    durationChoiceBtn: { flex: 1, paddingVertical: 12, borderRadius: 16, backgroundColor: 'white', alignItems: 'center', borderWidth: 2, borderColor: '#F5E6D8' },
+    durationChoiceBtnActive: { backgroundColor: '#1A1612', borderColor: '#1A1612' },
+    durationChoiceText: { fontSize: 12, fontWeight: '800', color: '#1A1612' },
+    durationGrid: { flexDirection: 'row', gap: 8, marginTop: 8 },
+    durationBtn: { flex: 1, paddingVertical: 10, borderRadius: 16, backgroundColor: 'white', alignItems: 'center', borderWidth: 2, borderColor: '#F5E6D8' },
+    durationBtnActive: { backgroundColor: '#1A1612', borderColor: '#1A1612' },
+    durationText: { fontSize: 12, fontWeight: '900', color: '#1A1612' },
+    durationPriceLabel: { fontSize: 9, fontWeight: '700', marginTop: 2 },
+    walkCountBadgeContainer: { marginTop: 8, marginBottom: 24 },
+    walkCountBadge: { padding: 16, borderRadius: 20, borderWidth: 1.5, borderColor: '#B4E3D7' },
+    walkCountText: { fontSize: 14, fontWeight: '800', color: '#7A5540' },
+    walkCountSubText: { fontSize: 11, fontWeight: '700', color: '#1D9E86', marginTop: 4 },
+    checklistGrid: { gap: 10, marginTop: 4 },
+    checklistCard: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: 'white', borderRadius: 16, borderWidth: 2, borderColor: '#F5E6D8' },
+    checklistCardActive: { borderColor: '#1D9E86', backgroundColor: '#FAFFFE' },
+    checklistIconCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    checklistIconCircleActive: { backgroundColor: '#1D9E86', borderColor: '#1D9E86' },
+    checklistText: { fontSize: 14, fontWeight: '800', color: '#7A5540' },
+    checklistTextActive: { color: '#1D9E86' },
+    quickEditBtn: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#FFF3EC' },
+    quickEditText: { fontSize: 12, fontWeight: '900', color: '#FF7A3D' },
+    summaryChecklistItems: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+    summaryChecklistItem: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F0FDF4', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: '#B4E3D7' },
+    summaryChecklistText: { fontSize: 11, fontWeight: '800', color: '#1D9E86' },
+    splitPaymentContainer: { marginTop: 24, padding: 16, borderRadius: 24, backgroundColor: 'rgba(255, 122, 61, 0.04)', borderWidth: 1, borderColor: '#FFEADB' },
+    splitTitle: { fontSize: 11, fontWeight: '900', color: '#FF7A3D', letterSpacing: 1.5, marginBottom: 4 },
+    splitSub: { fontSize: 12, fontWeight: '700', color: '#7A5540', marginBottom: 16 },
+    splitRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+    splitCol: { flex: 1 },
+    splitInputLabel: { fontSize: 11, fontWeight: '900', color: '#B09080', marginBottom: 6 },
+    splitInputWrapper: { flexDirection: 'row', alignItems: 'center', height: 48, borderRadius: 12, backgroundColor: 'white', borderWidth: 1, borderColor: '#DEC9B5', paddingHorizontal: 12 },
+    splitPrefix: { fontSize: 16, fontWeight: '900', color: '#FF7A3D', marginRight: 4 },
+    splitInput: { flex: 1, fontSize: 16, fontWeight: '900', color: '#1A1612', padding: 0 },
+    splitPortionVal: { fontSize: 16, fontWeight: '900', color: '#1A1612' },
+    splitChips: { flexDirection: 'row', gap: 8 },
+    splitChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: 'white', borderWidth: 1, borderColor: '#DEC9B5' },
+    splitChipText: { fontSize: 11, fontWeight: '800', color: '#7A5540' },
 });

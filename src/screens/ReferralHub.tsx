@@ -10,7 +10,9 @@ import {
     Share,
     Dimensions,
     ActivityIndicator,
-    Clipboard
+    Clipboard,
+    TextInput,
+    Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
@@ -35,6 +37,8 @@ export default function ReferralHub({ navigation }: any) {
     const [loading, setLoading] = useState(true);
     const [referralInfo, setReferralInfo] = useState<any>(null);
     const [copied, setCopied] = useState(false);
+    const [redeemCode, setRedeemCode] = useState('');
+    const [redeeming, setRedeeming] = useState(false);
 
     useEffect(() => {
         fetchReferralInfo();
@@ -68,6 +72,29 @@ export default function ReferralHub({ navigation }: any) {
         Clipboard.setString(referralInfo?.code || '');
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleRedeem = async () => {
+        if (!redeemCode.trim()) {
+            Alert.alert('Error', 'Please enter a referral code.');
+            return;
+        }
+
+        setRedeeming(true);
+        try {
+            const res = await loyaltyApi.applyReferralCode(redeemCode.trim());
+            if (res.success) {
+                Alert.alert('Success', 'Referral code applied successfully!');
+                setRedeemCode('');
+                // Fetch info again if necessary
+            } else {
+                Alert.alert('Error', res.error || 'Failed to apply referral code.');
+            }
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.error || 'Failed to apply referral code.');
+        } finally {
+            setRedeeming(false);
+        }
     };
 
     if (loading) {
@@ -134,6 +161,26 @@ export default function ReferralHub({ navigation }: any) {
                             </View>
                         </View>
                     ))}
+                </View>
+
+                {/* Redeem Code */}
+                <Text style={StyleSheet.flatten([styles.sectionTitle, { color: colors.text }])}>REDEEM A CODE</Text>
+                <View style={StyleSheet.flatten([styles.redeemBox, { backgroundColor: colors.surface, borderColor: colors.borderSecondary }])}>
+                    <TextInput
+                        style={StyleSheet.flatten([styles.redeemInput, { color: colors.text, borderColor: colors.border }])}
+                        placeholder="Enter referral code"
+                        placeholderTextColor={colors.textMuted}
+                        value={redeemCode}
+                        onChangeText={setRedeemCode}
+                        autoCapitalize="characters"
+                    />
+                    <TouchableOpacity 
+                        style={StyleSheet.flatten([styles.redeemBtn, (!redeemCode.trim() || redeeming) && styles.redeemBtnDisabled])}
+                        onPress={handleRedeem}
+                        disabled={!redeemCode.trim() || redeeming}
+                    >
+                        {redeeming ? <ActivityIndicator color="white" size="small" /> : <Text style={styles.redeemBtnText}>Apply</Text>}
+                    </TouchableOpacity>
                 </View>
 
                 {/* My Referrals */}
@@ -209,4 +256,9 @@ const styles = StyleSheet.create({
     refStatusTextCompleted: { color: '#FF7A3D' },
     emptyBox: { padding: 40, alignItems: 'center', gap: 12, backgroundColor: '#FFF9F5', borderRadius: 32, borderStyle: 'dashed', borderWidth: 1.5, borderColor: '#DEC9B5' },
     emptyText: { fontSize: 13, fontWeight: '800', color: '#B09080' },
+    redeemBox: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, borderWidth: 1, marginBottom: 40 },
+    redeemInput: { flex: 1, height: 48, borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, fontSize: 14, fontWeight: '700', letterSpacing: 1 },
+    redeemBtn: { backgroundColor: '#FF7A3D', height: 48, paddingHorizontal: 24, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+    redeemBtnDisabled: { opacity: 0.5 },
+    redeemBtnText: { color: 'white', fontSize: 14, fontWeight: '800' }
 });

@@ -114,6 +114,7 @@ export interface Booking {
     provider?: { business_name: string; rating?: number };
     booking_pets?: { pet: Pet }[];
     booking_addons?: { addon: { id: string; name: string }; price: number }[];
+    booking_bids?: { id: string }[];
 }
 
 // ─── Wallet Types ───────────────────────────────

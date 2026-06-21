@@ -41,6 +41,8 @@ import {
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
+import EmergencyModal from '../components/EmergencyModal';
+import GroomingReportModal from '../components/GroomingReportModal';
 
 const { width, height } = Dimensions.get('window');
 
@@ -62,6 +64,9 @@ export default function LiveTracking({ navigation, route }: any) {
     const [elapsedTime, setElapsedTime] = useState(0);
     const [distance, setDistance] = useState(0);
     const [isMapReady, setIsMapReady] = useState(false);
+    const [sosVisible, setSosVisible] = useState(false);
+    const [reportVisible, setReportVisible] = useState(false);
+    const [isGroomingCompleted, setIsGroomingCompleted] = useState(false);
 
     const panelHeight = useRef(new Animated.Value(280)).current;
 
@@ -95,6 +100,16 @@ export default function LiveTracking({ navigation, route }: any) {
             const cleanup = on('location_update', (newPoint: LocationPoint) => {
                 setProviderPosition(newPoint);
                 setPathPoints(prev => [...prev, newPoint]);
+            });
+
+            // In a real app we'd fetch the booking details to check if it's grooming
+            // For demo, we can just randomly decide or check a parameter
+            // We'll add a listener for grooming completed
+            on('booking_status_updated', (data: any) => {
+                if (data.status === 'service_completed') {
+                    setIsGroomingCompleted(true);
+                    setCurrentStatus('Grooming Completed');
+                }
             });
 
             return () => {
@@ -209,12 +224,20 @@ export default function LiveTracking({ navigation, route }: any) {
                     </View>
                 </View>
 
-                <TouchableOpacity
-                    onPress={() => providerPosition && mapRef.current?.animateToRegion({ ...providerPosition, latitudeDelta: 0.01, longitudeDelta: 0.01 })}
-                    style={styles.recenterBtn}
-                >
-                    <Navigation size={20} color="#14b8a6" fill="#14b8a6" />
-                </TouchableOpacity>
+                <View style={styles.headerRight}>
+                    <TouchableOpacity
+                        onPress={() => setSosVisible(true)}
+                        style={styles.sosBtn}
+                    >
+                        <Text style={styles.sosText}>SOS</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => providerPosition && mapRef.current?.animateToRegion({ ...providerPosition, latitudeDelta: 0.01, longitudeDelta: 0.01 })}
+                        style={styles.recenterBtn}
+                    >
+                        <Navigation size={20} color="#14b8a6" fill="#14b8a6" />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {/* Bottom Panel */}
@@ -291,21 +314,46 @@ export default function LiveTracking({ navigation, route }: any) {
                                 </View>
                             </View>
 
-                            <TouchableOpacity style={styles.endBtn}>
+                            <TouchableOpacity 
+                                style={[styles.endBtn, isGroomingCompleted && { backgroundColor: '#3b82f6' }]}
+                                onPress={() => isGroomingCompleted ? setReportVisible(true) : null}
+                            >
                                 <Zap size={16} color="white" fill="white" />
-                                <Text style={styles.endBtnText}>END SESSION & PAY</Text>
+                                <Text style={styles.endBtnText}>
+                                    {isGroomingCompleted ? 'VIEW GROOMING REPORT' : 'END SESSION & PAY'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     )}
 
                     {!isPanelExpanded && (
-                        <TouchableOpacity style={styles.endBtnSmall}>
+                        <TouchableOpacity 
+                            style={[styles.endBtnSmall, isGroomingCompleted && { backgroundColor: '#3b82f6' }]}
+                            onPress={() => isGroomingCompleted ? setReportVisible(true) : null}
+                        >
                             <Zap size={16} color="white" fill="white" />
-                            <Text style={styles.endBtnText}>END SESSION & PAY</Text>
+                            <Text style={styles.endBtnText}>
+                                {isGroomingCompleted ? 'VIEW GROOMING REPORT' : 'END SESSION & PAY'}
+                            </Text>
                         </TouchableOpacity>
                     )}
                 </View>
             </Animated.View>
+
+            <EmergencyModal 
+                visible={sosVisible} 
+                onClose={() => setSosVisible(false)} 
+                bookingId={bookingId} 
+            />
+
+            <GroomingReportModal
+                visible={reportVisible}
+                onClose={() => setReportVisible(false)}
+                bookingId={bookingId}
+                onSuccess={() => {
+                    Alert.alert('Success', 'Payment Released!');
+                }}
+            />
         </View>
     );
 }
@@ -440,6 +488,28 @@ const styles = StyleSheet.create({
         shadowColor: '#000',
         shadowOpacity: 0.1,
         shadowOffset: { width: 0, height: 4 },
+    },
+    headerRight: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    sosBtn: {
+        height: 44,
+        paddingHorizontal: 16,
+        borderRadius: 14,
+        backgroundColor: '#ff3b30',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#ff3b30',
+        shadowOpacity: 0.3,
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 8,
+    },
+    sosText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 14,
+        letterSpacing: 1,
     },
     panel: {
         position: 'absolute',

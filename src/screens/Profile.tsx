@@ -31,6 +31,7 @@ import {
     Moon,
     HelpCircle,
     MessageCircle,
+    Activity,
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../theme/ThemeContext';
@@ -87,6 +88,7 @@ export default function Profile({ navigation }: ProfileProps) {
         { id: 'Help', label: 'Help & Knowledge Base', icon: HelpCircle, color: '#a855f7', bgColor: isDark ? 'rgba(168,85,247,0.1)' : '#faf5ff' },
         { id: 'PrivacyPolicy', label: 'Privacy Policy', icon: ShieldCheck, color: colors.primary, bgColor: colors.primaryLight },
         { id: 'TermsConditions', label: 'Terms & Conditions', icon: FileText, color: colors.textSecondary, bgColor: colors.surfaceSecondary },
+        { id: 'Analytics', label: 'My PetCare Analytics', icon: Activity, color: '#10b981', bgColor: isDark ? 'rgba(16,185,129,0.1)' : '#ecfdf5' },
     ];
 
     const handleSignOut = async () => {

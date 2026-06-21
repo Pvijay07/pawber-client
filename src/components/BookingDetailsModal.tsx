@@ -28,9 +28,11 @@ import {
     Sparkles,
     User,
     Plus,
-    CornerDownRight
+    CornerDownRight,
+    Star
 } from 'lucide-react-native';
 import { bookingsApi } from '../services/bookings.service';
+import { reviewsApi } from '../services/reviews.service';
 import { useTheme } from '../theme/ThemeContext';
 import MapWrapper, { MapMarker, MapPolyline } from './common/MapViewWrapper';
 
@@ -52,6 +54,12 @@ export default function BookingDetailsModal({ visible, bookingId, onClose, onSta
     const [showRescheduleForm, setShowRescheduleForm] = useState(false);
     const [rescheduleDate, setRescheduleDate] = useState('');
     const [isSubmittingAction, setIsSubmittingAction] = useState(false);
+
+    // Review states
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState('');
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
     useEffect(() => {
         if (visible && bookingId) {
@@ -146,6 +154,34 @@ export default function BookingDetailsModal({ visible, bookingId, onClose, onSta
             Alert.alert('Error', 'An error occurred');
         } finally {
             setIsSubmittingAction(false);
+        }
+    };
+
+    const handleSubmitReview = async () => {
+        if (!booking) return;
+        setIsSubmittingReview(true);
+        try {
+            const tagStr = selectedTags.length > 0 ? `Tags: ${selectedTags.join(', ')}. ` : '';
+            const fullComment = `${tagStr}${reviewComment}`;
+            
+            const res = await reviewsApi.create({
+                booking_id: booking.id,
+                rating: reviewRating,
+                comment: fullComment
+            });
+
+            if (res.success) {
+                Alert.alert('Thank you!', 'Your review has been submitted successfully.');
+                loadBookingDetails(); // Refresh details to fetch new review
+                if (onStatusChange) onStatusChange();
+            } else {
+                Alert.alert('Error', res.error?.message || 'Failed to submit review');
+            }
+        } catch (error) {
+            console.error('Error submitting review:', error);
+            Alert.alert('Error', 'An error occurred while submitting your review');
+        } finally {
+            setIsSubmittingReview(false);
         }
     };
 
@@ -519,6 +555,118 @@ export default function BookingDetailsModal({ visible, bookingId, onClose, onSta
                                             </>
                                         )}
                                     </TouchableOpacity>
+                                </View>
+                            )}
+
+                            {/* Service Review & Rating section */}
+                            {booking.status === 'completed' && (
+                                <View style={[styles.section, { borderTopWidth: 1.5, borderTopColor: colors.borderSecondary, paddingTop: 20 }]}>
+                                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Service Review & Rating</Text>
+                                    
+                                    {booking.reviews && booking.reviews.length > 0 ? (
+                                        // Read-only review view
+                                        <View style={[styles.reviewCard, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+                                            <View style={styles.reviewHeader}>
+                                                <View style={styles.starsRow}>
+                                                    {[1, 2, 3, 4, 5].map(star => (
+                                                        <Star 
+                                                            key={star} 
+                                                            size={18} 
+                                                            color={star <= booking.reviews[0].rating ? '#FFB01F' : colors.textMuted} 
+                                                            fill={star <= booking.reviews[0].rating ? '#FFB01F' : 'none'} 
+                                                        />
+                                                    ))}
+                                                </View>
+                                                <Text style={[styles.reviewDate, { color: colors.textSecondary }]}>
+                                                    {new Date(booking.reviews[0].created_at).toLocaleDateString()}
+                                                </Text>
+                                            </View>
+                                            {booking.reviews[0].comment && (
+                                                <Text style={[styles.reviewText, { color: colors.text }]}>
+                                                    {booking.reviews[0].comment}
+                                                </Text>
+                                            )}
+                                        </View>
+                                    ) : (
+                                        // Interactive review form
+                                        <View style={[styles.reviewFormCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                            <Text style={[styles.reviewFormTitle, { color: colors.text }]}>Rate your experience</Text>
+                                            
+                                            {/* Stars selector */}
+                                            <View style={styles.starsSelectorRow}>
+                                                {[1, 2, 3, 4, 5].map(star => (
+                                                    <TouchableOpacity 
+                                                        key={star} 
+                                                        onPress={() => setReviewRating(star)}
+                                                        style={{ padding: 4 }}
+                                                    >
+                                                        <Star 
+                                                            size={32} 
+                                                            color={star <= reviewRating ? '#FFB01F' : '#CBD5E1'} 
+                                                            fill={star <= reviewRating ? '#FFB01F' : 'none'} 
+                                                        />
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+
+                                            {/* Quality tags - only for grooming */}
+                                            {isGrooming && (
+                                                <View style={{ marginTop: 16 }}>
+                                                    <Text style={[styles.tagsLabel, { color: colors.textSecondary }]}>Grooming Quality Tags</Text>
+                                                    <View style={styles.tagsContainer}>
+                                                        {['Friendly', 'Punctual', 'Great Cut', 'Gentle with Pet', 'Clean Setup', 'Patient'].map(tag => {
+                                                            const isSelected = selectedTags.includes(tag);
+                                                            return (
+                                                                <TouchableOpacity
+                                                                    key={tag}
+                                                                    onPress={() => {
+                                                                        if (isSelected) {
+                                                                            setSelectedTags(prev => prev.filter(t => t !== tag));
+                                                                        } else {
+                                                                            setSelectedTags(prev => [...prev, tag]);
+                                                                        }
+                                                                    }}
+                                                                    style={StyleSheet.flatten([
+                                                                        styles.tagChip,
+                                                                        { backgroundColor: isSelected ? colors.primary : colors.surfaceSecondary, borderColor: isSelected ? colors.primary : colors.border }
+                                                                    ])}
+                                                                >
+                                                                    <Text style={[styles.tagChipText, { color: isSelected ? 'white' : colors.text }]}>
+                                                                        {tag}
+                                                                    </Text>
+                                                                </TouchableOpacity>
+                                                            );
+                                                        })}
+                                                    </View>
+                                                </View>
+                                            )}
+
+                                            {/* Comment TextInput */}
+                                            <Text style={[styles.tagsLabel, { color: colors.textSecondary, marginTop: 16 }]}>Leave a comment (Optional)</Text>
+                                            <TextInput
+                                                style={[styles.commentInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}
+                                                placeholder="Share details of your pet's experience with the groomer..."
+                                                placeholderTextColor={colors.textMuted}
+                                                multiline={true}
+                                                numberOfLines={3}
+                                                value={reviewComment}
+                                                onChangeText={setReviewComment}
+                                            />
+
+                                            {/* Submit Button */}
+                                            <TouchableOpacity
+                                                style={[styles.submitReviewBtn, { backgroundColor: colors.primary }]}
+                                                onPress={handleSubmitReview}
+                                                disabled={isSubmittingReview}
+                                            >
+                                                {isSubmittingReview ? (
+                                                    <ActivityIndicator color="white" />
+                                                ) : (
+                                                    <Text style={styles.submitReviewBtnText}>SUBMIT REVIEW</Text>
+                                                )}
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
                                 </View>
                             )}
                         </ScrollView>
@@ -897,5 +1045,20 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '900',
         letterSpacing: 0.5,
-    }
+    },
+    reviewCard: { padding: 16, borderRadius: 16, borderWidth: 1, marginTop: 8 },
+    reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+    starsRow: { flexDirection: 'row', gap: 2 },
+    reviewDate: { fontSize: 11, fontWeight: '700' },
+    reviewText: { fontSize: 13, fontWeight: '600', lineHeight: 18 },
+    reviewFormCard: { padding: 20, borderRadius: 20, borderWidth: 1, marginTop: 8, alignItems: 'center', width: '100%' },
+    reviewFormTitle: { fontSize: 15, fontWeight: '900', marginBottom: 12 },
+    starsSelectorRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+    tagsLabel: { fontSize: 12, fontWeight: '900', alignSelf: 'flex-start', marginBottom: 8 },
+    tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+    tagChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
+    tagChipText: { fontSize: 11, fontWeight: '800' },
+    commentInput: { width: '100%', height: 64, borderWidth: 1, borderRadius: 12, padding: 10, fontSize: 13, fontWeight: '600', textAlignVertical: 'top', marginTop: 4 },
+    submitReviewBtn: { width: '100%', height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
+    submitReviewBtnText: { color: 'white', fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
 });

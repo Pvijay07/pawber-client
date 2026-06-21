@@ -5,7 +5,9 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { useFonts, Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold, Nunito_900Black } from '@expo-google-fonts/nunito';
-import { Text, TextInput, StyleSheet } from 'react-native';
+import { Text, TextInput, StyleSheet, LogBox } from 'react-native';
+
+LogBox.ignoreLogs(['ExpoKeepAwake.activate']);
 import { supabase } from './src/lib/supabase';
 // import * as Notifications from 'expo-notifications';
 
@@ -34,7 +36,7 @@ import ReferralHub from './src/screens/ReferralHub';
 import GroomingBooking from './src/screens/GroomingBooking';
 import KYCScreen from './src/screens/KYCScreen';
 import EditProfile from './src/screens/EditProfile';
-
+import Analytics from './src/screens/Analytics';
 // Navigation
 import MainTabNavigator from './src/navigation/MainTabNavigator';
 
@@ -291,6 +293,7 @@ function AppContent({ session }: { session: Session | null }) {
             <Stack.Screen name="ReferralHub" component={ReferralHub} />
             <Stack.Screen name="KYCScreen" component={KYCScreen} />
             <Stack.Screen name="EditProfile" component={EditProfile} />
+            <Stack.Screen name="Analytics" component={Analytics} />
           </>
         ) : (
           <>

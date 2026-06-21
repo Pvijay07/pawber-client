@@ -10,8 +10,8 @@ export interface RazorpayOrder {
 }
 
 export const paymentsApi = {
-    createOrder: (booking_id: string, amount: number) =>
-        api.post<{ order: RazorpayOrder }>('/payments/create-order', { booking_id, amount }),
+    createOrder: (booking_id: string, amount: number, wallet_amount?: number) =>
+        api.post<{ order: RazorpayOrder }>('/payments/create-order', { booking_id, amount, wallet_amount }),
 
     verify: (data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
         api.post<{ verified: boolean; payment_id: string }>('/payments/verify', data),

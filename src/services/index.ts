@@ -12,3 +12,4 @@ export { paymentsApi } from './payments.service';
 export { eventsApi } from './events.service';
 export { loyaltyApi } from './loyalty.service';
 export { aiApi } from './ai.service';
+export { analyticsApi } from './analytics.service';

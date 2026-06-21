@@ -21,4 +21,9 @@ export const loyaltyApi = {
      * Get referral details.
      */
     getReferralInfo: () => api.get<{ code: string; referrals: any[] }>('/loyalty/referral'),
+
+    /**
+     * Apply a referral code.
+     */
+    applyReferralCode: (code: string) => api.post<any>('/loyalty/referral/apply', { code }),
 };

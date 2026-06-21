@@ -36,6 +36,7 @@ import {
     Phone,
     Trash2,
     ShieldCheck,
+    Repeat,
 } from 'lucide-react-native';
 import { bookingsApi } from '../services/bookings.service';
 import { Booking } from '../shared/types';
@@ -43,6 +44,7 @@ import { supabase } from '../lib/supabase';
 import { useTheme } from '../theme/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import BookingDetailsModal from '../components/BookingDetailsModal';
+import ResolutionModal from '../components/ResolutionModal';
 
 const { width } = Dimensions.get('window');
 
@@ -55,6 +57,8 @@ export default function Bookings({ navigation }: any) {
 
     const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
     const [isDetailsVisible, setIsDetailsVisible] = useState(false);
+    
+    const [selectedMissedId, setSelectedMissedId] = useState<string | null>(null);
 
     React.useEffect(() => {
         fetchBookings();
@@ -112,6 +116,14 @@ export default function Bookings({ navigation }: any) {
         if (name.includes('vet') || name.includes('medic')) return { icon: Stethoscope, color: 'rgba(255, 122, 61, 0.1)', iconColor: '#FF7A3D' };
         if (name.includes('walk')) return { icon: MapPin, color: 'rgba(139, 92, 246, 0.1)', iconColor: '#8b5cf6' };
         return { icon: Calendar, color: 'rgba(148, 163, 184, 0.1)', iconColor: '#94A3B8' };
+    };
+    const isServiceDateStarted = (bookingDateStr: string) => {
+        if (!bookingDateStr) return false;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const serviceDate = new Date(bookingDateStr);
+        serviceDate.setHours(0, 0, 0, 0);
+        return today.getTime() >= serviceDate.getTime();
     };
 
     const renderBookingItem = ({ item }: { item: Booking }) => {
@@ -184,48 +196,135 @@ export default function Bookings({ navigation }: any) {
                                 >
                                     <Text style={[styles.mainBtnText, { color: colors.text }]}>DETAILS</Text>
                                 </TouchableOpacity>
-                                {item.status === 'service_completed' ? (
+
+                                {/* Conditional Render based on Status */}
+                                {(() => {
+                                    if (item.status === 'requested' || item.status === 'bidding') {
+                                        return (
+                                            <TouchableOpacity
+                                                style={styles.mainBtn}
+                                                onPress={() => navigation.navigate('ServiceBidding', {
+                                                    bookingId: item.id,
+                                                    totalAmount: item.total_amount,
+                                                    serviceId: item.service_id,
+                                                    bookingType: item.booking_type
+                                                })}
+                                            >
+                                                <LinearGradient
+                                                    colors={['#FF7A3D', '#FF9D6C']}
+                                                    style={StyleSheet.absoluteFill}
+                                                    borderRadius={18}
+                                                />
+                                                <Text style={styles.mainBtnText}>BIDS ({item.booking_bids?.length || 0})</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    }
+
+                                    if (item.status === 'bid_selected' || item.status === 'pending') {
+                                        return (
+                                            <TouchableOpacity
+                                                style={styles.mainBtn}
+                                                onPress={() => navigation.navigate('BookingFlow', {
+                                                    serviceId: item.service_id,
+                                                    fromBidding: item.booking_type === 'scheduled',
+                                                    bookingId: item.id,
+                                                    totalAmount: item.total_amount,
+                                                })}
+                                            >
+                                                <LinearGradient
+                                                    colors={['#1D9E86', '#0D8C73']}
+                                                    style={StyleSheet.absoluteFill}
+                                                    borderRadius={18}
+                                                />
+                                                <Text style={styles.mainBtnText}>PAY</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    }
+
+                                    if (item.status === 'service_completed') {
+                                        return (
+                                            <TouchableOpacity
+                                                style={styles.mainBtn}
+                                                onPress={() => {
+                                                    setSelectedBookingId(item.id);
+                                                    setIsDetailsVisible(true);
+                                                }}
+                                            >
+                                                <LinearGradient
+                                                    colors={['#10b981', '#059669']}
+                                                    style={StyleSheet.absoluteFill}
+                                                    borderRadius={18}
+                                                />
+                                                <Text style={styles.mainBtnText}>APPROVE</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    }
+
+                                    if (item.status === 'cancelled' && item.tracking_missed) {
+                                        return (
+                                            <TouchableOpacity
+                                                style={[styles.mainBtn, { backgroundColor: '#ef4444' }]}
+                                                onPress={() => setSelectedMissedId(item.id)}
+                                            >
+                                                <Text style={[styles.mainBtnText, { color: 'white' }]}>RESOLVE</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    }
+
+                                    // For confirmed, in_progress, etc.
+                                    return isServiceDateStarted(item.booking_date) ? (
+                                        <TouchableOpacity
+                                            style={styles.mainBtn}
+                                            onPress={() => navigation.navigate('LiveTracking', { bookingId: item.id })}
+                                        >
+                                            <LinearGradient
+                                                colors={['#1A1612', '#2D2824']}
+                                                style={StyleSheet.absoluteFill}
+                                                borderRadius={18}
+                                            />
+                                            <Text style={styles.mainBtnText}>TRACK</Text>
+                                        </TouchableOpacity>
+                                    ) : (
+                                        <View style={[styles.mainBtn, { backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border, opacity: 0.6 }]}>
+                                            <Text style={[styles.mainBtnText, { color: colors.textMuted }]}>UPCOMING</Text>
+                                        </View>
+                                    );
+                                })()}
+
+                                {/* Chat Button - only show after provider assigned (paid/confirmed status onwards) and booking_type is scheduled */}
+                                {item.booking_type === 'scheduled' && 
+                                 ['confirmed', 'in_progress', 'service_completed'].includes(item.status) && 
+                                 isServiceDateStarted(item.booking_date) && (
                                     <TouchableOpacity
-                                        style={styles.mainBtn}
-                                        onPress={() => {
-                                            setSelectedBookingId(item.id);
-                                            setIsDetailsVisible(true);
-                                        }}
+                                        style={styles.chatBtn}
+                                        onPress={() => navigation.navigate('Chat', { bookingId: item.id })}
                                     >
-                                        <LinearGradient
-                                            colors={['#10b981', '#059669']}
-                                            style={StyleSheet.absoluteFill}
-                                            borderRadius={18}
-                                        />
-                                        <Text style={styles.mainBtnText}>APPROVE</Text>
-                                    </TouchableOpacity>
-                                ) : (
-                                    <TouchableOpacity
-                                        style={styles.mainBtn}
-                                        onPress={() => navigation.navigate('LiveTracking', { bookingId: item.id })}
-                                    >
-                                        <LinearGradient
-                                            colors={['#1A1612', '#2D2824']}
-                                            style={StyleSheet.absoluteFill}
-                                            borderRadius={18}
-                                        />
-                                        <Text style={styles.mainBtnText}>TRACK</Text>
+                                        <BlurView intensity={20} tint="light" style={styles.chatBtnBlur}>
+                                            <MessageSquare size={18} color="white" />
+                                        </BlurView>
                                     </TouchableOpacity>
                                 )}
-                                <TouchableOpacity
-                                    style={styles.chatBtn}
-                                    onPress={() => navigation.navigate('Chat', { bookingId: item.id })}
-                                >
-                                    <BlurView intensity={20} tint="light" style={styles.chatBtnBlur}>
-                                        <MessageSquare size={18} color="white" />
-                                    </BlurView>
-                                </TouchableOpacity>
                             </View>
                         </View>
                     ) : (
                         <View style={styles.pastFooter}>
                             <TouchableOpacity 
-                                style={styles.rebookBtn}
+                                style={[styles.rebookBtn, { flex: 1, marginRight: 5, backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}
+                                onPress={() => navigation.navigate('BookingFlow', {
+                                    serviceId: item.service_id,
+                                    packageId: item.package_id,
+                                    petIds: item.pet_ids,
+                                    addonIds: item.addons,
+                                    frequency: item.booking_parameters?.frequency,
+                                    specificDays: item.booking_parameters?.specificDays,
+                                    walkDuration: item.booking_parameters?.walkDuration
+                                })}
+                            >
+                                <Repeat size={16} color="#10b981" />
+                                <Text style={[styles.rebookText, { color: '#10b981' }]}>REBOOK</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.rebookBtn, { flex: 1, marginLeft: 5 }]}
                                 onPress={() => {
                                     setSelectedBookingId(item.id);
                                     setIsDetailsVisible(true);
@@ -233,9 +332,6 @@ export default function Bookings({ navigation }: any) {
                             >
                                 <FileText size={16} color="#4f46e5" />
                                 <Text style={styles.rebookText}>VIEW LOGS</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.rateBtn}>
-                                <Text style={styles.rateText}>RATE PROVIDER</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -320,6 +416,16 @@ export default function Bookings({ navigation }: any) {
                     bookingId={selectedBookingId}
                     onClose={() => setIsDetailsVisible(false)}
                     onStatusChange={fetchBookings}
+                />
+                
+                <ResolutionModal 
+                    visible={!!selectedMissedId}
+                    bookingId={selectedMissedId}
+                    onClose={() => setSelectedMissedId(null)}
+                    onResolved={() => {
+                        setSelectedMissedId(null);
+                        fetchBookings();
+                    }}
                 />
             </View>
         </View>
