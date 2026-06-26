@@ -5,7 +5,6 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    
     Dimensions,
     TextInput,
     Animated,
@@ -26,10 +25,12 @@ import {
     Stethoscope,
     Zap,
 } from 'lucide-react-native';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 export default function Onboarding({ navigation }: any) {
+    const { colors, isDark } = useTheme();
     const [step, setStep] = useState(1);
     const [petType, setPetType] = useState<string | null>(null);
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -58,35 +59,40 @@ export default function Onboarding({ navigation }: any) {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <View style={styles.container}>
                 {/* Header */}
                 <View style={styles.header}>
                     {step > 1 ? (
-                        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-                            <ArrowLeft size={20} color="#1A1612" />
+                        <TouchableOpacity 
+                            onPress={handleBack} 
+                            style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                        >
+                            <ArrowLeft size={20} color={colors.text} />
                         </TouchableOpacity>
                     ) : <View style={{ width: 44 }} />}
 
                     <View style={styles.progressContainer}>
                         {[1, 2, 3, 4, 5].map(i => (
-                            <View key={i} style={StyleSheet.flatten([
+                            <View key={i} style={[
                                 styles.progressBar,
-                                i === step ? styles.activeProgressBar : styles.inactiveProgressBar
-                            ])} />
+                                i === step 
+                                    ? [styles.activeProgressBar, { backgroundColor: colors.primary }] 
+                                    : [styles.inactiveProgressBar, { backgroundColor: colors.border }]
+                            ]} />
                         ))}
                     </View>
 
                     <TouchableOpacity onPress={() => navigation.replace('Main')}>
-                        <Text style={styles.skipText}>SKIP</Text>
+                        <Text style={[styles.skipText, { color: colors.textMuted }]}>SKIP</Text>
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.content}>
                     {step === 1 && (
                         <View style={styles.stepContent}>
-                            <Text style={styles.title}>Tell us about your <Text style={styles.accentText}>pet</Text>.</Text>
-                            <Text style={styles.subtitle}>Select your pet type to personalize your experience.</Text>
+                            <Text style={[styles.title, { color: colors.text }]}>Tell us about your <Text style={[styles.accentText, { color: colors.primary }]}>pet</Text>.</Text>
+                            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Select your pet type to personalize your experience.</Text>
 
                             <View style={styles.grid}>
                                 {[
@@ -98,13 +104,14 @@ export default function Onboarding({ navigation }: any) {
                                     <TouchableOpacity
                                         key={type.id}
                                         onPress={() => setPetType(type.id)}
-                                        style={StyleSheet.flatten([
+                                        style={[
                                             styles.petCard,
-                                            petType === type.id && styles.activePetCard
-                                        ])}
+                                            { backgroundColor: colors.surface, borderColor: colors.border },
+                                            petType === type.id && { borderColor: colors.primary, backgroundColor: colors.primaryLight }
+                                        ]}
                                     >
-                                        <type.icon size={40} color={petType === type.id ? '#4f46e5' : '#cbd5e1'} />
-                                        <Text style={StyleSheet.flatten([styles.petCardText, petType === type.id && styles.activePetCardText])}>{type.name}</Text>
+                                        <type.icon size={40} color={petType === type.id ? colors.primary : colors.textMuted} />
+                                        <Text style={[styles.petCardText, { color: colors.textMuted }, petType === type.id && { color: colors.primary }]}>{type.name}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -113,33 +120,36 @@ export default function Onboarding({ navigation }: any) {
 
                     {step === 2 && (
                         <View style={styles.stepContent}>
-                            <Text style={styles.title}>What <Text style={styles.accentText}>services</Text> do you need?</Text>
-                            <Text style={styles.subtitle}>Select one or more services you're interested in.</Text>
+                            <Text style={[styles.title, { color: colors.text }]}>What <Text style={[styles.accentText, { color: colors.primary }]}>services</Text> do you need?</Text>
+                            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Select one or more services you're interested in.</Text>
 
                             <View style={styles.serviceList}>
                                 {services.map(service => (
                                     <TouchableOpacity
                                         key={service.id}
                                         onPress={() => toggleService(service.id)}
-                                        style={StyleSheet.flatten([
+                                        style={[
                                             styles.serviceItem,
-                                            selectedServices.includes(service.id) && styles.activeServiceItem
-                                        ])}
+                                            { backgroundColor: colors.surface, borderColor: colors.border },
+                                            selectedServices.includes(service.id) && { borderColor: colors.primary, backgroundColor: colors.primaryLight }
+                                        ]}
                                     >
-                                        <View style={StyleSheet.flatten([
+                                        <View style={[
                                             styles.serviceIconBox,
-                                            selectedServices.includes(service.id) ? { backgroundColor: '#4f46e5' } : { backgroundColor: '#FFF9F5' }
-                                        ])}>
-                                            <service.icon size={24} color={selectedServices.includes(service.id) ? 'white' : '#B09080'} />
+                                            selectedServices.includes(service.id) ? { backgroundColor: colors.primary } : { backgroundColor: colors.background }
+                                        ]}>
+                                            <service.icon size={24} color={selectedServices.includes(service.id) ? 'white' : colors.textMuted} />
                                         </View>
-                                        <Text style={StyleSheet.flatten([
+                                        <Text style={[
                                             styles.serviceName,
-                                            selectedServices.includes(service.id) && { color: '#1A1612' }
-                                        ])}>{service.name}</Text>
-                                        <View style={StyleSheet.flatten([
+                                            { color: colors.textMuted },
+                                            selectedServices.includes(service.id) && { color: colors.text }
+                                        ]}>{service.name}</Text>
+                                        <View style={[
                                             styles.checkCircle,
-                                            selectedServices.includes(service.id) && styles.activeCheckCircle
-                                        ])}>
+                                            { borderColor: colors.border },
+                                            selectedServices.includes(service.id) && { backgroundColor: colors.primary, borderColor: colors.primary }
+                                        ]}>
                                             {selectedServices.includes(service.id) && <CheckCircle2 size={16} color="white" />}
                                         </View>
                                     </TouchableOpacity>
@@ -150,30 +160,30 @@ export default function Onboarding({ navigation }: any) {
 
                     {step === 3 && (
                         <View style={styles.stepContent}>
-                            <Text style={styles.title}>Enable <Text style={styles.accentText}>access</Text>.</Text>
-                            <Text style={styles.subtitle}>We need these to provide local services and timely updates.</Text>
+                            <Text style={[styles.title, { color: colors.text }]}>Enable <Text style={[styles.accentText, { color: colors.primary }]}>access</Text>.</Text>
+                            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>We need these to provide local services and timely updates.</Text>
 
                             <View style={styles.accessList}>
-                                <View style={styles.accessItem}>
-                                    <View style={StyleSheet.flatten([styles.accessIconBox, { backgroundColor: '#eff6ff' }])}>
+                                <View style={[styles.accessItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                    <View style={[styles.accessIconBox, { backgroundColor: isDark ? colors.surfaceSecondary : '#eff6ff' }]}>
                                         <MapPin size={28} color="#3b82f6" />
                                     </View>
                                     <View style={styles.accessInfo}>
-                                        <Text style={styles.accessTitle}>Location Access</Text>
-                                        <Text style={styles.accessDesc}>Find experts near you automatically.</Text>
+                                        <Text style={[styles.accessTitle, { color: colors.text }]}>Location Access</Text>
+                                        <Text style={[styles.accessDesc, { color: colors.textMuted }]}>Find experts near you automatically.</Text>
                                     </View>
-                                    <TouchableOpacity><Text style={styles.enableText}>ENABLE</Text></TouchableOpacity>
+                                    <TouchableOpacity><Text style={[styles.enableText, { color: colors.primary }]}>ENABLE</Text></TouchableOpacity>
                                 </View>
 
-                                <View style={styles.accessItem}>
-                                    <View style={StyleSheet.flatten([styles.accessIconBox, { backgroundColor: '#E0F5F0' }])}>
-                                        <Bell size={28} color="#1D9E86" />
+                                <View style={[styles.accessItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                    <View style={[styles.accessIconBox, { backgroundColor: isDark ? colors.surfaceSecondary : colors.accentLight }]}>
+                                        <Bell size={28} color={colors.accent} />
                                     </View>
                                     <View style={styles.accessInfo}>
-                                        <Text style={styles.accessTitle}>Notifications</Text>
-                                        <Text style={styles.accessDesc}>Get updates on your pet's status.</Text>
+                                        <Text style={[styles.accessTitle, { color: colors.text }]}>Notifications</Text>
+                                        <Text style={[styles.accessDesc, { color: colors.textMuted }]}>Get updates on your pet's status.</Text>
                                     </View>
-                                    <TouchableOpacity><Text style={styles.enableText}>ENABLE</Text></TouchableOpacity>
+                                    <TouchableOpacity><Text style={[styles.enableText, { color: colors.primary }]}>ENABLE</Text></TouchableOpacity>
                                 </View>
                             </View>
                         </View>
@@ -181,53 +191,53 @@ export default function Onboarding({ navigation }: any) {
 
                     {step === 4 && (
                         <View style={styles.stepContent}>
-                            <Text style={styles.title}>Have a <Text style={styles.accentText}>referral</Text>?</Text>
-                            <Text style={styles.subtitle}>Enter your code below to claim your welcome bonus.</Text>
+                            <Text style={[styles.title, { color: colors.text }]}>Have a <Text style={[styles.accentText, { color: colors.primary }]}>referral</Text>?</Text>
+                            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Enter your code below to claim your welcome bonus.</Text>
 
-                            <View style={styles.inputContainer}>
-                                <View style={styles.inputIconBox}>
-                                    <Gift size={22} color="#4f46e5" />
+                            <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                <View style={[styles.inputIconBox, { backgroundColor: colors.primaryLight }]}>
+                                    <Gift size={22} color={colors.primary} />
                                 </View>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     placeholder="ENTER CODE (OPTIONAL)"
-                                    placeholderTextColor="#B09080"
+                                    placeholderTextColor={colors.textMuted}
                                     value={referralCode}
                                     onChangeText={setReferralCode}
                                     autoCapitalize="characters"
                                 />
                             </View>
 
-                            <View style={styles.promoCard}>
-                                <Text style={styles.promoText}>Claim a <Text style={{ fontWeight: 'bold', color: '#1A1612' }}>₹250 credit</Text> on your first service with a valid code!</Text>
+                            <View style={[styles.promoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                <Text style={[styles.promoText, { color: colors.textSecondary }]}>Claim a <Text style={{ fontWeight: 'bold', color: colors.text }}>₹250 credit</Text> on your first service with a valid code!</Text>
                             </View>
                         </View>
                     )}
 
                     {step === 5 && (
-                        <View style={StyleSheet.flatten([styles.stepContent, { alignItems: 'center' }])}>
-                            <View style={styles.successIconBox}>
-                                <CheckCircle2 size={64} color="#4f46e5" />
+                        <View style={[styles.stepContent, { alignItems: 'center' }]}>
+                            <View style={[styles.successIconBox, { backgroundColor: colors.primaryLight }]}>
+                                <CheckCircle2 size={64} color={colors.primary} />
                             </View>
-                            <Text style={StyleSheet.flatten([styles.title, { textAlign: 'center' }])}>You're all <Text style={styles.accentText}>set</Text>!</Text>
-                            <Text style={StyleSheet.flatten([styles.subtitle, { textAlign: 'center' }])}>Welcome to the Pawber family. We're ready to provide the best care for your buddy.</Text>
+                            <Text style={[styles.title, { textAlign: 'center', color: colors.text }]}>You're all <Text style={[styles.accentText, { color: colors.primary }]}>set</Text>!</Text>
+                            <Text style={[styles.subtitle, { textAlign: 'center', color: colors.textSecondary }]}>Welcome to the Pawber family. We're ready to provide the best care for your buddy.</Text>
 
-                            <View style={styles.bonusCard}>
-                                <View style={styles.bonusIconBox}>
+                            <View style={[styles.bonusCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                <View style={[styles.bonusIconBox, { backgroundColor: colors.primary }]}>
                                     <Gift size={24} color="white" />
                                 </View>
                                 <View>
-                                    <Text style={styles.bonusTitle}>Welcome Bonus</Text>
-                                    <Text style={styles.bonusValue}>₹50 credited to wallet</Text>
+                                    <Text style={[styles.bonusTitle, { color: colors.text }]}>Welcome Bonus</Text>
+                                    <Text style={[styles.bonusValue, { color: colors.textSecondary }]}>₹50 credited to wallet</Text>
                                 </View>
                             </View>
                         </View>
                     )}
                 </View>
 
-                <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
-                    <Text style={styles.nextBtnText}>{step === 5 ? 'GET STARTED' : 'CONTINUE'}</Text>
-                    <ChevronRight size={20} color="white" />
+                <TouchableOpacity style={[styles.nextBtn, { backgroundColor: colors.text }]} onPress={handleNext}>
+                    <Text style={[styles.nextBtnText, { color: colors.background }]}>{step === 5 ? 'GET STARTED' : 'CONTINUE'}</Text>
+                    <ChevronRight size={20} color={colors.background} />
                 </TouchableOpacity>
             </View>
         </SafeAreaView>
@@ -237,7 +247,6 @@ export default function Onboarding({ navigation }: any) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: 'white',
     },
     container: {
         flex: 1,
@@ -254,11 +263,9 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 14,
-        backgroundColor: '#FFF9F5',
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: '#F5E6D8',
     },
     progressContainer: {
         flexDirection: 'row',
@@ -270,16 +277,13 @@ const styles = StyleSheet.create({
     },
     activeProgressBar: {
         width: 32,
-        backgroundColor: '#4f46e5',
     },
     inactiveProgressBar: {
         width: 6,
-        backgroundColor: '#F5E6D8',
     },
     skipText: {
         fontSize: 10,
         fontWeight: '900',
-        color: '#B09080',
         letterSpacing: 1,
     },
     content: {
@@ -291,17 +295,14 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 32,
         fontWeight: 'bold',
-        color: '#1A1612',
         lineHeight: 40,
         marginBottom: 12,
     },
     accentText: {
         fontStyle: 'italic',
-        color: '#4f46e5',
     },
     subtitle: {
         fontSize: 15,
-        color: '#7A5540',
         fontWeight: '500',
         lineHeight: 22,
         marginBottom: 40,
@@ -314,28 +315,15 @@ const styles = StyleSheet.create({
     petCard: {
         width: (width - 48 - 16) / 2,
         aspectRatio: 1,
-        backgroundColor: 'white',
         borderRadius: 32,
         borderWidth: 2,
-        borderColor: '#F5E6D8',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 12,
     },
-    activePetCard: {
-        borderColor: '#4f46e5',
-        backgroundColor: '#f5f3ff',
-        shadowColor: '#4f46e5',
-        shadowOpacity: 0.1,
-        shadowOffset: { width: 0, height: 10 },
-    },
     petCardText: {
         fontSize: 14,
         fontWeight: 'bold',
-        color: '#B09080',
-    },
-    activePetCardText: {
-        color: '#4f46e5',
     },
     serviceList: {
         gap: 12,
@@ -345,14 +333,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 16,
         borderRadius: 24,
-        backgroundColor: 'white',
         borderWidth: 2,
-        borderColor: '#F5E6D8',
         gap: 16,
-    },
-    activeServiceItem: {
-        borderColor: '#4f46e5',
-        backgroundColor: '#f5f3ff',
     },
     serviceIconBox: {
         width: 52,
@@ -365,20 +347,14 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 15,
         fontWeight: 'bold',
-        color: '#B09080',
     },
     checkCircle: {
         width: 24,
         height: 24,
         borderRadius: 12,
         borderWidth: 2,
-        borderColor: '#F5E6D8',
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    activeCheckCircle: {
-        backgroundColor: '#4f46e5',
-        borderColor: '#4f46e5',
     },
     accessList: {
         gap: 16,
@@ -387,10 +363,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: 24,
-        backgroundColor: 'white',
         borderRadius: 32,
         borderWidth: 1,
-        borderColor: '#F5E6D8',
         gap: 16,
     },
     accessIconBox: {
@@ -406,36 +380,30 @@ const styles = StyleSheet.create({
     accessTitle: {
         fontSize: 15,
         fontWeight: 'bold',
-        color: '#1A1612',
         marginBottom: 2,
     },
     accessDesc: {
         fontSize: 12,
-        color: '#B09080',
         fontWeight: '500',
     },
     enableText: {
         fontSize: 11,
         fontWeight: '900',
-        color: '#4f46e5',
         letterSpacing: 1,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFF9F5',
         borderRadius: 24,
         paddingHorizontal: 20,
         height: 72,
         borderWidth: 2,
-        borderColor: '#F5E6D8',
         marginBottom: 24,
     },
     inputIconBox: {
         width: 44,
         height: 44,
         borderRadius: 14,
-        backgroundColor: 'rgba(79, 70, 229, 0.1)',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 16,
@@ -444,20 +412,16 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#1A1612',
         letterSpacing: 2,
     },
     promoCard: {
         padding: 24,
-        backgroundColor: '#FFF9F5',
         borderRadius: 32,
         borderWidth: 1,
-        borderColor: '#F5E6D8',
         borderStyle: 'dashed',
     },
     promoText: {
         fontSize: 13,
-        color: '#7A5540',
         textAlign: 'center',
         lineHeight: 20,
         fontWeight: '500',
@@ -466,17 +430,14 @@ const styles = StyleSheet.create({
         width: 120,
         height: 120,
         borderRadius: 60,
-        backgroundColor: '#f5f3ff',
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 32,
     },
     bonusCard: {
         padding: 24,
-        backgroundColor: 'white',
         borderRadius: 32,
         borderWidth: 1,
-        borderColor: '#F5E6D8',
         flexDirection: 'row',
         alignItems: 'center',
         gap: 16,
@@ -488,23 +449,19 @@ const styles = StyleSheet.create({
         width: 52,
         height: 52,
         borderRadius: 18,
-        backgroundColor: '#4f46e5',
         alignItems: 'center',
         justifyContent: 'center',
     },
     bonusTitle: {
         fontSize: 15,
         fontWeight: 'bold',
-        color: '#1A1612',
         marginBottom: 2,
     },
     bonusValue: {
         fontSize: 12,
-        color: '#7A5540',
         fontWeight: '600',
     },
     nextBtn: {
-        backgroundColor: '#1A1612',
         height: 64,
         borderRadius: 24,
         flexDirection: 'row',
@@ -517,7 +474,6 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 10 },
     },
     nextBtnText: {
-        color: 'white',
         fontSize: 15,
         fontWeight: 'bold',
         letterSpacing: 1,

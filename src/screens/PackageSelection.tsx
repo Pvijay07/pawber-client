@@ -5,7 +5,6 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    
     Image,
     Dimensions,
     Animated,
@@ -23,10 +22,12 @@ import {
 } from 'lucide-react-native';
 import { servicesApi } from '../services/services.service';
 import { ServiceDetail } from '../shared/types';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 export default function PackageSelection({ navigation, route }: any) {
+    const { colors, isDark } = useTheme();
     const serviceId = route?.params?.serviceId;
     const categoryId = route?.params?.categoryId;
     
@@ -50,7 +51,7 @@ export default function PackageSelection({ navigation, route }: any) {
                 // If we only have a category, fetch the first service in that category
                 if (!targetServiceId && categoryId) {
                     const servicesRes = await servicesApi.list(categoryId);
-                    if (servicesRes.success && servicesRes.data?.services?.length > 0) {
+                    if (servicesRes.success && servicesRes.data && servicesRes.data.services && servicesRes.data.services.length > 0) {
                         // Prefer the service with a slug (the main/canonical one with packages)
                         const withSlug = servicesRes.data.services.find((s: any) => s.slug);
                         targetServiceId = withSlug?.id || servicesRes.data.services[0].id;
@@ -87,12 +88,12 @@ export default function PackageSelection({ navigation, route }: any) {
                     if ((!mapped.packages || mapped.packages.length === 0) && svc.category_id) {
                         console.log('⚠️ Service has no packages, trying to find another service in same category');
                         const catServices = await servicesApi.list(svc.category_id);
-                        if (catServices.success && catServices.data?.services?.length > 1) {
+                        if (catServices.success && catServices.data && catServices.data.services && catServices.data.services.length > 1) {
                             const otherService = catServices.data.services.find((s: any) => s.id !== svc.id && s.slug);
                             if (otherService) {
                                 console.log('🔍 Checking other service in category:', otherService.name);
                                 const otherRes = await servicesApi.getById(otherService.id);
-                                if (otherRes.success && otherRes.data?.service?.packages?.length > 0) {
+                                if (otherRes.success && otherRes.data && otherRes.data.service && otherRes.data.service.packages && otherRes.data.service.packages.length > 0) {
                                     console.log('✅ Found packages in other service!');
                                     setService(mapServiceData(otherRes.data.service));
                                     return;
@@ -163,18 +164,18 @@ export default function PackageSelection({ navigation, route }: any) {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             {loading ? (
-                <View style={styles.loadingOverlay}>
-                    <ActivityIndicator size="large" color="#f97316" />
-                    <Text style={{ marginTop: 12, fontWeight: 'bold', color: '#64748b' }}>Loading Service...</Text>
+                <View style={[styles.loadingOverlay, { backgroundColor: colors.background }]}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={{ marginTop: 12, fontWeight: 'bold', color: colors.textSecondary }}>Loading Service...</Text>
                 </View>
             ) : !service ? (
-                <View style={styles.errorContainer}>
-                    <AlertCircle size={48} color="#94a3b8" />
-                    <Text style={styles.errorTitle}>Service Not Available</Text>
-                    <Text style={styles.errorSub}>This service is coming soon to your area.</Text>
-                    <TouchableOpacity style={styles.backBtnError} onPress={() => navigation.goBack()}>
+                <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
+                    <AlertCircle size={48} color={colors.textMuted} />
+                    <Text style={[styles.errorTitle, { color: colors.text }]}>Service Not Available</Text>
+                    <Text style={[styles.errorSub, { color: colors.textSecondary }]}>This service is coming soon to your area.</Text>
+                    <TouchableOpacity style={[styles.backBtnError, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
                         <Text style={styles.backBtnText}>Go Back</Text>
                     </TouchableOpacity>
                 </View>
@@ -187,12 +188,12 @@ export default function PackageSelection({ navigation, route }: any) {
                             <View style={styles.bannerOverlay} />
                             <View style={styles.bannerContent}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    <View style={styles.categoryBadge}>
+                                    <View style={[styles.categoryBadge, { backgroundColor: colors.primary }]}>
                                         <Text style={styles.categoryText}>
                                             {(service.category?.name || 'Service').toUpperCase()}
                                         </Text>
                                     </View>
-                                    <View style={{ backgroundColor: '#FF7A3D', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                                    <View style={{ backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
                                         <Text style={{ color: 'white', fontSize: 10, fontWeight: '900' }}>STEP 1 OF 3</Text>
                                     </View>
                                 </View>
@@ -209,22 +210,22 @@ export default function PackageSelection({ navigation, route }: any) {
 
                         <View style={styles.mainContent}>
                             {/* Booking Type Toggle */}
-                            <View style={styles.toggleContainer}>
+                            <View style={[styles.toggleContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                 <TouchableOpacity
                                     onPress={() => setBookingType('scheduled')}
-                                    style={[styles.toggleBtn, bookingType === 'scheduled' && styles.toggleBtnActive]}
+                                    style={[styles.toggleBtn, bookingType === 'scheduled' && [styles.toggleBtnActive, { backgroundColor: colors.text }]]}
                                 >
-                                    <CalendarIcon size={14} color={bookingType === 'scheduled' ? 'white' : '#64748b'} />
-                                    <Text style={[styles.toggleBtnText, bookingType === 'scheduled' && styles.toggleBtnTextActive]}>
+                                    <CalendarIcon size={14} color={bookingType === 'scheduled' ? colors.background : colors.textMuted} />
+                                    <Text style={[styles.toggleBtnText, { color: colors.textMuted }, bookingType === 'scheduled' && { color: colors.background }]}>
                                         SCHEDULED
                                     </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={() => setBookingType('instant')}
-                                    style={[styles.toggleBtn, bookingType === 'instant' && styles.toggleBtnActiveInstant]}
+                                    style={[styles.toggleBtn, bookingType === 'instant' && [styles.toggleBtnActiveInstant, { backgroundColor: colors.primary }]]}
                                 >
-                                    <Zap size={14} color={bookingType === 'instant' ? 'white' : '#64748b'} />
-                                    <Text style={[styles.toggleBtnText, bookingType === 'instant' && styles.toggleBtnTextActive]}>
+                                    <Zap size={14} color={bookingType === 'instant' ? 'white' : colors.textMuted} />
+                                    <Text style={[styles.toggleBtnText, { color: colors.textMuted }, bookingType === 'instant' && { color: 'white' }]}>
                                         INSTANT (+15%)
                                     </Text>
                                 </TouchableOpacity>
@@ -232,7 +233,7 @@ export default function PackageSelection({ navigation, route }: any) {
 
                             {/* Packages */}
                             <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>Select Package</Text>
+                                <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Package</Text>
                                 <View style={styles.packagesContainer}>
                                     {packages.length > 0 ? (
                                         packages.map((pkg: any) => (
@@ -241,48 +242,50 @@ export default function PackageSelection({ navigation, route }: any) {
                                                 onPress={() => setSelectedPackage(pkg.id)}
                                                 style={[
                                                     styles.packageCard,
-                                                    selectedPackage === pkg.id && styles.packageCardSelected
+                                                    { backgroundColor: colors.surface, borderColor: colors.border },
+                                                    selectedPackage === pkg.id && [styles.packageCardSelected, { borderColor: colors.primary }]
                                                 ]}
                                             >
                                                 {pkg.isPopular && (
-                                                    <View style={styles.popularBadge}>
+                                                    <View style={[styles.popularBadge, { backgroundColor: colors.primary, shadowColor: colors.primary }]}>
                                                         <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
                                                     </View>
                                                 )}
                                                 <View style={styles.packageHeader}>
                                                     <View style={styles.packageNameBox}>
-                                                        <Text style={styles.packageName}>{pkg.name}</Text>
+                                                        <Text style={[styles.packageName, { color: colors.text }]}>{pkg.name}</Text>
                                                         <View style={styles.pkgDurationRow}>
-                                                            <Clock size={12} color="#94a3b8" />
-                                                            <Text style={styles.pkgDurationText}>{pkg.duration}</Text>
+                                                            <Clock size={12} color={colors.textMuted} />
+                                                            <Text style={[styles.pkgDurationText, { color: colors.textMuted }]}>{pkg.duration}</Text>
                                                         </View>
                                                     </View>
-                                                    <Text style={styles.packagePrice}>₹{pkg.price}</Text>
+                                                    <Text style={[styles.packagePrice, { color: colors.text }]}>₹{pkg.price}</Text>
                                                 </View>
 
                                                 <View style={styles.featuresList}>
                                                     {pkg.features.map((feature: string, idx: number) => (
                                                         <View key={idx} style={styles.featureItem}>
-                                                            <View style={styles.checkIconBox}>
-                                                                <Check size={10} color="#f97316" strokeWidth={4} />
+                                                            <View style={[styles.checkIconBox, { backgroundColor: colors.primaryLight }]}>
+                                                                <Check size={10} color={colors.primary} strokeWidth={4} />
                                                             </View>
-                                                            <Text style={styles.featureText}>{feature}</Text>
+                                                            <Text style={[styles.featureText, { color: colors.textSecondary }]}>{feature}</Text>
                                                         </View>
                                                     ))}
                                                 </View>
 
                                                 <View style={[
                                                     styles.radioCircle,
-                                                    selectedPackage === pkg.id && styles.radioCircleSelected
+                                                    { borderColor: colors.borderSecondary },
+                                                    selectedPackage === pkg.id && { borderColor: colors.primary }
                                                 ]}>
-                                                    {selectedPackage === pkg.id && <View style={styles.radioInner} />}
+                                                    {selectedPackage === pkg.id && <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />}
                                                 </View>
                                             </TouchableOpacity>
                                         ))
                                     ) : (
-                                        <View style={styles.emptyPackages}>
-                                            <AlertCircle size={32} color="#94a3b8" />
-                                            <Text style={styles.emptyPackagesText}>No packages found for this service.</Text>
+                                        <View style={[styles.emptyPackages, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                            <AlertCircle size={32} color={colors.textMuted} />
+                                            <Text style={[styles.emptyPackagesText, { color: colors.textSecondary }]}>No packages found for this service.</Text>
                                         </View>
                                     )}
                                 </View>
@@ -292,8 +295,8 @@ export default function PackageSelection({ navigation, route }: any) {
                             {addons.length > 0 && (
                                 <View style={styles.section}>
                                     <View style={styles.addonsHeader}>
-                                        <Text style={styles.sectionTitle}>Customize Your Session</Text>
-                                        <Info size={16} color="#94a3b8" />
+                                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Customize Your Session</Text>
+                                        <Info size={16} color={colors.textMuted} />
                                     </View>
                                     <View style={styles.addonsContainer}>
                                         {addons.map((addon: any) => (
@@ -301,19 +304,21 @@ export default function PackageSelection({ navigation, route }: any) {
                                                 key={addon.id}
                                                 style={[
                                                     styles.addonCard,
-                                                    selectedAddons.includes(addon.id) && styles.addonCardSelected
+                                                    { backgroundColor: colors.surface, borderColor: colors.border },
+                                                    selectedAddons.includes(addon.id) && [styles.addonCardSelected, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]
                                                 ]}
                                                 onPress={() => toggleAddon(addon.id)}
                                             >
                                                 <View style={styles.addonInfo}>
-                                                    <Text style={styles.addonName}>{addon.name}</Text>
-                                                    <Text style={styles.addonPriceText}>
+                                                    <Text style={[styles.addonName, { color: colors.text }]}>{addon.name}</Text>
+                                                    <Text style={[styles.addonPriceText, { color: colors.textMuted }]}>
                                                         +₹{addon.price} • {addon.duration}
                                                     </Text>
                                                 </View>
                                                 <View style={[
                                                     styles.addonCheck,
-                                                    selectedAddons.includes(addon.id) && styles.addonCheckActive
+                                                    { borderColor: colors.borderSecondary },
+                                                    selectedAddons.includes(addon.id) && [styles.addonCheckActive, { backgroundColor: colors.primary, borderColor: colors.primary }]
                                                 ]}>
                                                     {selectedAddons.includes(addon.id) && <Check size={12} color="white" strokeWidth={4} />}
                                                 </View>
@@ -326,15 +331,15 @@ export default function PackageSelection({ navigation, route }: any) {
                     </ScrollView>
 
                     {/* Sticky Bottom Bar */}
-                    <View style={styles.bottomBar}>
+                    <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                         <View style={styles.priceContainer}>
-                            <Text style={styles.totalLabel}>TOTAL PRICE</Text>
+                            <Text style={[styles.totalLabel, { color: colors.textMuted }]}>TOTAL PRICE</Text>
                             <View style={styles.totalPriceRow}>
-                                <Text style={styles.totalPrice}>₹{calculateTotal().toFixed(0)}</Text>
+                                <Text style={[styles.totalPrice, { color: colors.text }]}>₹{calculateTotal().toFixed(0)}</Text>
                                 {bookingType === 'instant' && (
                                     <View style={styles.surgeBadge}>
-                                        <Zap size={10} color="#f97316" />
-                                        <Text style={styles.surgeText}>SURGE APPLIED</Text>
+                                        <Zap size={10} color={colors.primary} />
+                                        <Text style={[styles.surgeText, { color: colors.primary }]}>SURGE APPLIED</Text>
                                     </View>
                                 )}
                             </View>
@@ -346,7 +351,7 @@ export default function PackageSelection({ navigation, route }: any) {
                                 addonIds: selectedAddons,
                                 bookingType: bookingType 
                             })}
-                            style={styles.bookBtn}
+                            style={[styles.bookBtn, { backgroundColor: colors.primary, shadowColor: colors.primary }]}
                         >
                             <Text style={styles.bookBtnText}>BOOK NOW</Text>
                         </TouchableOpacity>
@@ -360,14 +365,12 @@ export default function PackageSelection({ navigation, route }: any) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8fafc',
     },
     scrollContent: {
         paddingBottom: 140,
     },
     loadingOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(255,255,255,0.9)',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 100
@@ -377,17 +380,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: 40,
-        backgroundColor: '#fff'
     },
     errorTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#1e293b',
         marginTop: 16
     },
     errorSub: {
         fontSize: 15,
-        color: '#64748b',
         textAlign: 'center',
         marginTop: 8,
         lineHeight: 22
@@ -396,7 +396,6 @@ const styles = StyleSheet.create({
         marginTop: 24,
         paddingVertical: 12,
         paddingHorizontal: 24,
-        backgroundColor: '#f97316',
         borderRadius: 12
     },
     backBtnText: {
@@ -424,7 +423,6 @@ const styles = StyleSheet.create({
         right: 24,
     },
     categoryBadge: {
-        backgroundColor: '#f97316',
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 8,
@@ -470,7 +468,6 @@ const styles = StyleSheet.create({
         gap: 32,
     },
     toggleContainer: {
-        backgroundColor: 'white',
         padding: 6,
         borderRadius: 20,
         flexDirection: 'row',
@@ -478,7 +475,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowOffset: { width: 0, height: 4 },
         borderWidth: 1,
-        borderColor: '#f1f5f9',
     },
     toggleBtn: {
         flex: 1,
@@ -490,19 +486,13 @@ const styles = StyleSheet.create({
         borderRadius: 16,
     },
     toggleBtnActive: {
-        backgroundColor: '#0f172a',
     },
     toggleBtnActiveInstant: {
-        backgroundColor: '#f97316',
     },
     toggleBtnText: {
         fontSize: 11,
         fontWeight: '900',
-        color: '#64748b',
         letterSpacing: 1,
-    },
-    toggleBtnTextActive: {
-        color: 'white',
     },
     section: {
         gap: 16,
@@ -510,7 +500,6 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '900',
-        color: '#0f172a',
         letterSpacing: 1,
         textTransform: 'uppercase',
     },
@@ -518,18 +507,15 @@ const styles = StyleSheet.create({
         gap: 16,
     },
     packageCard: {
-        backgroundColor: 'white',
         borderRadius: 28,
         padding: 24,
         borderWidth: 2,
-        borderColor: '#f1f5f9',
         position: 'relative',
         shadowColor: '#000',
         shadowOpacity: 0.02,
         shadowOffset: { width: 0, height: 10 },
     },
     packageCardSelected: {
-        borderColor: '#f97316',
         shadowOpacity: 0.08,
     },
     popularBadge: {
@@ -538,11 +524,9 @@ const styles = StyleSheet.create({
         left: '50%',
         marginLeft: -60,
         width: 120,
-        backgroundColor: '#f97316',
         paddingVertical: 4,
         borderRadius: 20,
         alignItems: 'center',
-        shadowColor: '#f97316',
         shadowOpacity: 0.3,
         shadowOffset: { width: 0, height: 4 },
     },
@@ -563,7 +547,6 @@ const styles = StyleSheet.create({
     packageName: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#0f172a',
     },
     pkgDurationRow: {
         flexDirection: 'row',
@@ -572,13 +555,11 @@ const styles = StyleSheet.create({
     },
     pkgDurationText: {
         fontSize: 11,
-        color: '#94a3b8',
         fontWeight: '700',
     },
     packagePrice: {
         fontSize: 22,
         fontWeight: '900',
-        color: '#0f172a',
     },
     featuresList: {
         gap: 10,
@@ -592,13 +573,11 @@ const styles = StyleSheet.create({
         width: 18,
         height: 18,
         borderRadius: 9,
-        backgroundColor: '#fff7ed',
         alignItems: 'center',
         justifyContent: 'center',
     },
     featureText: {
         fontSize: 13,
-        color: '#64748b',
         fontWeight: '500',
     },
     radioCircle: {
@@ -609,18 +588,13 @@ const styles = StyleSheet.create({
         height: 20,
         borderRadius: 10,
         borderWidth: 2,
-        borderColor: '#cbd5e1',
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    radioCircleSelected: {
-        borderColor: '#f97316',
     },
     radioInner: {
         width: 10,
         height: 10,
         borderRadius: 5,
-        backgroundColor: '#f97316',
     },
     addonsHeader: {
         flexDirection: 'row',
@@ -632,21 +606,17 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     addonCard: {
-        backgroundColor: 'white',
         borderRadius: 20,
         padding: 16,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         borderWidth: 1.5,
-        borderColor: '#f1f5f9',
         shadowColor: '#000',
         shadowOpacity: 0.02,
         shadowOffset: { width: 0, height: 4 },
     },
     addonCardSelected: {
-        borderColor: '#f97316',
-        backgroundColor: '#fff7ed',
     },
     addonInfo: {
         flex: 1,
@@ -654,12 +624,10 @@ const styles = StyleSheet.create({
     addonName: {
         fontSize: 15,
         fontWeight: 'bold',
-        color: '#0f172a',
         marginBottom: 4,
     },
     addonPriceText: {
         fontSize: 12,
-        color: '#94a3b8',
         fontWeight: '700',
     },
     addonCheck: {
@@ -667,24 +635,19 @@ const styles = StyleSheet.create({
         height: 24,
         borderRadius: 12,
         borderWidth: 2,
-        borderColor: '#e2e8f0',
         alignItems: 'center',
         justifyContent: 'center',
     },
     addonCheckActive: {
-        backgroundColor: '#f97316',
-        borderColor: '#f97316',
     },
     bottomBar: {
         position: 'absolute',
         bottom: 0,
         width: '100%',
-        backgroundColor: 'white',
         paddingHorizontal: 24,
         paddingTop: 20,
         paddingBottom: Platform.OS === 'ios' ? 40 : 24,
         borderTopWidth: 1,
-        borderTopColor: '#f1f5f9',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -698,7 +661,6 @@ const styles = StyleSheet.create({
     totalLabel: {
         fontSize: 9,
         fontWeight: '900',
-        color: '#94a3b8',
         letterSpacing: 1.5,
         marginBottom: 2,
     },
@@ -710,7 +672,6 @@ const styles = StyleSheet.create({
     totalPrice: {
         fontSize: 24,
         fontWeight: '900',
-        color: '#0f172a',
     },
     surgeBadge: {
         flexDirection: 'row',
@@ -720,15 +681,12 @@ const styles = StyleSheet.create({
     surgeText: {
         fontSize: 9,
         fontWeight: '900',
-        color: '#f97316',
         letterSpacing: 0.5,
     },
     bookBtn: {
-        backgroundColor: '#f97316',
         paddingHorizontal: 32,
         paddingVertical: 16,
         borderRadius: 18,
-        shadowColor: '#f97316',
         shadowOpacity: 0.3,
         shadowOffset: { width: 0, height: 10 },
     },
@@ -739,19 +697,16 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     },
     emptyPackages: {
-        backgroundColor: 'white',
         borderRadius: 24,
         padding: 32,
         alignItems: 'center',
         justifyContent: 'center',
         gap: 12,
         borderWidth: 2,
-        borderColor: '#f1f5f9',
         borderStyle: 'dashed'
     },
     emptyPackagesText: {
         fontSize: 14,
-        color: '#64748b',
         fontWeight: '600',
         textAlign: 'center'
     }

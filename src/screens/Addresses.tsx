@@ -22,6 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useTheme } from '../theme/ThemeContext';
+import { bookingsApi } from '../services/bookings.service';
 import {
     MapPin,
     Plus,
@@ -259,6 +260,55 @@ export default function Addresses({ navigation }: any) {
         resetFlow();
     };
 
+    const handleDeleteAddress = async (addr: Address) => {
+        try {
+            // 1. Fetch active bookings
+            const bookingsRes = await bookingsApi.list({ 
+                status: 'requested,bidding,bid_selected,pending,accepted,confirmed,in_progress,service_completed',
+                limit: 100 
+            });
+
+            if (bookingsRes.success && bookingsRes.data?.bookings) {
+                const activeBookings = bookingsRes.data.bookings;
+                const normalize = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                const addrNorm = normalize(addr.address);
+                
+                const isLinked = activeBookings.some((b: any) => {
+                    const bAddrNorm = normalize(b.address);
+                    return bAddrNorm && addrNorm && (bAddrNorm.includes(addrNorm) || addrNorm.includes(bAddrNorm));
+                });
+
+                if (isLinked) {
+                    Alert.alert(
+                        'Cannot Delete Address',
+                        'This address is linked to an active booking. You cannot delete it until the booking is completed or cancelled.',
+                        [{ text: 'OK' }]
+                    );
+                    return;
+                }
+            }
+
+            // 2. Show confirmation alert before deletion
+            Alert.alert(
+                'Delete Address',
+                'Are you sure you want to delete this address?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => {
+                            saveAddresses(addresses.filter(a => a.id !== addr.id));
+                        }
+                    }
+                ]
+            );
+        } catch (error) {
+            console.error('Error deleting address:', error);
+            Alert.alert('Error', 'An error occurred while checking active bookings. Please try again.');
+        }
+    };
+
     const renderHeader = (title: string, backAction: () => void) => (
         <View style={StyleSheet.flatten([styles.header, { paddingTop: Math.max(insets.top, 20) + 10, backgroundColor: colors.background }])}>
             <TouchableOpacity onPress={backAction} style={styles.backBtn}>
@@ -305,9 +355,7 @@ export default function Addresses({ navigation }: any) {
                                         <Edit2 size={12} color={colors.primary} />
                                         <Text style={StyleSheet.flatten([styles.actionBtnText, { color: colors.primary }])}>EDIT</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => {
-                                        saveAddresses(addresses.filter(a => a.id !== addr.id));
-                                    }} style={styles.actionBtn}>
+                                    <TouchableOpacity onPress={() => handleDeleteAddress(addr)} style={styles.actionBtn}>
                                         <Trash2 size={12} color={colors.danger} />
                                         <Text style={StyleSheet.flatten([styles.actionBtnText, { color: colors.danger }])}>DELETE</Text>
                                     </TouchableOpacity>

@@ -1,4 +1,5 @@
 export interface RazorpayOptions {
+    key?: string;
     amount: number;
     currency: string;
     name: string;
@@ -43,7 +44,7 @@ export const loadRazorpay = () => {
 
 export const initializeRazorpayPayment = (options: RazorpayOptions) => {
     const rzp = new window.Razorpay({
-        key: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_mock_key',
+        key: options.key || process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_mock_key',
         ...options,
         name: 'Pawber',
         theme: {
@@ -52,3 +53,4 @@ export const initializeRazorpayPayment = (options: RazorpayOptions) => {
     });
     rzp.open();
 };
+

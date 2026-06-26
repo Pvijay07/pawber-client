@@ -162,8 +162,7 @@ export default function Wallet({ navigation }: WalletProps) {
                             >
                                 <LinearGradient
                                     colors={['#FF7A3D', '#FF9D6C']}
-                                    style={StyleSheet.absoluteFill}
-                                    borderRadius={16}
+                                    style={StyleSheet.flatten([StyleSheet.absoluteFill, { borderRadius: 16 }])}
                                 />
                                 <Plus size={18} color="white" />
                                 <Text style={styles.addFundsText}>ADD FUNDS</Text>

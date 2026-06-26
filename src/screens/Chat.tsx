@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    
     Image,
     Dimensions,
     TextInput,
@@ -14,7 +13,6 @@ import {
     Platform,
     ActivityIndicator,
     Linking,
-    StatusBar
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -28,9 +26,10 @@ import {
     Star,
     ShieldCheck,
     MapPin,
-    ChevronDown,
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../theme/ThemeContext';
+import { api } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -53,6 +52,7 @@ const DEMO_PROVIDER = {
 };
 
 export default function Chat({ navigation, route }: any) {
+    const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
     const bookingId = route?.params?.bookingId;
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -60,9 +60,10 @@ export default function Chat({ navigation, route }: any) {
     const [isTyping, setIsTyping] = useState(false);
     const [threadId, setThreadId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [showScrollDown, setShowScrollDown] = useState(false);
     const flatListRef = useRef<FlatList>(null);
     const currentUserId = useRef<string>('demo-user');
+
+    const [recipient, setRecipient] = useState<any>(null);
 
     useEffect(() => {
         const init = async () => {
@@ -71,11 +72,9 @@ export default function Chat({ navigation, route }: any) {
 
             const passedThreadId = route?.params?.threadId;
             const providerUserId = route?.params?.providerUserId;
+            let finalThreadId = passedThreadId;
 
-            if (passedThreadId) {
-                setThreadId(passedThreadId);
-                await loadMessages(passedThreadId);
-            } else if (bookingId) {
+            if (!finalThreadId && bookingId) {
                 let query = supabase
                     .from('chat_threads')
                     .select('id')
@@ -86,15 +85,60 @@ export default function Chat({ navigation, route }: any) {
                 }
 
                 const { data: thread } = await query.maybeSingle();
-
                 if (thread) {
-                    setThreadId(thread.id);
-                    await loadMessages(thread.id);
+                    finalThreadId = thread.id;
+                }
+            }
+
+            if (finalThreadId) {
+                setThreadId(finalThreadId);
+                await loadMessages(finalThreadId);
+
+                // Fetch details of the thread to identify other participant
+                const { data: threadDetails } = await supabase
+                    .from('chat_threads')
+                    .select('client_id, provider_user_id')
+                    .eq('id', finalThreadId)
+                    .single();
+
+                if (threadDetails) {
+                    const otherUserId = currentUserId.current === threadDetails.client_id
+                        ? threadDetails.provider_user_id
+                        : threadDetails.client_id;
+
+                    if (otherUserId) {
+                        const { data: profile } = await supabase
+                            .from('profiles')
+                            .select('full_name, avatar_url')
+                            .eq('id', otherUserId)
+                            .single();
+
+                        if (profile) {
+                            let rating = 4.9;
+                            const { data: providerData } = await supabase
+                                .from('providers')
+                                .select('rating')
+                                .eq('user_id', otherUserId)
+                                .maybeSingle();
+
+                            if (providerData?.rating) {
+                                rating = parseFloat(providerData.rating);
+                            }
+
+                            setRecipient({
+                                name: profile.full_name || 'User',
+                                avatar: profile.avatar_url || 'https://i.pravatar.cc/100',
+                                rating: rating,
+                                status: 'Online'
+                            });
+                        }
+                    }
                 }
             }
 
             if (!passedThreadId && !bookingId) {
                 loadDemoMessages();
+                setRecipient(DEMO_PROVIDER);
             }
 
             setIsLoading(false);
@@ -115,7 +159,10 @@ export default function Chat({ navigation, route }: any) {
                 filter: `thread_id=eq.${threadId}`,
             }, (payload: { new: ChatMessage }) => {
                 const newMsg = payload.new as ChatMessage;
-                setMessages(prev => [...prev, newMsg]);
+                setMessages(prev => {
+                    if (prev.some(m => m.id === newMsg.id)) return prev;
+                    return [...prev, newMsg];
+                });
                 if (newMsg.sender_id !== currentUserId.current) {
                     setIsTyping(false);
                 }
@@ -186,23 +233,9 @@ export default function Chat({ navigation, route }: any) {
         const content = input.trim();
         setInput('');
 
-        const newMsg: ChatMessage = {
-            id: `temp-${Date.now()}`,
-            thread_id: threadId || 'demo',
-            sender_id: currentUserId.current,
-            content,
-            message_type: 'text',
-            is_read: false,
-            created_at: new Date().toISOString(),
-        };
-
-        setMessages(prev => [...prev, newMsg]);
-
         if (threadId) {
             try {
-                await supabase.from('chat_messages').insert({
-                    thread_id: threadId,
-                    sender_id: currentUserId.current,
+                await api.post(`/chat/threads/${threadId}/messages`, {
                     content,
                     message_type: 'text',
                 });
@@ -210,6 +243,17 @@ export default function Chat({ navigation, route }: any) {
                 console.error('Failed to send message:', err);
             }
         } else {
+            const newMsg: ChatMessage = {
+                id: `temp-${Date.now()}`,
+                thread_id: 'demo',
+                sender_id: currentUserId.current,
+                content,
+                message_type: 'text',
+                is_read: false,
+                created_at: new Date().toISOString(),
+            };
+
+            setMessages(prev => [...prev, newMsg]);
             setIsTyping(true);
             setTimeout(() => {
                 const replies = [
@@ -245,8 +289,8 @@ export default function Chat({ navigation, route }: any) {
         if (item.message_type === 'system') {
             return (
                 <View style={styles.systemMessageContainer}>
-                    <View style={styles.systemMessageBubble}>
-                        <Text style={styles.systemMessageText}>{item.content}</Text>
+                    <View style={[styles.systemMessageBubble, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+                        <Text style={[styles.systemMessageText, { color: colors.textSecondary }]}>{item.content}</Text>
                     </View>
                 </View>
             );
@@ -255,15 +299,23 @@ export default function Chat({ navigation, route }: any) {
         const mine = isMyMessage(item);
         return (
             <View style={[styles.messageRow, mine ? styles.myMessageRow : styles.theirMessageRow]}>
-                <View style={[styles.messageBubble, mine ? styles.myBubble : styles.theirBubble]}>
-                    <Text style={[styles.messageText, mine ? styles.myMessageText : styles.theirMessageText]}>
+                <View style={[
+                    styles.messageBubble,
+                    mine ? styles.myBubble : styles.theirBubble,
+                    mine ? { backgroundColor: colors.accent } : { backgroundColor: colors.surface, borderColor: colors.border }
+                ]}>
+                    <Text style={[
+                        styles.messageText,
+                        mine ? styles.myMessageText : styles.theirMessageText,
+                        !mine && { color: colors.text }
+                    ]}>
                         {item.content}
                     </Text>
                 </View>
                 <View style={[styles.messageMeta, mine ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
-                    <Text style={styles.messageTime}>{formatTime(item.created_at)}</Text>
+                    <Text style={[styles.messageTime, { color: colors.textMuted }]}>{formatTime(item.created_at)}</Text>
                     {mine && (
-                        item.is_read ? <CheckCheck size={12} color="#14b8a6" /> : <Check size={12} color="#94a3b8" />
+                        item.is_read ? <CheckCheck size={12} color={colors.accent} /> : <Check size={12} color={colors.textMuted} />
                     )}
                 </View>
             </View>
@@ -271,54 +323,54 @@ export default function Chat({ navigation, route }: any) {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.container}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
                 {/* Header */}
-                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10 }]}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                        <ArrowLeft size={20} color="#0f172a" />
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 10, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: colors.background }]}>
+                        <ArrowLeft size={20} color={colors.text} />
                     </TouchableOpacity>
 
                     <View style={styles.providerInfo}>
                         <View style={styles.avatarWrapper}>
-                            <Image source={{ uri: DEMO_PROVIDER.avatar }} style={styles.avatar} />
-                            <View style={styles.onlineDot} />
+                            <Image source={{ uri: recipient?.avatar || 'https://i.pravatar.cc/100' }} style={styles.avatar} />
+                            <View style={[styles.onlineDot, { borderColor: colors.surface }]} />
                         </View>
                         <View>
-                            <Text style={styles.providerName}>{DEMO_PROVIDER.name}</Text>
+                            <Text style={[styles.providerName, { color: colors.text }]}>{recipient?.name || 'Loading...'}</Text>
                             <View style={styles.providerSubInfo}>
                                 <View style={styles.ratingBox}>
-                                    <Star size={10} color="#f97316" fill="#f97316" />
-                                    <Text style={styles.ratingText}>{DEMO_PROVIDER.rating}</Text>
+                                    <Star size={10} color={colors.primary} fill={colors.primary} />
+                                    <Text style={[styles.ratingText, { color: colors.primary }]}>{recipient?.rating?.toFixed(1) || '4.9'}</Text>
                                 </View>
-                                <Text style={styles.statusText}>{isTyping ? 'Typing...' : DEMO_PROVIDER.status}</Text>
+                                <Text style={[styles.statusText, { color: colors.accent }]}>{isTyping ? 'Typing...' : (recipient?.status || 'Online')}</Text>
                             </View>
                         </View>
                     </View>
 
                     <View style={styles.headerActions}>
-                        <TouchableOpacity onPress={() => Linking.openURL('tel:9999999999')} style={styles.actionBtn}>
-                            <Phone size={18} color="#0f172a" />
+                        <TouchableOpacity onPress={() => Linking.openURL('tel:9999999999')} style={[styles.actionBtn, { backgroundColor: colors.background }]}>
+                            <Phone size={18} color={colors.text} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionBtn}>
-                            <MoreVertical size={18} color="#0f172a" />
+                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.background }]}>
+                            <MoreVertical size={18} color={colors.text} />
                         </TouchableOpacity>
                     </View>
                 </View>
 
                 {/* Booking Banner */}
-                <View style={styles.bookingBanner}>
+                <View style={[styles.bookingBanner, { backgroundColor: colors.accentLight, borderBottomColor: colors.border }]}>
                     <View style={styles.bannerLeft}>
-                        <ShieldCheck size={14} color="#14b8a6" />
-                        <Text style={styles.bannerText}>Spa & Grooming • Max</Text>
+                        <ShieldCheck size={14} color={colors.accent} />
+                        <Text style={[styles.bannerText, { color: colors.accent }]}>Spa & Grooming • Max</Text>
                     </View>
                     <TouchableOpacity style={styles.trackBtn} onPress={() => navigation.navigate('LiveTracking')}>
-                        <MapPin size={12} color="#14b8a6" />
-                        <Text style={styles.trackBtnText}>TRACK</Text>
+                        <MapPin size={12} color={colors.accent} />
+                        <Text style={[styles.trackBtnText, { color: colors.accent }]}>TRACK</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -334,28 +386,28 @@ export default function Chat({ navigation, route }: any) {
                     showsVerticalScrollIndicator={false}
                     ListHeaderComponent={() => (
                         <View style={styles.dateSeparator}>
-                            <View style={styles.separatorLine} />
-                            <Text style={styles.separatorText}>TODAY</Text>
-                            <View style={styles.separatorLine} />
+                            <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
+                            <Text style={[styles.separatorText, { color: colors.textMuted }]}>TODAY</Text>
+                            <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
                         </View>
                     )}
                 />
 
                 {/* Input Area */}
-                <View style={styles.inputArea}>
-                    <TouchableOpacity style={styles.attachBtn}>
-                        <Paperclip size={20} color="#94a3b8" />
+                <View style={[styles.inputArea, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+                    <TouchableOpacity style={[styles.attachBtn, { backgroundColor: colors.background }]}>
+                        <Paperclip size={20} color={colors.textMuted} />
                     </TouchableOpacity>
                     <TextInput
-                        style={styles.textInput}
+                        style={[styles.textInput, { backgroundColor: colors.background, color: colors.text }]}
                         placeholder="Type a message..."
                         value={input}
                         onChangeText={setInput}
                         multiline
-                        placeholderTextColor="#94a3b8"
+                        placeholderTextColor={colors.textMuted}
                     />
                     <TouchableOpacity
-                        style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]}
+                        style={[styles.sendBtn, { backgroundColor: colors.accent, shadowColor: colors.accent }, !input.trim() && { backgroundColor: colors.border, shadowOpacity: 0 }]}
                         disabled={!input.trim()}
                         onPress={sendMessage}
                     >
@@ -370,7 +422,6 @@ export default function Chat({ navigation, route }: any) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: 'white',
     },
     container: {
         flex: 1,
@@ -381,15 +432,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
         gap: 12,
-        backgroundColor: 'white',
     },
     backBtn: {
         width: 40,
         height: 40,
         borderRadius: 12,
-        backgroundColor: '#f8fafc',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -418,12 +466,10 @@ const styles = StyleSheet.create({
         borderRadius: 6,
         backgroundColor: '#14b8a6',
         borderWidth: 2,
-        borderColor: 'white',
     },
     providerName: {
         fontSize: 14,
         fontWeight: 'bold',
-        color: '#0f172a',
     },
     providerSubInfo: {
         flexDirection: 'row',
@@ -438,12 +484,10 @@ const styles = StyleSheet.create({
     ratingText: {
         fontSize: 10,
         fontWeight: '900',
-        color: '#f97316',
     },
     statusText: {
         fontSize: 10,
         fontWeight: 'bold',
-        color: '#14b8a6',
         textTransform: 'uppercase',
     },
     headerActions: {
@@ -454,7 +498,6 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 12,
-        backgroundColor: '#f8fafc',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -464,9 +507,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 8,
-        backgroundColor: '#f0fdfa',
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(20, 184, 166, 0.1)',
     },
     bannerLeft: {
         flexDirection: 'row',
@@ -476,7 +517,6 @@ const styles = StyleSheet.create({
     bannerText: {
         fontSize: 11,
         fontWeight: 'bold',
-        color: '#14b8a6',
     },
     trackBtn: {
         flexDirection: 'row',
@@ -486,7 +526,6 @@ const styles = StyleSheet.create({
     trackBtnText: {
         fontSize: 10,
         fontWeight: '900',
-        color: '#14b8a6',
         letterSpacing: 1,
     },
     listContent: {
@@ -502,12 +541,10 @@ const styles = StyleSheet.create({
     separatorLine: {
         flex: 1,
         height: 1,
-        backgroundColor: '#f1f5f9',
     },
     separatorText: {
         fontSize: 9,
         fontWeight: '900',
-        color: '#94a3b8',
         letterSpacing: 1,
     },
     systemMessageContainer: {
@@ -515,16 +552,13 @@ const styles = StyleSheet.create({
         marginVertical: 8,
     },
     systemMessageBubble: {
-        backgroundColor: '#f8fafc',
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
     },
     systemMessageText: {
         fontSize: 10,
-        color: '#64748b',
         fontWeight: '500',
         textAlign: 'center',
     },
@@ -544,14 +578,11 @@ const styles = StyleSheet.create({
         borderRadius: 20,
     },
     myBubble: {
-        backgroundColor: '#14b8a6',
         borderBottomRightRadius: 4,
     },
     theirBubble: {
-        backgroundColor: 'white',
         borderBottomLeftRadius: 4,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
     },
     messageText: {
         fontSize: 14,
@@ -561,7 +592,6 @@ const styles = StyleSheet.create({
         color: 'white',
     },
     theirMessageText: {
-        color: '#0f172a',
     },
     messageMeta: {
         flexDirection: 'row',
@@ -572,7 +602,6 @@ const styles = StyleSheet.create({
     },
     messageTime: {
         fontSize: 10,
-        color: '#94a3b8',
         fontWeight: '500',
     },
     inputArea: {
@@ -580,42 +609,30 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: 'white',
-        borderTopWidth: 1,
-        borderTopColor: '#f1f5f9',
         gap: 12,
     },
     attachBtn: {
         width: 44,
         height: 44,
         borderRadius: 14,
-        backgroundColor: '#f8fafc',
         alignItems: 'center',
         justifyContent: 'center',
     },
     textInput: {
         flex: 1,
-        backgroundColor: '#f8fafc',
         borderRadius: 20,
         paddingHorizontal: 16,
         paddingVertical: 10,
         maxHeight: 100,
         fontSize: 14,
-        color: '#0f172a',
     },
     sendBtn: {
         width: 44,
         height: 44,
         borderRadius: 14,
-        backgroundColor: '#14b8a6',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#14b8a6',
         shadowOpacity: 0.2,
         shadowOffset: { width: 0, height: 4 },
-    },
-    sendBtnDisabled: {
-        backgroundColor: '#f1f5f9',
-        shadowOpacity: 0,
     },
 });

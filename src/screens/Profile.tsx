@@ -32,6 +32,7 @@ import {
     HelpCircle,
     MessageCircle,
     Activity,
+    PawPrint,
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../theme/ThemeContext';
@@ -81,6 +82,7 @@ export default function Profile({ navigation }: ProfileProps) {
     };
 
     const menuItems = [
+        { id: 'Pets', label: 'My Pets', icon: PawPrint, color: colors.primary, bgColor: colors.primaryLight },
         { id: 'Addresses', label: 'My Addresses', icon: MapPin, color: '#3b82f6', bgColor: isDark ? 'rgba(59,130,246,0.1)' : '#eff6ff' },
         { id: 'Notifications', label: 'Notifications', icon: Bell, color: '#f97316', bgColor: isDark ? 'rgba(249,115,22,0.1)' : '#fff7ed' },
         { id: 'ReferralHub', label: 'Refer & Earn', icon: Share2, color: colors.primary, bgColor: colors.primaryLight },

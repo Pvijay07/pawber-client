@@ -163,5 +163,8 @@ const styles = StyleSheet.create({
     patternOverlay: {
         ...StyleSheet.absoluteFillObject,
         opacity: 0.05,
+    },
+    patternRow: {
+        flexDirection: 'row',
     }
 });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ScrollView, Alert } from 'react-native';
 import { CheckCircle, XCircle } from 'lucide-react-native';
-import api from '../lib/api';
+import { api } from '../services/api';
 
 interface GroomingReportModalProps {
     visible: boolean;
@@ -24,7 +24,7 @@ export default function GroomingReportModal({ visible, onClose, bookingId, onSuc
     const fetchReport = async () => {
         setLoading(true);
         try {
-            const res = await api.get(`/bookings/${bookingId}`);
+            const res = await api.get<any>(`/bookings/${bookingId}`);
             // If graceful fallback was triggered, grooming_details might be null
             // So we mock a report if it's missing but booking is completed.
             if (res.data?.booking?.grooming_details?.length > 0) {

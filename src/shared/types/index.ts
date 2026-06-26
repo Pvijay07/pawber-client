@@ -28,13 +28,14 @@ export interface Pet {
     name: string;
     type?: string;
     breed?: string;
-    age?: number;
+    age?: number | string;
     weight?: number;
     medical_notes?: string;
     vaccination_status?: string;
     image_url?: string;
     has_insurance: boolean;
     is_aggressive: boolean;
+    gender?: string;
     deleted_at?: string;
     created_at: string;
 }
@@ -43,6 +44,7 @@ export interface Pet {
 export interface ServiceCategory {
     id: string;
     name: string;
+    slug?: string;
     icon_url?: string;
     sort_order: number;
     is_active: boolean;
@@ -52,6 +54,7 @@ export interface ServiceCategory {
 export interface Service {
     id: string;
     name: string;
+    slug?: string;
     description?: string;
     image_url?: string;
     category_id: string;
@@ -87,7 +90,7 @@ export interface ServiceDetail extends Service {
 }
 
 // ─── Booking Types ──────────────────────────────
-export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+export type BookingStatus = 'requested' | 'bidding' | 'bid_selected' | 'pending' | 'confirmed' | 'in_progress' | 'service_completed' | 'completed' | 'cancelled';
 export type BookingType = 'instant' | 'scheduled';
 
 export interface Booking {

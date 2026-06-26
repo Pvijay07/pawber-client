@@ -6,7 +6,6 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    
     Image,
     Dimensions,
     TextInput,
@@ -23,10 +22,12 @@ import {
     Users,
 } from 'lucide-react-native';
 import { eventsApi, PetEvent } from '../services/events.service';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 export default function Events({ navigation }: any) {
+    const { colors, isDark } = useTheme();
     const [selectedEvent, setSelectedEvent] = useState<PetEvent | null>(null);
     const [showTicket, setShowTicket] = useState(false);
     
@@ -58,40 +59,43 @@ export default function Events({ navigation }: any) {
             transparent={true}
             onRequestClose={() => setSelectedEvent(null)}
         >
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
+            <View style={[styles.modalOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(15, 23, 42, 0.5)' }]}>
+                <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
                     {showTicket ? (
                         <View style={styles.ticketView}>
                             <View style={styles.ticketHeader}>
-                                <Text style={styles.ticketHeaderTitle}>Your Ticket</Text>
-                                <TouchableOpacity onPress={() => setShowTicket(false)} style={styles.closeBtn}>
-                                    <X size={20} color="#7A5540" />
+                                <Text style={[styles.ticketHeaderTitle, { color: colors.text }]}>Your Ticket</Text>
+                                <TouchableOpacity 
+                                    onPress={() => setShowTicket(false)} 
+                                    style={[styles.closeBtn, { backgroundColor: colors.surfaceSecondary }]}
+                                >
+                                    <X size={20} color={colors.text} />
                                 </TouchableOpacity>
                             </View>
 
-                            <View style={styles.ticketCard}>
-                                <View style={styles.ticketCutoutLeft} />
-                                <View style={styles.ticketCutoutRight} />
-                                <Text style={styles.ticketEventTitle}>{selectedEvent?.title}</Text>
-                                <Text style={styles.ticketEventSub}>
+                            <View style={[styles.ticketCard, { backgroundColor: colors.surface, borderColor: colors.borderSecondary }]}>
+                                <View style={[styles.ticketCutoutLeft, { backgroundColor: colors.background }]} />
+                                <View style={[styles.ticketCutoutRight, { backgroundColor: colors.background }]} />
+                                <Text style={[styles.ticketEventTitle, { color: colors.text }]}>{selectedEvent?.title}</Text>
+                                <Text style={[styles.ticketEventSub, { color: colors.primary }]}>
                                     {selectedEvent?.event_date && new Date(selectedEvent?.event_date).toLocaleDateString()}
                                 </Text>
 
-                                <View style={styles.qrContainer}>
+                                <View style={[styles.qrContainer, { backgroundColor: 'white' }]}>
                                     <QrCode size={180} color="#1A1612" />
                                 </View>
 
-                                <Text style={styles.ticketId}>TICKET #8472910</Text>
+                                <Text style={[styles.ticketId, { color: colors.textMuted }]}>TICKET #8472910</Text>
                             </View>
 
                             <TouchableOpacity
-                                style={styles.closeModalBtn}
+                                style={[styles.closeModalBtn, { backgroundColor: colors.text }]}
                                 onPress={() => {
                                     setShowTicket(false);
                                     setSelectedEvent(null);
                                 }}
                             >
-                                <Text style={styles.closeModalBtnText}>DONE</Text>
+                                <Text style={[styles.closeModalBtnText, { color: colors.background }]}>DONE</Text>
                             </TouchableOpacity>
                         </View>
                     ) : (
@@ -106,9 +110,9 @@ export default function Events({ navigation }: any) {
                             <ScrollView style={styles.modalInfoScroll}>
                                 <View style={styles.modalInfoHeader}>
                                     <View style={styles.modalTitleBox}>
-                                        <Text style={styles.modalTitle}>{selectedEvent?.title}</Text>
-                                        <View style={styles.modalPriceBadge}>
-                                            <Text style={styles.modalPriceText}>
+                                        <Text style={[styles.modalTitle, { color: colors.text }]}>{selectedEvent?.title}</Text>
+                                        <View style={[styles.modalPriceBadge, { backgroundColor: colors.primaryLight, borderColor: colors.border }]}>
+                                            <Text style={[styles.modalPriceText, { color: colors.primary }]}>
                                                 {selectedEvent?.price ? `₹${selectedEvent.price}` : 'Free'}
                                             </Text>
                                         </View>
@@ -116,17 +120,17 @@ export default function Events({ navigation }: any) {
                                 </View>
 
                                 <View style={styles.modalFields}>
-                                    <View style={styles.modalField}>
-                                        <View style={StyleSheet.flatten([styles.fieldIconBox, { backgroundColor: '#E0F5F0' }])}>
-                                            <Calendar size={20} color="#1D9E86" />
+                                    <View style={[styles.modalField, { backgroundColor: colors.surface }]}>
+                                        <View style={[styles.fieldIconBox, { backgroundColor: isDark ? colors.surfaceSecondary : '#E0F5F0' }]}>
+                                            <Calendar size={20} color={isDark ? colors.accent : '#1D9E86'} />
                                         </View>
                                         <View>
-                                            <Text style={styles.fieldLabel}>
+                                            <Text style={[styles.fieldLabel, { color: colors.text }]}>
                                                 {selectedEvent?.event_date 
                                                     ? new Date(selectedEvent?.event_date).toLocaleDateString() 
                                                     : 'TBD'}
                                             </Text>
-                                            <Text style={styles.fieldSub}>
+                                            <Text style={[styles.fieldSub, { color: colors.textMuted }]}>
                                                 {selectedEvent?.event_date 
                                                     ? new Date(selectedEvent?.event_date).toLocaleTimeString() 
                                                     : ''}
@@ -134,20 +138,20 @@ export default function Events({ navigation }: any) {
                                         </View>
                                     </View>
 
-                                    <View style={styles.modalField}>
-                                        <View style={StyleSheet.flatten([styles.fieldIconBox, { backgroundColor: '#FFF3EC' }])}>
-                                            <MapPin size={20} color="#FF7A3D" />
+                                    <View style={[styles.modalField, { backgroundColor: colors.surface }]}>
+                                        <View style={[styles.fieldIconBox, { backgroundColor: colors.primaryLight }]}>
+                                            <MapPin size={20} color={colors.primary} />
                                         </View>
                                         <View>
-                                            <Text style={styles.fieldLabel}>{selectedEvent?.location}</Text>
-                                            <Text style={styles.fieldSub}>Tap to view on map</Text>
+                                            <Text style={[styles.fieldLabel, { color: colors.text }]}>{selectedEvent?.location}</Text>
+                                            <Text style={[styles.fieldSub, { color: colors.textMuted }]}>Tap to view on map</Text>
                                         </View>
                                     </View>
                                 </View>
 
                                 <View style={styles.modalDescContainer}>
-                                    <Text style={styles.descTitle}>About Event</Text>
-                                    <Text style={styles.descText}>{selectedEvent?.description}</Text>
+                                    <Text style={[styles.descTitle, { color: colors.text }]}>About Event</Text>
+                                    <Text style={[styles.descText, { color: colors.textSecondary }]}>{selectedEvent?.description}</Text>
                                 </View>
 
                                 <View style={styles.attendeesRow}>
@@ -156,11 +160,11 @@ export default function Events({ navigation }: any) {
                                             <Image
                                                 key={i}
                                                 source={{ uri: `https://i.pravatar.cc/100?img=${i + 10}` }}
-                                                style={StyleSheet.flatten([styles.attendeeAvatar, { marginLeft: i === 0 ? 0 : -10 }])}
+                                                style={[styles.attendeeAvatar, { marginLeft: i === 0 ? 0 : -10, borderColor: colors.background }]}
                                             />
                                         ))}
                                     </View>
-                                    <Text style={styles.attendeesText}>
+                                    <Text style={[styles.attendeesText, { color: colors.textSecondary }]}>
                                         {selectedEvent?.tickets_sold && selectedEvent.tickets_sold > 3 
                                             ? `+${selectedEvent.tickets_sold - 3} others attending`
                                             : `${selectedEvent?.tickets_sold || 0} attending`}
@@ -168,8 +172,8 @@ export default function Events({ navigation }: any) {
                                 </View>
                             </ScrollView>
 
-                            <View style={styles.modalFooter}>
-                                <TouchableOpacity style={styles.ticketBtn} onPress={() => setShowTicket(true)}>
+                            <View style={[styles.modalFooter, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+                                <TouchableOpacity style={[styles.ticketBtn, { backgroundColor: colors.primary, shadowColor: colors.primary }]} onPress={() => setShowTicket(true)}>
                                     <Ticket size={20} color="white" />
                                     <Text style={styles.ticketBtnText}>GET TICKET</Text>
                                 </TouchableOpacity>
@@ -182,31 +186,31 @@ export default function Events({ navigation }: any) {
     );
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <View style={styles.container}>
                 {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Pet Events</Text>
-                    <View style={styles.searchContainer}>
-                        <Search size={20} color="#B09080" style={styles.searchIcon} />
+                <View style={[styles.header, { backgroundColor: colors.surface }]}>
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>Pet Events</Text>
+                    <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
+                        <Search size={20} color={colors.textMuted} style={styles.searchIcon} />
                         <TextInput
                             placeholder="Search events..."
-                            style={styles.searchInput}
-                            placeholderTextColor="#B09080"
+                            style={[styles.searchInput, { color: colors.text }]}
+                            placeholderTextColor={colors.textMuted}
                         />
                     </View>
                 </View>
                 
                 {isLoading ? (
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                        <ActivityIndicator size="large" color="#FF7A3D" />
+                        <ActivityIndicator size="large" color={colors.primary} />
                     </View>
                 ) : (
                     <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
                         {events.map((event) => (
                             <TouchableOpacity
                                 key={event.id}
-                                style={styles.eventCard}
+                                style={[styles.eventCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                                 onPress={() => setSelectedEvent(event)}
                                 activeOpacity={0.9}
                             >
@@ -214,34 +218,34 @@ export default function Events({ navigation }: any) {
                                     source={{ uri: event.image_url || 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=400&h=200' }} 
                                     style={styles.eventImage} 
                                 />
-                                <View style={styles.priceBadge}>
-                                    <Text style={styles.priceText}>
+                                <View style={[styles.priceBadge, { backgroundColor: isDark ? colors.surface : 'rgba(255,255,255,0.9)' }]}>
+                                    <Text style={[styles.priceText, { color: colors.primary }]}>
                                         {event.price > 0 ? `₹${event.price}` : 'Free'}
                                     </Text>
                                 </View>
 
                                 <View style={styles.eventInfo}>
-                                    <Text style={styles.eventTitle}>{event.title}</Text>
+                                    <Text style={[styles.eventTitle, { color: colors.text }]}>{event.title}</Text>
                                     <View style={styles.eventMeta}>
                                         <View style={styles.metaRow}>
-                                            <Calendar size={14} color="#1D9E86" />
-                                            <Text style={styles.metaText}>
+                                            <Calendar size={14} color={isDark ? colors.accent : '#1D9E86'} />
+                                            <Text style={[styles.metaText, { color: colors.textSecondary }]}>
                                                 {event.event_date ? new Date(event.event_date).toLocaleDateString() : 'TBD'}
                                             </Text>
                                         </View>
                                         <View style={styles.metaRow}>
-                                            <MapPin size={14} color="#FF7A3D" />
-                                            <Text style={styles.metaText} numberOfLines={1}>{event.location}</Text>
+                                            <MapPin size={14} color={colors.primary} />
+                                            <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>{event.location}</Text>
                                         </View>
                                     </View>
 
-                                    <View style={styles.eventFooter}>
+                                    <View style={[styles.eventFooter, { borderTopColor: colors.border }]}>
                                         <View style={styles.attendeeRowSmall}>
-                                            <Users size={14} color="#7A5540" />
-                                            <Text style={styles.attendeeCountText}>{event.tickets_sold || 0} attending</Text>
+                                            <Users size={14} color={colors.textSecondary} />
+                                            <Text style={[styles.attendeeCountText, { color: colors.textSecondary }]}>{event.tickets_sold || 0} attending</Text>
                                         </View>
-                                        <TouchableOpacity style={styles.detailsTag}>
-                                            <Text style={styles.detailsTagText}>VIEW DETAILS</Text>
+                                        <TouchableOpacity style={[styles.detailsTag, { backgroundColor: colors.primaryLight }]}>
+                                            <Text style={[styles.detailsTagText, { color: colors.primary }]}>VIEW DETAILS</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -259,7 +263,6 @@ export default function Events({ navigation }: any) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: 'white',
     },
     container: {
         flex: 1,
@@ -268,7 +271,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         paddingTop: 20,
         paddingBottom: 24,
-        backgroundColor: 'white',
         borderBottomLeftRadius: 32,
         borderBottomRightRadius: 32,
         shadowColor: '#000',
@@ -278,12 +280,10 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: '#1A1612',
         marginBottom: 20,
     },
     searchContainer: {
         position: 'relative',
-        backgroundColor: '#FFF9F5',
         borderRadius: 20,
         height: 56,
         justifyContent: 'center',
@@ -296,21 +296,18 @@ const styles = StyleSheet.create({
     searchInput: {
         fontSize: 16,
         paddingLeft: 32,
-        color: '#1A1612',
     },
     listContainer: {
         padding: 24,
         gap: 20,
     },
     eventCard: {
-        backgroundColor: 'white',
         borderRadius: 32,
         overflow: 'hidden',
         shadowColor: '#000',
         shadowOpacity: 0.05,
         shadowOffset: { width: 0, height: 10 },
         borderWidth: 1,
-        borderColor: '#F5E6D8',
     },
     eventImage: {
         width: '100%',
@@ -320,7 +317,6 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 20,
         right: 20,
-        backgroundColor: 'rgba(255,255,255,0.9)',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 12,
@@ -328,7 +324,6 @@ const styles = StyleSheet.create({
     priceText: {
         fontSize: 14,
         fontWeight: '900',
-        color: '#FF7A3D',
     },
     eventInfo: {
         padding: 24,
@@ -336,7 +331,6 @@ const styles = StyleSheet.create({
     eventTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#1A1612',
         marginBottom: 12,
     },
     eventMeta: {
@@ -350,7 +344,6 @@ const styles = StyleSheet.create({
     },
     metaText: {
         fontSize: 13,
-        color: '#7A5540',
         fontWeight: '500',
     },
     eventFooter: {
@@ -359,7 +352,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingTop: 16,
         borderTopWidth: 1,
-        borderTopColor: '#F5E6D8',
     },
     attendeeRowSmall: {
         flexDirection: 'row',
@@ -368,11 +360,9 @@ const styles = StyleSheet.create({
     },
     attendeeCountText: {
         fontSize: 12,
-        color: '#7A5540',
         fontWeight: '600',
     },
     detailsTag: {
-        backgroundColor: '#FFF3EC',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 10,
@@ -380,16 +370,13 @@ const styles = StyleSheet.create({
     detailsTagText: {
         fontSize: 10,
         fontWeight: '900',
-        color: '#FF7A3D',
         letterSpacing: 0.5,
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(15, 23, 42, 0.5)',
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: 'white',
         borderTopLeftRadius: 40,
         borderTopRightRadius: 40,
         height: '85%',
@@ -431,21 +418,17 @@ const styles = StyleSheet.create({
     modalTitle: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#1A1612',
         flex: 1,
     },
     modalPriceBadge: {
-        backgroundColor: '#FFF3EC',
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#ccfbf1',
     },
     modalPriceText: {
         fontSize: 16,
         fontWeight: '900',
-        color: '#FF7A3D',
     },
     modalFields: {
         gap: 16,
@@ -455,7 +438,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 16,
-        backgroundColor: '#FFF9F5',
         padding: 16,
         borderRadius: 24,
     },
@@ -469,12 +451,10 @@ const styles = StyleSheet.create({
     fieldLabel: {
         fontSize: 15,
         fontWeight: 'bold',
-        color: '#1A1612',
         marginBottom: 2,
     },
     fieldSub: {
         fontSize: 12,
-        color: '#B09080',
         fontWeight: '600',
     },
     modalDescContainer: {
@@ -483,12 +463,10 @@ const styles = StyleSheet.create({
     descTitle: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#1A1612',
         marginBottom: 12,
     },
     descText: {
         fontSize: 14,
-        color: '#7A5540',
         lineHeight: 22,
         fontWeight: '500',
     },
@@ -506,29 +484,23 @@ const styles = StyleSheet.create({
         height: 36,
         borderRadius: 18,
         borderWidth: 2,
-        borderColor: 'white',
     },
     attendeesText: {
         fontSize: 13,
-        color: '#7A5540',
         fontWeight: '600',
     },
     modalFooter: {
         padding: 24,
         paddingBottom: 40,
-        backgroundColor: 'white',
         borderTopWidth: 1,
-        borderTopColor: '#F5E6D8',
     },
     ticketBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 10,
-        backgroundColor: '#FF7A3D',
         height: 64,
         borderRadius: 24,
-        shadowColor: '#FF7A3D',
         shadowOpacity: 0.3,
         shadowOffset: { width: 0, height: 10 },
     },
@@ -553,24 +525,20 @@ const styles = StyleSheet.create({
     ticketHeaderTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#1A1612',
     },
     closeBtn: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#F5E6D8',
         alignItems: 'center',
         justifyContent: 'center',
     },
     ticketCard: {
         width: '100%',
-        backgroundColor: '#FFF3EC',
         borderRadius: 40,
         padding: 40,
         alignItems: 'center',
         borderWidth: 2,
-        borderColor: '#ccfbf1',
         borderStyle: 'dashed',
         position: 'relative',
     },
@@ -582,7 +550,6 @@ const styles = StyleSheet.create({
         width: 30,
         height: 30,
         borderRadius: 15,
-        backgroundColor: 'white',
     },
     ticketCutoutRight: {
         position: 'absolute',
@@ -592,23 +559,19 @@ const styles = StyleSheet.create({
         width: 30,
         height: 30,
         borderRadius: 15,
-        backgroundColor: 'white',
     },
     ticketEventTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#1A1612',
         textAlign: 'center',
         marginBottom: 8,
     },
     ticketEventSub: {
         fontSize: 14,
-        color: '#FF7A3D',
         fontWeight: '600',
         marginBottom: 40,
     },
     qrContainer: {
-        backgroundColor: 'white',
         padding: 20,
         borderRadius: 32,
         shadowColor: '#000',
@@ -619,13 +582,11 @@ const styles = StyleSheet.create({
     ticketId: {
         fontSize: 12,
         fontWeight: '900',
-        color: '#B09080',
         letterSpacing: 2,
     },
     closeModalBtn: {
         width: '100%',
         height: 64,
-        backgroundColor: '#1A1612',
         borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',
@@ -633,7 +594,6 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     closeModalBtnText: {
-        color: 'white',
         fontSize: 14,
         fontWeight: '900',
         letterSpacing: 2,

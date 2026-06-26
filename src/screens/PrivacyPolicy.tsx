@@ -8,8 +8,11 @@ import {
     TouchableOpacity
 } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function PrivacyPolicy({ navigation }: any) {
+    const { colors } = useTheme();
+
     const sections = [
         {
             title: "1. Information We Collect",
@@ -30,37 +33,40 @@ export default function PrivacyPolicy({ navigation }: any) {
     ];
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <View style={styles.container}>
                 {/* Header */}
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                        <ChevronLeft size={24} color="#1A1612" />
+                    <TouchableOpacity 
+                        onPress={() => navigation.goBack()} 
+                        style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                    >
+                        <ChevronLeft size={24} color={colors.text} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Privacy Policy</Text>
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>Privacy Policy</Text>
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    <View style={styles.card}>
-                        <Text style={styles.lastUpdated}>
+                    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                        <Text style={[styles.lastUpdated, { color: colors.textMuted }]}>
                             Last Updated: January 2024
                         </Text>
-                        <Text style={styles.introText}>
+                        <Text style={[styles.introText, { color: colors.textSecondary }]}>
                             At Pawber, we take your privacy seriously. Please read this Privacy Policy carefully to understand how we collect, use, and protect your personal data.
                         </Text>
 
                         <View style={styles.sectionsContainer}>
                             {sections.map((section, index) => (
                                 <View key={index} style={styles.section}>
-                                    <Text style={styles.sectionTitle}>{section.title}</Text>
-                                    <Text style={styles.sectionContent}>{section.content}</Text>
+                                    <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
+                                    <Text style={[styles.sectionContent, { color: colors.textSecondary }]}>{section.content}</Text>
                                 </View>
                             ))}
                         </View>
                     </View>
 
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>
+                        <Text style={[styles.footerText, { color: colors.textMuted }]}>
                             Questions? Contact us at legal@pawber.com
                         </Text>
                     </View>
@@ -73,7 +79,6 @@ export default function PrivacyPolicy({ navigation }: any) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: 'white',
     },
     container: {
         flex: 1,
@@ -89,16 +94,13 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 14,
-        backgroundColor: 'white',
         borderWidth: 1,
-        borderColor: '#F5E6D8',
         alignItems: 'center',
         justifyContent: 'center',
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#1A1612',
     },
     scrollContent: {
         paddingHorizontal: 20,
@@ -106,24 +108,20 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
     },
     card: {
-        backgroundColor: 'white',
         borderRadius: 32,
         padding: 24,
         borderWidth: 1,
-        borderColor: '#F5E6D8',
         shadowColor: '#000',
         shadowOpacity: 0.02,
         shadowOffset: { width: 0, height: 4 },
     },
     lastUpdated: {
         fontSize: 12,
-        color: '#B09080',
         fontWeight: 'bold',
         marginBottom: 8,
     },
     introText: {
         fontSize: 14,
-        color: '#7A5540',
         lineHeight: 22,
         marginBottom: 32,
         fontWeight: '500',
@@ -137,13 +135,11 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 12,
         fontWeight: '900',
-        color: '#1A1612',
         letterSpacing: 1,
         textTransform: 'uppercase',
     },
     sectionContent: {
         fontSize: 13,
-        color: '#7A5540',
         lineHeight: 20,
         fontWeight: '500',
     },
@@ -154,7 +150,6 @@ const styles = StyleSheet.create({
     },
     footerText: {
         fontSize: 12,
-        color: '#B09080',
         fontWeight: 'bold',
         fontStyle: 'italic',
     },

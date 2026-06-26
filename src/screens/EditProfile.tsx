@@ -88,7 +88,7 @@ export default function EditProfile({ navigation }: any) {
             const isLocalUri = avatarUrl.startsWith('file://') || avatarUrl.startsWith('content://');
             if (isLocalUri) {
                 const base64 = await FileSystem.readAsStringAsync(avatarUrl, {
-                    encoding: FileSystem.EncodingType.Base64,
+                    encoding: 'base64' as any,
                 });
                 
                 const fileName = `${userData.id}-${Date.now()}.jpg`;

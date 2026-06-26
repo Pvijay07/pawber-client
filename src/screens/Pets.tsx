@@ -43,6 +43,8 @@ import {
 } from 'lucide-react-native';
 
 import { petsApi } from '../services/pets.service';
+import { bookingsApi } from '../services/bookings.service';
+import { useTheme } from '../theme/ThemeContext';
 
 // LayoutAnimation is disabled on Android to prevent native crashes during layout changes
 
@@ -83,6 +85,7 @@ interface PetsProps {
 
 export default function Pets({ navigation, route }: any) {
     const insets = useSafeAreaInsets();
+    const { colors, isDark } = useTheme();
     const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
     const [isAdding, setIsAdding] = useState(false);
     const [activeTab, setActiveTab] = useState<'info' | 'health' | 'docs'>('info');
@@ -155,7 +158,7 @@ export default function Pets({ navigation, route }: any) {
             type: formData.type,
             breed: formData.breed,
             age: formData.age,
-            weight: (formData.weight && !isNaN(parseFloat(formData.weight))) ? parseFloat(formData.weight) : null,
+            weight: (formData.weight && !isNaN(parseFloat(formData.weight))) ? parseFloat(formData.weight) : undefined,
             image_url: formData.image || `https://api.dicebear.com/7.x/adventurer/png?seed=${formData.name || Date.now()}`,
             has_insurance: formData.hasInsurance,
             is_aggressive: formData.isAggressive,
@@ -201,21 +204,67 @@ export default function Pets({ navigation, route }: any) {
     const handleDelete = async (id: string | number) => {
         setIsLoading(true);
         try {
-            const res = await petsApi.delete(id.toString());
-            if (res.success) {
-                await loadPets();
-                setSelectedPet(null);
+            // 1. Fetch active/requested bookings
+            const bookingsRes = await bookingsApi.list({ 
+                status: 'requested,bidding,bid_selected,pending,accepted,confirmed,in_progress,service_completed',
+                limit: 100 
+            });
+            
+            if (bookingsRes.success && bookingsRes.data?.bookings) {
+                const activeBookingsForPet = bookingsRes.data.bookings.filter((b: any) => 
+                    b.booking_pets?.some((bp: any) => bp.pet?.id?.toString() === id.toString())
+                );
+                
+                if (activeBookingsForPet.length > 0) {
+                    setIsLoading(false);
+                    Alert.alert(
+                        'Cannot Delete Pet',
+                        'This pet has active or requested bookings. You cannot delete a pet while it is associated with ongoing bookings.',
+                        [{ text: 'OK' }]
+                    );
+                    return;
+                }
             }
+
+            setIsLoading(false);
+            // 2. Show confirmation Alert before deletion
+            Alert.alert(
+                'Delete Pet',
+                'Are you sure you want to delete this pet? This action cannot be undone.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: async () => {
+                            setIsLoading(true);
+                            try {
+                                const res = await petsApi.delete(id.toString());
+                                if (res.success) {
+                                    await loadPets();
+                                    setSelectedPet(null);
+                                } else {
+                                    Alert.alert('Delete Failed', res.error?.message || 'Failed to delete pet.');
+                                }
+                            } catch (err) {
+                                console.error(err);
+                                Alert.alert('Error', 'An error occurred during deletion.');
+                            } finally {
+                                setIsLoading(false);
+                            }
+                        }
+                    }
+                ]
+            );
         } catch (e) {
             console.error(e);
-        } finally {
             setIsLoading(false);
         }
     };
 
     if (selectedPet) {
         return (
-            <View style={styles.detailContainer}>
+            <View style={[styles.detailContainer, { backgroundColor: colors.background }]}>
                 <View style={styles.heroContainer}>
                     <Image source={{ uri: selectedPet.image }} style={styles.heroImage} />
                     <View style={styles.heroOverlay} />
@@ -226,27 +275,27 @@ export default function Pets({ navigation, route }: any) {
                         }}
                         style={StyleSheet.flatten([styles.detailBackBtn, { top: Math.max(insets.top, 20) + 10 }])}
                     >
-                        <ArrowLeft size={20} color="#1A1612" />
+                        <ArrowLeft size={20} color={colors.text} />
                     </TouchableOpacity>
                 </View>
 
                 <ScrollView contentContainerStyle={styles.detailScroll} showsVerticalScrollIndicator={false}>
-                    <View style={styles.petCardDetailed}>
+                    <View style={[styles.petCardDetailed, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         <View style={styles.petCardHeader}>
                             <View>
                                 <View style={styles.nameRow}>
-                                    <Text style={styles.detailPetName}>{selectedPet.name}</Text>
+                                    <Text style={[styles.detailPetName, { color: colors.text }]}>{selectedPet.name}</Text>
                                     <View style={StyleSheet.flatten([styles.genderTag, selectedPet.gender === 'Male' ? styles.maleTag : styles.femaleTag])}>
                                         <Text style={StyleSheet.flatten([styles.genderSymbol, selectedPet.gender === 'Male' ? styles.maleText : styles.femaleText])}>
                                             {selectedPet.gender === 'Male' ? '♂' : '♀'}
                                         </Text>
                                     </View>
                                 </View>
-                                <Text style={styles.detailPetBreed}>{selectedPet.breed}</Text>
+                                <Text style={[styles.detailPetBreed, { color: colors.textSecondary }]}>{selectedPet.breed}</Text>
                             </View>
                             <View style={{ flexDirection: 'row', gap: 12 }}>
                                 <TouchableOpacity 
-                                    style={styles.editIconBtn}
+                                    style={[styles.editIconBtn, { backgroundColor: colors.surfaceSecondary }]}
                                     onPress={() => {
                                         setFormData({
                                             name: selectedPet.name,
@@ -263,10 +312,10 @@ export default function Pets({ navigation, route }: any) {
                                         setSelectedPet(null);
                                     }}
                                 >
-                                    <Edit2 size={16} color="#7A5540" />
+                                    <Edit2 size={16} color={colors.textSecondary} />
                                 </TouchableOpacity>
                                 <TouchableOpacity 
-                                    style={StyleSheet.flatten([styles.editIconBtn, { backgroundColor: '#FEE2E2' }])}
+                                    style={[styles.editIconBtn, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2' }]}
                                     onPress={() => handleDelete(selectedPet.id)}
                                 >
                                     <Trash2 size={16} color="#EF4444" />
@@ -274,30 +323,30 @@ export default function Pets({ navigation, route }: any) {
                             </View>
                         </View>
 
-                        <View style={styles.statsGrid}>
-                            <View style={styles.statItem}>
-                                <View style={StyleSheet.flatten([styles.statIconBox, { backgroundColor: '#E0F5F0' }])}>
+                        <View style={[styles.statsGrid, { borderTopColor: colors.border }]}>
+                            <View style={[styles.statItem, { backgroundColor: colors.surfaceSecondary }]}>
+                                <View style={StyleSheet.flatten([styles.statIconBox, { backgroundColor: isDark ? 'rgba(29, 158, 134, 0.2)' : '#E0F5F0' }])}>
                                     <Calendar size={16} color="#1D9E86" />
                                 </View>
                                 <View>
-                                    <Text style={styles.statItemLabel}>AGE</Text>
-                                    <Text style={styles.statItemValue}>{selectedPet.age}</Text>
+                                    <Text style={[styles.statItemLabel, { color: colors.textSecondary }]}>AGE</Text>
+                                    <Text style={[styles.statItemValue, { color: colors.text }]}>{selectedPet.age}</Text>
                                 </View>
                             </View>
-                            <View style={styles.statItem}>
-                                <View style={StyleSheet.flatten([styles.statIconBox, { backgroundColor: '#FFF3EC' }])}>
+                            <View style={[styles.statItem, { backgroundColor: colors.surfaceSecondary }]}>
+                                <View style={StyleSheet.flatten([styles.statIconBox, { backgroundColor: isDark ? 'rgba(255, 122, 61, 0.2)' : '#FFF3EC' }])}>
                                     <Weight size={16} color="#FF7A3D" />
                                 </View>
                                 <View>
-                                    <Text style={styles.statItemLabel}>WEIGHT</Text>
-                                    <Text style={styles.statItemValue}>{selectedPet.weight}</Text>
+                                    <Text style={[styles.statItemLabel, { color: colors.textSecondary }]}>WEIGHT</Text>
+                                    <Text style={[styles.statItemValue, { color: colors.text }]}>{selectedPet.weight}</Text>
                                 </View>
                             </View>
                         </View>
                     </View>
 
                     {/* Tabs */}
-                    <View style={styles.tabBar}>
+                    <View style={[styles.tabBar, { backgroundColor: colors.surfaceSecondary }]}>
                         {(['info', 'health', 'docs'] as const).map(tab => (
                             <TouchableOpacity
                                 key={tab}
@@ -305,9 +354,17 @@ export default function Pets({ navigation, route }: any) {
                                     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                                     setActiveTab(tab);
                                 }}
-                                style={StyleSheet.flatten([styles.tabBtn, activeTab === tab && styles.tabBtnActive])}
+                                style={[
+                                    styles.tabBtn,
+                                    activeTab === tab ? styles.tabBtnActive : undefined,
+                                    activeTab === tab ? { backgroundColor: colors.surface } : undefined
+                                ]}
                             >
-                                <Text style={StyleSheet.flatten([styles.tabBtnText, activeTab === tab && styles.tabBtnTextActive])}>
+                                <Text style={[
+                                    styles.tabBtnText,
+                                    { color: colors.textSecondary },
+                                    activeTab === tab ? { color: colors.primary } : undefined
+                                ]}>
                                     {tab.toUpperCase()}
                                 </Text>
                             </TouchableOpacity>
@@ -316,9 +373,9 @@ export default function Pets({ navigation, route }: any) {
 
                     {activeTab === 'info' && (
                         <View style={styles.tabContent}>
-                            <View style={styles.recommendationCard}>
-                                <Text style={styles.recoTitle}>Recommended for {selectedPet.breed}</Text>
-                                <Text style={styles.recoText}>
+                            <View style={[styles.recommendationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                <Text style={[styles.recoTitle, { color: colors.text }]}>Recommended for {selectedPet.breed}</Text>
+                                <Text style={[styles.recoText, { color: colors.textSecondary }]}>
                                     {selectedPet.breed === 'Golden Retriever'
                                         ? 'Golden Retrievers need regular exercise and joint supplements as they age. Brush their coat twice a week to prevent matting.'
                                         : 'Persian cats require daily grooming to prevent tangles and health checks for their flat faces. Keep them indoors for safety.'}
@@ -331,14 +388,14 @@ export default function Pets({ navigation, route }: any) {
                         <View style={styles.tabContent}>
                             <View style={styles.sectionHeader}>
                                 <Activity size={14} color="#FF7A3D" />
-                                <Text style={styles.sectionTitle}>VACCINATION TRACKER</Text>
+                                <Text style={[styles.sectionTitle, { color: colors.text }]}>VACCINATION TRACKER</Text>
                             </View>
                             <View style={styles.vaccineList}>
                                 {selectedPet.vaccinations.map(v => (
-                                    <View key={v.id} style={styles.vaccineCard}>
+                                    <View key={v.id} style={[styles.vaccineCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                         <View>
-                                            <Text style={styles.vaccineName}>{v.name}</Text>
-                                            <Text style={styles.vaccineDate}>{v.date}</Text>
+                                            <Text style={[styles.vaccineName, { color: colors.text }]}>{v.name}</Text>
+                                            <Text style={[styles.vaccineDate, { color: colors.textSecondary }]}>{v.date}</Text>
                                         </View>
                                         <View style={StyleSheet.flatten([styles.statusBadge, v.status === 'Completed' ? styles.statusCompleted : styles.statusUpcoming])}>
                                             <Text style={StyleSheet.flatten([styles.statusText, v.status === 'Completed' ? styles.statusTextCompleted : styles.statusTextUpcoming])}>
@@ -351,17 +408,17 @@ export default function Pets({ navigation, route }: any) {
 
                             <View style={StyleSheet.flatten([styles.sectionHeader, { marginTop: 32 }])}>
                                 <Heart size={14} color="#ef4444" />
-                                <Text style={styles.sectionTitle}>MEDICAL HISTORY</Text>
+                                <Text style={[styles.sectionTitle, { color: colors.text }]}>MEDICAL HISTORY</Text>
                             </View>
                             <View style={styles.historyTimeline}>
-                                {selectedPet.medicalHistory.length > 0 ? selectedPet.medicalHistory.map(h => (
-                                    <View key={h.id} style={styles.timelineItem}>
-                                        <View style={styles.timelineDot} />
-                                        <Text style={styles.timelineMeta}>{h.date.toUpperCase()} • {h.type.toUpperCase()}</Text>
-                                        <Text style={styles.timelineNote}>{h.note}</Text>
+                                {selectedPet.medicalHistory.length > 0 ? selectedPet.medicalHistory.map((h: any) => (
+                                    <View key={h.id} style={[styles.timelineItem, { borderLeftColor: colors.border }]}>
+                                        <View style={[styles.timelineDot, { backgroundColor: colors.borderSecondary, borderColor: colors.surface }]} />
+                                        <Text style={[styles.timelineMeta, { color: colors.textMuted }]}>{h.date.toUpperCase()} • {h.type.toUpperCase()}</Text>
+                                        <Text style={[styles.timelineNote, { color: colors.text }]}>{h.note}</Text>
                                     </View>
                                 )) : (
-                                    <Text style={styles.emptyText}>No records found.</Text>
+                                    <Text style={[styles.emptyText, { color: colors.textMuted }]}>No records found.</Text>
                                 )}
                             </View>
                         </View>
@@ -369,17 +426,17 @@ export default function Pets({ navigation, route }: any) {
 
                     {activeTab === 'docs' && (
                         <View style={styles.docsGrid}>
-                            <TouchableOpacity style={styles.uploadCard}>
-                                <View style={styles.uploadIconBox}>
-                                    <Plus size={24} color="#FF7A3D" />
+                            <TouchableOpacity style={[styles.uploadCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                <View style={[styles.uploadIconBox, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <Plus size={24} color={colors.primary} />
                                 </View>
-                                <Text style={styles.uploadText}>UPLOAD DOC</Text>
+                                <Text style={[styles.uploadText, { color: colors.textSecondary }]}>UPLOAD DOC</Text>
                             </TouchableOpacity>
-                            <View style={styles.docItem}>
+                            <View style={[styles.docItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                 <FileText size={32} color="#3b82f6" style={{ marginBottom: 12 }} />
                                 <View>
-                                    <Text style={styles.docName}>Birth_Cert.pdf</Text>
-                                    <Text style={styles.docSize}>1.2 MB</Text>
+                                    <Text style={[styles.docName, { color: colors.text }]}>Birth_Cert.pdf</Text>
+                                    <Text style={[styles.docSize, { color: colors.textSecondary }]}>1.2 MB</Text>
                                 </View>
                             </View>
                         </View>
@@ -390,15 +447,15 @@ export default function Pets({ navigation, route }: any) {
     }
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <View style={styles.container}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+            <View style={[styles.container, { backgroundColor: colors.background }]}>
                 {/* Header */}
-                <View style={StyleSheet.flatten([styles.listHeader, { paddingTop: Math.max(insets.top, 20) + 10 }])}>
+                <View style={StyleSheet.flatten([styles.listHeader, { paddingTop: Math.max(insets.top, 20) + 10, borderBottomColor: colors.border }])}>
                     <View style={styles.headerLeft}>
-                        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backIconBtn}>
-                            <ArrowLeft size={20} color="#1A1612" />
+                        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backIconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <ArrowLeft size={20} color={colors.text} />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>My Pets</Text>
+                        <Text style={[styles.headerTitle, { color: colors.text }]}>My Pets</Text>
                     </View>
                     {!isAdding && (
                         <TouchableOpacity
@@ -406,7 +463,7 @@ export default function Pets({ navigation, route }: any) {
                                 LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                                 setIsAdding(true);
                             }}
-                            style={styles.addPetBtn}
+                            style={[styles.addPetBtn, { backgroundColor: colors.primary }]}
                         >
                             <Plus size={20} color="white" />
                         </TouchableOpacity>
@@ -415,7 +472,7 @@ export default function Pets({ navigation, route }: any) {
 
                 <ScrollView contentContainerStyle={styles.mainScroll} showsVerticalScrollIndicator={false}>
                     {isAdding ? (
-                        <View style={styles.addForm}>
+                        <View style={[styles.addForm, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             <TouchableOpacity 
                                 style={styles.imageUpload}
                                 onPress={() => {
@@ -425,34 +482,36 @@ export default function Pets({ navigation, route }: any) {
                                     setFormData({ ...formData, image: newAvatar });
                                 }}
                             >
-                                <View style={styles.uploadPlaceholder}>
+                                <View style={[styles.uploadPlaceholder, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
                                     {formData.image ? (
                                         <Image source={{ uri: formData.image }} style={styles.uploadedImg} />
                                     ) : (
                                         <>
-                                            <Camera size={40} color="#cbd5e1" />
-                                            <Text style={styles.uploadLabel}>GENERATE AVATAR</Text>
+                                            <Camera size={40} color={colors.textMuted} />
+                                            <Text style={[styles.uploadLabel, { color: colors.textMuted }]}>GENERATE AVATAR</Text>
                                         </>
                                     )}
                                 </View>
                             </TouchableOpacity>
 
                             <View style={styles.formGroup}>
-                                <Text style={styles.inputLabel}>PET TYPE</Text>
+                                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PET TYPE</Text>
                                 <View style={styles.typeRow}>
                                     {PET_TYPES.map(type => (
                                         <TouchableOpacity
                                             key={type.id}
                                             style={StyleSheet.flatten([
                                                 styles.typeCard,
-                                                formData.type === type.id && styles.typeCardActive
+                                                { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+                                                formData.type === type.id && [styles.typeCardActive, { backgroundColor: colors.primary, borderColor: colors.primary }]
                                             ])}
                                             onPress={() => setFormData({ ...formData, type: type.id as any, breed: '' })}
                                         >
-                                            <type.icon size={24} color={formData.type === type.id ? 'white' : '#7A5540'} />
+                                            <type.icon size={24} color={formData.type === type.id ? 'white' : colors.textSecondary} />
                                             <Text style={StyleSheet.flatten([
                                                 styles.typeLabelText,
-                                                formData.type === type.id && styles.typeLabelTextActive
+                                                { color: colors.textSecondary },
+                                                formData.type === type.id && [styles.typeLabelTextActive, { color: 'white' }]
                                             ])}>{type.label}</Text>
                                         </TouchableOpacity>
                                     ))}
@@ -460,65 +519,68 @@ export default function Pets({ navigation, route }: any) {
                             </View>
 
                             <View style={styles.formGroup}>
-                                <Text style={styles.inputLabel}>PET NAME</Text>
+                                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PET NAME</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { backgroundColor: colors.surfaceSecondary, color: colors.text, borderColor: colors.border }]}
                                     placeholder="e.g. Bella"
                                     value={formData.name}
                                     onChangeText={(val) => setFormData({ ...formData, name: val })}
-                                    placeholderTextColor="#cbd5e1"
+                                    placeholderTextColor={colors.textMuted}
                                 />
                             </View>
 
                             <View style={styles.formGroup}>
-                                <Text style={styles.inputLabel}>GENDER</Text>
+                                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>GENDER</Text>
                                 <View style={styles.genderToggleRow}>
                                     <TouchableOpacity 
-                                        style={StyleSheet.flatten([styles.genderToggle, formData.gender === 'Male' && styles.genderToggleActiveMale])}
+                                        style={StyleSheet.flatten([styles.genderToggle, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }, formData.gender === 'Male' && [styles.genderToggleActiveMale, { borderColor: '#3B82F6', backgroundColor: isDark ? 'rgba(59,130,246,0.2)' : '#EFF6FF' }]])}
                                         onPress={() => setFormData({ ...formData, gender: 'Male' })}
                                     >
-                                        <Text style={StyleSheet.flatten([styles.genderToggleText, formData.gender === 'Male' && styles.genderToggleTextActive])}>BOY</Text>
+                                        <Text style={StyleSheet.flatten([styles.genderToggleText, { color: colors.textMuted }, formData.gender === 'Male' && [styles.genderToggleTextActive, { color: colors.text }]])}>BOY</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity 
-                                        style={StyleSheet.flatten([styles.genderToggle, formData.gender === 'Female' && styles.genderToggleActiveFemale])}
+                                        style={StyleSheet.flatten([styles.genderToggle, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }, formData.gender === 'Female' && [styles.genderToggleActiveFemale, { borderColor: '#EC4899', backgroundColor: isDark ? 'rgba(236,72,153,0.2)' : '#FDF2F8' }]])}
                                         onPress={() => setFormData({ ...formData, gender: 'Female' })}
                                     >
-                                        <Text style={StyleSheet.flatten([styles.genderToggleText, formData.gender === 'Female' && styles.genderToggleTextActive])}>GIRL</Text>
+                                        <Text style={StyleSheet.flatten([styles.genderToggleText, { color: colors.textMuted }, formData.gender === 'Female' && [styles.genderToggleTextActive, { color: colors.text }]])}>GIRL</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
 
                             <View style={styles.formGroup}>
-                                <Text style={styles.inputLabel}>BREED</Text>
+                                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>BREED</Text>
                                 <TouchableOpacity 
-                                    style={styles.selectInput}
+                                    style={[styles.selectInput, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
                                     onPress={() => setBreedModalVisible(true)}
                                 >
                                     <Text style={StyleSheet.flatten([
                                         styles.selectInputText,
-                                        !formData.breed && { color: '#cbd5e1' }
+                                        { color: colors.text },
+                                        !formData.breed && { color: colors.textMuted }
                                     ])}>
                                         {formData.breed || 'Select Breed'}
                                     </Text>
-                                    <Search size={18} color="#cbd5e1" />
+                                    <Search size={18} color={colors.textMuted} />
                                 </TouchableOpacity>
                             </View>
 
                             <View style={styles.formGroup}>
-                                <Text style={styles.inputLabel}>AGE</Text>
+                                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>AGE</Text>
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ageRow}>
                                     {AGE_RANGES.map(range => (
                                         <TouchableOpacity
                                             key={range}
                                             style={StyleSheet.flatten([
                                                 styles.ageChip,
-                                                formData.age === range && styles.ageChipActive
+                                                { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+                                                formData.age === range && [styles.ageChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }]
                                             ])}
                                             onPress={() => setFormData({ ...formData, age: range })}
                                         >
                                             <Text style={StyleSheet.flatten([
                                                 styles.ageChipText,
-                                                formData.age === range && styles.ageChipTextActive
+                                                { color: colors.textSecondary },
+                                                formData.age === range && { color: 'white' }
                                             ])}>{range}</Text>
                                         </TouchableOpacity>
                                     ))}
@@ -526,14 +588,14 @@ export default function Pets({ navigation, route }: any) {
                             </View>
 
                             <View style={styles.formGroup}>
-                                <Text style={styles.inputLabel}>WEIGHT (OPTIONAL)</Text>
+                                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>WEIGHT (OPTIONAL)</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { backgroundColor: colors.surfaceSecondary, color: colors.text, borderColor: colors.border }]}
                                     placeholder="e.g. 12"
                                     keyboardType="numeric"
                                     value={formData.weight}
                                     onChangeText={(val) => setFormData({ ...formData, weight: val })}
-                                    placeholderTextColor="#cbd5e1"
+                                    placeholderTextColor={colors.textMuted}
                                 />
                             </View>
 
@@ -544,13 +606,14 @@ export default function Pets({ navigation, route }: any) {
                                 >
                                     <View style={StyleSheet.flatten([
                                         styles.checkbox,
-                                        formData.hasInsurance && styles.checkboxActive
+                                        { backgroundColor: colors.surface, borderColor: colors.border },
+                                        formData.hasInsurance && [styles.checkboxActive, { backgroundColor: colors.primary, borderColor: colors.primary }]
                                     ])}>
                                         {formData.hasInsurance && <Check size={14} color="white" strokeWidth={4} />}
                                     </View>
                                     <View style={styles.switchLabelCol}>
-                                        <Text style={styles.switchTitle}>Insurance Coverage</Text>
-                                        <Text style={styles.switchSub}>Does your pet have health insurance?</Text>
+                                        <Text style={[styles.switchTitle, { color: colors.text }]}>Insurance Coverage</Text>
+                                        <Text style={[styles.switchSub, { color: colors.textSecondary }]}>Does your pet have health insurance?</Text>
                                     </View>
                                 </TouchableOpacity>
 
@@ -560,28 +623,29 @@ export default function Pets({ navigation, route }: any) {
                                 >
                                     <View style={StyleSheet.flatten([
                                         styles.checkbox,
-                                        formData.isAggressive && styles.checkboxActive
+                                        { backgroundColor: colors.surface, borderColor: colors.border },
+                                        formData.isAggressive && [styles.checkboxActive, { backgroundColor: colors.primary, borderColor: colors.primary }]
                                     ])}>
                                         {formData.isAggressive && <Check size={14} color="white" strokeWidth={4} />}
                                     </View>
                                     <View style={styles.switchLabelCol}>
-                                        <Text style={styles.switchTitle}>Aggressive Behavior</Text>
-                                        <Text style={styles.switchSub}>Does your pet show aggression to others?</Text>
+                                        <Text style={[styles.switchTitle, { color: colors.text }]}>Aggressive Behavior</Text>
+                                        <Text style={[styles.switchSub, { color: colors.textSecondary }]}>Does your pet show aggression to others?</Text>
                                     </View>
                                 </TouchableOpacity>
                             </View>
 
                             <View style={styles.formButtons}>
                                 <TouchableOpacity
-                                    style={styles.cancelBtn}
+                                    style={[styles.cancelBtn, { backgroundColor: colors.surfaceSecondary }]}
                                     onPress={() => {
                                         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                                         setIsAdding(false);
                                     }}
                                 >
-                                    <Text style={styles.cancelBtnText}>CANCEL</Text>
+                                    <Text style={[styles.cancelBtnText, { color: colors.textSecondary }]}>CANCEL</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+                                <TouchableOpacity style={[styles.saveBtn, { backgroundColor: colors.primary }]} onPress={handleSave}>
                                     <Text style={styles.saveBtnText}>SAVE PET</Text>
                                 </TouchableOpacity>
                             </View>
@@ -595,7 +659,7 @@ export default function Pets({ navigation, route }: any) {
                                         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                                         setSelectedPet(pet);
                                     }}
-                                    style={styles.petListItem}
+                                    style={[styles.petListItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
                                 >
                                     <View style={styles.listAvatarWrapper}>
                                         <Image source={{ uri: pet.image }} style={styles.listAvatar} />
@@ -603,38 +667,51 @@ export default function Pets({ navigation, route }: any) {
                                     </View>
                                     <View style={styles.listInfo}>
                                         <View style={styles.nameRow}>
-                                            <Text style={styles.listPetName}>{pet.name}</Text>
-                                            <View style={StyleSheet.flatten([styles.genderLabel, pet.gender === 'Male' ? styles.maleLabel : styles.femaleLabel])}>
-                                                <Text style={StyleSheet.flatten([styles.genderLabelText, pet.gender === 'Male' ? styles.maleText : styles.femaleText])}>
+                                            <Text style={[styles.listPetName, { color: colors.text }]}>{pet.name}</Text>
+                                            <View style={[
+                                                styles.genderLabel,
+                                                pet.gender === 'Male' ? styles.maleLabel : styles.femaleLabel,
+                                                { backgroundColor: pet.gender === 'Male'
+                                                    ? (isDark ? 'rgba(59,130,246,0.2)' : '#eff6ff')
+                                                    : (isDark ? 'rgba(236,72,153,0.2)' : '#fdf2f8')
+                                                }
+                                            ]}>
+                                                <Text style={[
+                                                    styles.genderLabelText,
+                                                    { color: pet.gender === 'Male'
+                                                        ? (isDark ? '#60a5fa' : '#3B82F6')
+                                                        : (isDark ? '#f472b6' : '#EC4899')
+                                                    }
+                                                ]}>
                                                     {pet.gender === 'Male' ? 'BOY' : 'GIRL'}
                                                 </Text>
                                             </View>
                                         </View>
-                                        <Text style={styles.listPetBreed}>{pet.breed}</Text>
+                                        <Text style={[styles.listPetBreed, { color: colors.textSecondary }]}>{pet.breed}</Text>
                                         <View style={styles.listMeta}>
-                                            <View style={styles.metaBadge}>
-                                                <Text style={styles.metaBadgeText}>{(pet.age || 'N/A').toString().toUpperCase()}</Text>
+                                            <View style={[styles.metaBadge, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Text style={[styles.metaBadgeText, { color: colors.textSecondary }]}>{(pet.age || 'N/A').toString().toUpperCase()}</Text>
                                             </View>
-                                            <View style={styles.metaBadge}>
-                                                <Text style={styles.metaBadgeText}>{(pet.weight || 'N/A').toString().toUpperCase()}</Text>
+                                            <View style={[styles.metaBadge, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Text style={[styles.metaBadgeText, { color: colors.textSecondary }]}>{(pet.weight || 'N/A').toString().toUpperCase()}</Text>
                                             </View>
                                         </View>
                                     </View>
-                                    <ChevronRight size={20} color="#cbd5e1" />
+                                    <ChevronRight size={20} color={colors.textMuted} />
                                 </TouchableOpacity>
                             ))}
 
                             <TouchableOpacity
-                                style={styles.addAnotherBtn}
+                                style={[styles.addAnotherBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                                 onPress={() => {
                                     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                                     setIsAdding(true);
                                 }}
                             >
-                                <View style={styles.plusBox}>
-                                    <Plus size={24} color="#7A5540" />
+                                <View style={[styles.plusBox, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <Plus size={24} color={colors.textSecondary} />
                                 </View>
-                                <Text style={styles.addAnotherText}>ADD ANOTHER PET</Text>
+                                <Text style={[styles.addAnotherText, { color: colors.textSecondary }]}>ADD ANOTHER PET</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -647,23 +724,23 @@ export default function Pets({ navigation, route }: any) {
                     transparent={true}
                     onRequestClose={() => setBreedModalVisible(false)}
                 >
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
+                    <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+                        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
                             <View style={styles.modalHeader}>
-                                <Text style={styles.modalTitle}>Select Breed</Text>
+                                <Text style={[styles.modalTitle, { color: colors.text }]}>Select Breed</Text>
                                 <TouchableOpacity onPress={() => setBreedModalVisible(false)}>
-                                    <X size={24} color="#1A1612" />
+                                    <X size={24} color={colors.text} />
                                 </TouchableOpacity>
                             </View>
                             
-                            <View style={styles.modalSearchBox}>
-                                <Search size={20} color="#cbd5e1" />
+                            <View style={[styles.modalSearchBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+                                <Search size={20} color={colors.textMuted} />
                                 <TextInput
-                                    style={styles.modalSearchInput}
+                                    style={[styles.modalSearchInput, { color: colors.text }]}
                                     placeholder="Search breeds..."
                                     value={breedSearch}
                                     onChangeText={setBreedSearch}
-                                    placeholderTextColor="#cbd5e1"
+                                    placeholderTextColor={colors.textMuted}
                                 />
                             </View>
 
@@ -672,15 +749,15 @@ export default function Pets({ navigation, route }: any) {
                                 keyExtractor={item => item}
                                 renderItem={({ item }) => (
                                     <TouchableOpacity 
-                                        style={styles.breedItem}
+                                        style={[styles.breedItem, { borderBottomColor: colors.borderSecondary }]}
                                         onPress={() => {
                                             setFormData({ ...formData, breed: item });
                                             setBreedModalVisible(false);
                                             setBreedSearch('');
                                         }}
                                     >
-                                        <Text style={styles.breedItemText}>{item}</Text>
-                                        {formData.breed === item && <Check size={18} color="#FF7A3D" />}
+                                        <Text style={[styles.breedItemText, { color: colors.text }]}>{item}</Text>
+                                        {formData.breed === item && <Check size={18} color={colors.primary} />}
                                     </TouchableOpacity>
                                 )}
                                 contentContainerStyle={{ paddingBottom: 40 }}
@@ -1431,5 +1508,23 @@ const styles = StyleSheet.create({
         color: '#B09080',
         fontStyle: 'italic',
         textAlign: 'center',
+    },
+    uploadedImg: {
+        width: 112,
+        height: 112,
+        borderRadius: 40,
+    },
+    switchGroup: {
+        marginBottom: 20,
+        gap: 16,
+    },
+    switchLabelCol: {
+        flex: 1,
+        gap: 2,
+    },
+    switchTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#1A1612',
     },
 });

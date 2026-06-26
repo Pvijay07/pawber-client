@@ -5,12 +5,9 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    
     Image,
     Dimensions,
-    Animated,
     ScrollView,
-    ActivityIndicator
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
@@ -23,12 +20,10 @@ import {
     MapPin,
     Navigation,
     Star,
-    Phone,
-    Clock,
-    ChevronRight,
     Filter
 } from 'lucide-react-native';
 import { providersApi } from '../services/providers.service';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -76,6 +71,7 @@ const PLACES = [
 ];
 
 export default function Nearby({ navigation }: any) {
+    const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
     const mapRef = useRef<any>(null);
     const [selectedCategory, setSelectedCategory] = useState('all');
@@ -87,7 +83,7 @@ export default function Nearby({ navigation }: any) {
         const fetchNearby = async () => {
             try {
                 const res = await providersApi.list({ limit: 50 });
-                if (res.success && res.data?.providers?.length > 0) {
+                if (res.success && res.data && res.data.providers && res.data.providers.length > 0) {
                     const mapped = res.data.providers.map((p: any) => {
                         let type = p.category;
                         if (p.category === 'health') type = 'vet';
@@ -129,7 +125,7 @@ export default function Nearby({ navigation }: any) {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <MapView
                 ref={mapRef}
                 provider={PROVIDER_GOOGLE}
@@ -148,15 +144,16 @@ export default function Nearby({ navigation }: any) {
                         coordinate={place.coords}
                         onPress={() => onPlacePress(place)}
                     >
-                        <View style={StyleSheet.flatten([
+                        <View style={[
                             styles.marker,
                             selectedPlace?.id === place.id && styles.markerSelected
-                        ])}>
-                            <View style={StyleSheet.flatten([
+                        ]}>
+                            <View style={[
                                 styles.markerInner,
-                                selectedPlace?.id === place.id && styles.markerInnerSelected
-                            ])}>
-                                <MapPin size={16} color={selectedPlace?.id === place.id ? 'white' : '#FF7A3D'} fill={selectedPlace?.id === place.id ? 'white' : 'transparent'} />
+                                { backgroundColor: colors.surface, borderColor: colors.primary },
+                                selectedPlace?.id === place.id && { backgroundColor: colors.primary }
+                            ]}>
+                                <MapPin size={16} color={selectedPlace?.id === place.id ? 'white' : colors.primary} fill={selectedPlace?.id === place.id ? 'white' : 'transparent'} />
                             </View>
                         </View>
                     </Marker>
@@ -165,11 +162,11 @@ export default function Nearby({ navigation }: any) {
 
             {/* Header / Search */}
             <SafeAreaView style={styles.header}>
-                <View style={styles.searchBar}>
-                    <Search size={20} color="#64748B" />
-                    <Text style={styles.searchText}>Search for vets, groomers...</Text>
+                <View style={[styles.searchBar, { backgroundColor: colors.surface }]}>
+                    <Search size={20} color={colors.textMuted} />
+                    <Text style={[styles.searchText, { color: colors.textMuted }]}>Search for vets, groomers...</Text>
                     <TouchableOpacity style={styles.filterBtn}>
-                        <Filter size={18} color="#FF7A3D" />
+                        <Filter size={18} color={colors.primary} />
                     </TouchableOpacity>
                 </View>
 
@@ -182,16 +179,18 @@ export default function Nearby({ navigation }: any) {
                     {CATEGORIES.map(cat => (
                         <TouchableOpacity
                             key={cat.id}
-                            style={StyleSheet.flatten([
+                            style={[
                                 styles.catChip,
-                                selectedCategory === cat.id && styles.catChipActive
-                            ])}
+                                { backgroundColor: colors.surface, borderColor: colors.border },
+                                selectedCategory === cat.id && { backgroundColor: colors.primary, borderColor: colors.primary }
+                            ]}
                             onPress={() => setSelectedCategory(cat.id)}
                         >
-                            <Text style={StyleSheet.flatten([
+                            <Text style={[
                                 styles.catText,
-                                selectedCategory === cat.id && styles.catTextActive
-                            ])}>{cat.name}</Text>
+                                { color: colors.textMuted },
+                                selectedCategory === cat.id && { color: 'white' }
+                            ]}>{cat.name}</Text>
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
@@ -201,25 +200,25 @@ export default function Nearby({ navigation }: any) {
             {selectedPlace && (
                 <View style={styles.placeCardContainer}>
                     <TouchableOpacity 
-                        style={styles.placeCard}
+                        style={[styles.placeCard, { backgroundColor: colors.surface, shadowColor: colors.cardShadow }]}
                         onPress={() => setSelectedPlace(null)}
                     >
                         <Image source={{ uri: selectedPlace.image }} style={styles.placeImg} />
                         <View style={styles.placeInfo}>
                             <View style={styles.placeHeader}>
-                                <Text style={styles.placeName}>{selectedPlace.name}</Text>
-                                <View style={styles.ratingBox}>
-                                    <Star size={10} color="#FFD700" fill="#FFD700" />
-                                    <Text style={styles.ratingText}>{selectedPlace.rating}</Text>
+                                <Text style={[styles.placeName, { color: colors.text }]}>{selectedPlace.name}</Text>
+                                <View style={[styles.ratingBox, { backgroundColor: colors.primaryLight }]}>
+                                    <Star size={10} color={colors.primary} fill={colors.primary} />
+                                    <Text style={[styles.ratingText, { color: colors.primary }]}>{selectedPlace.rating}</Text>
                                 </View>
                             </View>
-                            <Text style={styles.placeAddress}>{selectedPlace.address}</Text>
+                            <Text style={[styles.placeAddress, { color: colors.textSecondary }]}>{selectedPlace.address}</Text>
                             <View style={styles.placeFooter}>
                                 <View style={styles.distBox}>
-                                    <Navigation size={12} color="#64748B" />
-                                    <Text style={styles.distText}>{selectedPlace.distance}</Text>
+                                    <Navigation size={12} color={colors.textMuted} />
+                                    <Text style={[styles.distText, { color: colors.textMuted }]}>{selectedPlace.distance}</Text>
                                 </View>
-                                <TouchableOpacity style={styles.bookBtn}>
+                                <TouchableOpacity style={[styles.bookBtn, { backgroundColor: colors.primary }]}>
                                     <Text style={styles.bookBtnText}>Book Now</Text>
                                 </TouchableOpacity>
                             </View>
@@ -232,13 +231,12 @@ export default function Nearby({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: 'white' },
+    container: { flex: 1 },
     map: { ...StyleSheet.absoluteFillObject },
     header: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'white',
         marginHorizontal: 20,
         marginTop: 10,
         paddingHorizontal: 16,
@@ -250,24 +248,20 @@ const styles = StyleSheet.create({
         elevation: 5,
         gap: 12
     },
-    searchText: { flex: 1, color: '#64748B', fontSize: 14, fontWeight: '500' },
+    searchText: { flex: 1, fontSize: 14, fontWeight: '500' },
     filterBtn: { padding: 4 },
     categoryScroll: { marginTop: 12 },
     catChip: {
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 15,
-        backgroundColor: 'white',
         borderWidth: 1,
-        borderColor: '#F1F5F9',
         shadowColor: '#000',
         shadowOpacity: 0.05,
         shadowRadius: 5,
         elevation: 2
     },
-    catChipActive: { backgroundColor: '#FF7A3D', borderColor: '#FF7A3D' },
-    catText: { fontSize: 13, fontWeight: '700', color: '#64748B' },
-    catTextActive: { color: 'white' },
+    catText: { fontSize: 13, fontWeight: '700' },
     marker: {
         width: 36,
         height: 36,
@@ -278,9 +272,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: 'white',
         borderWidth: 2,
-        borderColor: '#FF7A3D',
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
@@ -289,7 +281,6 @@ const styles = StyleSheet.create({
         elevation: 3
     },
     markerSelected: { width: 44, height: 44 },
-    markerInnerSelected: { width: 40, height: 40, backgroundColor: '#FF7A3D' },
     placeCardContainer: {
         position: 'absolute',
         bottom: 100,
@@ -297,11 +288,9 @@ const styles = StyleSheet.create({
         right: 20,
     },
     placeCard: {
-        backgroundColor: 'white',
         borderRadius: 24,
         flexDirection: 'row',
         padding: 12,
-        shadowColor: '#000',
         shadowOpacity: 0.15,
         shadowRadius: 20,
         elevation: 10,
@@ -310,13 +299,13 @@ const styles = StyleSheet.create({
     placeImg: { width: 90, height: 90, borderRadius: 16 },
     placeInfo: { flex: 1, justifyContent: 'center' },
     placeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-    placeName: { fontSize: 16, fontWeight: '800', color: '#1A1A1A' },
-    ratingBox: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFBEB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-    ratingText: { fontSize: 11, fontWeight: '800', color: '#B45309' },
-    placeAddress: { fontSize: 12, color: '#64748B', fontWeight: '500', marginBottom: 8 },
+    placeName: { fontSize: 16, fontWeight: '800' },
+    ratingBox: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+    ratingText: { fontSize: 11, fontWeight: '800' },
+    placeAddress: { fontSize: 12, fontWeight: '500', marginBottom: 8 },
     placeFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     distBox: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    distText: { fontSize: 12, color: '#64748B', fontWeight: '600' },
-    bookBtn: { backgroundColor: '#FF7A3D', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+    distText: { fontSize: 12, fontWeight: '600' },
+    bookBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
     bookBtnText: { color: 'white', fontSize: 12, fontWeight: '900' }
 });

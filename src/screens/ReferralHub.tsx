@@ -88,7 +88,7 @@ export default function ReferralHub({ navigation }: any) {
                 setRedeemCode('');
                 // Fetch info again if necessary
             } else {
-                Alert.alert('Error', res.error || 'Failed to apply referral code.');
+                Alert.alert('Error', res.error?.message || 'Failed to apply referral code.');
             }
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.error || 'Failed to apply referral code.');

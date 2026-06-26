@@ -12,7 +12,8 @@ import {
     LayoutAnimation,
     Platform,
     UIManager,
-    ActivityIndicator
+    ActivityIndicator,
+    BackHandler
 } from 'react-native';
 import {
     ArrowLeft,
@@ -38,11 +39,13 @@ import {
     AlertTriangle,
 } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTheme } from '../theme/ThemeContext';
 import { walletApi } from '../services/wallet.service';
 import { servicesApi } from '../services/services.service';
 import { petsApi } from '../services/pets.service';
 import { bookingsApi } from '../services/bookings.service';
 import { paymentsApi } from '../services/payments.service';
+import { api } from '../services/api';
 import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSocket } from '../hooks/useSocket';
@@ -101,6 +104,8 @@ const radarStyles = StyleSheet.create({
 });
 
 export default function BookingFlow({ navigation, route }: BookingFlowProps) {
+    const { colors, isDark } = useTheme();
+    const styles = getStyles(colors, isDark);
     const serviceId = route?.params?.serviceId || 'grooming';
     const bookingType = route?.params?.bookingType || 'scheduled';
     const [step, setStep] = useState(1);
@@ -246,6 +251,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 provider: {
                     business_name: route.params.selectedBid?.provider_name,
                     rating: route.params.selectedBid?.rating,
+                    user_id: route.params.selectedBid?.provider_id,
                     user: {
                         avatar_url: route.params.selectedBid?.provider_image
                     }
@@ -263,6 +269,23 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
             setStep(3);
         }
     }, [route?.params]);
+
+    useEffect(() => {
+        const backAction = () => {
+            if (route?.params?.fromBidding && step === 3 && createdBooking?.id) {
+                handleBack();
+                return true;
+            }
+            return false;
+        };
+
+        const backHandler = BackHandler.addEventListener(
+            'hardwareBackPress',
+            backAction
+        );
+
+        return () => backHandler.remove();
+    }, [route?.params?.fromBidding, step, createdBooking?.id]);
 
     useEffect(() => {
         if (step === 2 && holdTimer > 0) {
@@ -395,12 +418,13 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 pet_ids: selectedPets,
                 addon_ids: selectedAddons,
                 booking_date: isWalkingService ? (startDate || new Date().toISOString().split('T')[0]) : (selectedDate || new Date().toISOString().split('T')[0]),
+                booking_time: selectedTime || undefined,
                 address: addrObj?.address,
                 latitude: addrObj?.latitude,
                 longitude: addrObj?.longitude,
                 notes: instructions,
-                coupon_code: couponCode,
-                points_to_use: usePoints ? Math.min(pointsBalance, calculateDiscountedSubtotal()) : 0,
+                coupon_code: '',
+                points_to_use: 0,
                 frequency: isWalkingService ? frequency : 'onetime',
                 specific_days: isWalkingService && frequency === 'weekly' ? specificDays : undefined,
                 start_date: isWalkingService ? startDate : undefined,
@@ -474,10 +498,22 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         };
     }, [createdBooking, on]);
 
+    const calculateFinalPayable = () => {
+        if (!createdBooking) return 0;
+        let total = createdBooking.total_amount || 0;
+        
+        if (couponCode === 'SAVE20') total = Math.max(0, total * 0.8);
+        else if (couponCode === 'FIRST50') total = Math.max(0, total - 50);
+        
+        if (usePoints) total = Math.max(0, total - pointsBalance);
+        
+        return total;
+    };
+
     const handlePay = async () => {
         setIsSubmitting(true);
         try {
-            const amount = createdBooking?.total_amount;
+            const amount = calculateFinalPayable();
             if (!amount) {
                 alert('Invalid booking amount');
                 setIsSubmitting(false);
@@ -522,6 +558,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                         const orderData = orderRes.data.order;
                         
                         initializeRazorpayPayment({
+                            key: orderData.key_id,
                             amount: orderData.amount,
                             currency: orderData.currency,
                             order_id: orderData.order_id,
@@ -588,11 +625,57 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         }
     };
 
-    const handleBack = () => {
+    const handleBack = async () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        if (route?.params?.fromBidding && createdBooking?.id) {
+            try {
+                setIsSubmitting(true);
+                const res = await bookingsApi.deselectBid(createdBooking.id);
+                if (res.success) {
+                    navigation.goBack();
+                } else {
+                    alert(res.error?.message || 'Failed to revert bid selection');
+                }
+            } catch (err: any) {
+                alert(err.message || 'An error occurred');
+            } finally {
+                setIsSubmitting(false);
+            }
+            return;
+        }
+
         if (step > 1) setStep(step - 1);
         else navigation.goBack();
     };
+
+    const handleChatWithProvider = async () => {
+        if (!createdBooking?.id || !createdBooking?.provider?.user_id) {
+            alert('Provider information not loaded yet');
+            return;
+        }
+        try {
+            setIsSubmitting(true);
+            const providerUserId = createdBooking.provider.user_id;
+            const res = await api.post<any>('/chat/threads', {
+                booking_id: createdBooking.id,
+                provider_user_id: providerUserId
+            });
+            if (res.success && res.data?.thread?.id) {
+                navigation.navigate('Chat', {
+                    threadId: res.data.thread.id,
+                    bookingId: createdBooking.id,
+                    providerUserId: providerUserId
+                });
+            } else {
+                alert(res.error?.message || 'Failed to open chat thread');
+            }
+        } catch (error: any) {
+            alert(error.message || 'Failed to initiate chat');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
 
     const isNextDisabled = () => {
         if (step === 1) {
@@ -1229,115 +1312,11 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                                 <Text style={styles.summaryVal}>₹{(calculateDiscountedSubtotal() * 0.18).toFixed(2)}</Text>
                                             </View>
                                         </View>
-
-                                        <TextInput
-                                            placeholder="APPLY COUPON (SAVE20)"
-                                            style={styles.couponInput}
-                                            value={couponCode}
-                                            onChangeText={setCouponCode}
-                                        />
-
-                                        {pointsBalance > 0 && (
-                                            <TouchableOpacity
-                                                style={StyleSheet.flatten([styles.pointsRedeem, usePoints && styles.pointsRedeemActive])}
-                                                onPress={() => setUsePoints(!usePoints)}
-                                            >
-                                                <View style={styles.pointsInfo}>
-                                                    <Star size={20} color={usePoints ? 'white' : '#1D9E86'} fill={usePoints ? 'white' : '#1D9E86'} />
-                                                    <View>
-                                                        <Text style={StyleSheet.flatten([styles.pointsTitle, usePoints && { color: 'white' }])}>Use Loyalty Points</Text>
-                                                        <Text style={StyleSheet.flatten([styles.pointsSubtitle, usePoints && { color: 'rgba(255,255,255,0.8)' }])}>Balance: {pointsBalance} pts (₹1 = 1 pt)</Text>
-                                                    </View>
-                                                </View>
-                                                <View style={StyleSheet.flatten([styles.redeemToggle, usePoints && styles.redeemToggleActive])}>
-                                                    {usePoints && <Check size={12} color="#FF7A3D" />}
-                                            </View>
-                                        </TouchableOpacity>
-                                    )}
-
-                                    <View style={styles.paymentMethods}>
-                                        {[
-                                            { id: 'wallet', icon: Wallet, label: 'WALLET' },
-                                            { id: 'gateway', icon: CreditCard, label: 'PAY' },
-                                            { id: 'split', icon: Repeat, label: 'SPLIT' }
-                                        ].map(mode => (
-                                            <TouchableOpacity
-                                                key={mode.id}
-                                                onPress={() => setPaymentMode(mode.id as any)}
-                                                style={StyleSheet.flatten([styles.paymentBtn, paymentMode === mode.id && styles.paymentBtnActive])}
-                                            >
-                                                <mode.icon size={20} color={paymentMode === mode.id ? "#FF7A3D" : "#7A5540"} />
-                                                <Text style={StyleSheet.flatten([styles.paymentLabelText, paymentMode === mode.id && styles.textPrimary])}>{mode.label}</Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
-                                    
-                                    {paymentMode === 'split' && (
-                                        <View style={styles.splitPaymentContainer}>
-                                            <Text style={styles.splitTitle}>SPLIT AMOUNT SETTINGS</Text>
-                                            <Text style={styles.splitSub}>Available Wallet Balance: <Text style={{ fontWeight: 'bold', color: '#1D9E86' }}>₹{walletBalance.toFixed(2)}</Text></Text>
-                                            
-                                            <View style={styles.splitRow}>
-                                                <View style={styles.splitCol}>
-                                                    <Text style={styles.splitInputLabel}>Wallet Portion</Text>
-                                                    <View style={styles.splitInputWrapper}>
-                                                        <Text style={styles.splitPrefix}>₹</Text>
-                                                        <TextInput
-                                                            keyboardType="numeric"
-                                                            value={String(splitWalletPortion)}
-                                                            onChangeText={(val) => {
-                                                                const amt = parseFloat(val) || 0;
-                                                                const maxRedeem = Math.min(walletBalance, calculateTotal());
-                                                                setSplitWalletPortion(Math.max(0, Math.min(amt, maxRedeem)));
-                                                            }}
-                                                            style={styles.splitInput}
-                                                        />
-                                                    </View>
-                                                </View>
-                                                <View style={styles.splitCol}>
-                                                    <Text style={styles.splitInputLabel}>Card/Gateway Portion</Text>
-                                                    <View style={styles.splitInputWrapper}>
-                                                        <Text style={styles.splitPrefix}>₹</Text>
-                                                        <Text style={styles.splitPortionVal}>
-                                                            {(calculateTotal() - splitWalletPortion).toFixed(2)}
-                                                        </Text>
-                                                    </View>
-                                                </View>
-                                            </View>
-
-                                            <View style={styles.splitChips}>
-                                                <TouchableOpacity 
-                                                    style={styles.splitChip} 
-                                                    onPress={() => {
-                                                        const half = Math.round((calculateTotal() / 2) * 100) / 100;
-                                                        setSplitWalletPortion(Math.min(walletBalance, half));
-                                                    }}
-                                                >
-                                                    <Text style={styles.splitChipText}>50/50 Split</Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity 
-                                                    style={styles.splitChip} 
-                                                    onPress={() => {
-                                                        const max = Math.min(walletBalance, calculateTotal());
-                                                        setSplitWalletPortion(max);
-                                                    }}
-                                                >
-                                                    <Text style={styles.splitChipText}>Use Max Wallet</Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity 
-                                                    style={styles.splitChip} 
-                                                    onPress={() => setSplitWalletPortion(0)}
-                                                >
-                                                    <Text style={styles.splitChipText}>Reset</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        </View>
-                                    )}
                                 </View>
 
                                 <View style={styles.totalBanner}>
                                     <View>
-                                        <Text style={styles.totalLabel}>TOTAL PAYABLE</Text>
+                                        <Text style={styles.totalLabel}>ESTIMATED TOTAL</Text>
                                         <Text style={styles.totalValue}>₹{calculateTotal().toFixed(2)}</Text>
                                     </View>
                                     <View style={{ alignItems: 'flex-end' }}>
@@ -1385,17 +1364,145 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                                 <Star size={14} color="#1D9E86" fill="#1D9E86" />
                                                 <Text style={styles.ratingText}>{createdBooking?.provider?.rating || '4.9'}</Text>
                                             </View>
+
+                                            {createdBooking?.provider?.user_id && (
+                                                <TouchableOpacity
+                                                    onPress={handleChatWithProvider}
+                                                    style={{
+                                                        flexDirection: 'row',
+                                                        alignItems: 'center',
+                                                        gap: 8,
+                                                        marginTop: 16,
+                                                        paddingVertical: 10,
+                                                        paddingHorizontal: 20,
+                                                        borderRadius: 16,
+                                                        backgroundColor: colors.surfaceSecondary,
+                                                        borderWidth: 1.5,
+                                                        borderColor: colors.border,
+                                                    }}
+                                                >
+                                                    <MessageSquare size={16} color={colors.text} />
+                                                    <Text style={{ fontSize: 12, fontWeight: '900', color: colors.text, letterSpacing: 0.5 }}>CHAT WITH PROVIDER</Text>
+                                                </TouchableOpacity>
+                                            )}
                                         </View>
                                         <Text style={styles.successSubtitle}>
                                             Please confirm payment to finalize the booking. Your expert is ready to start!
                                         </Text>
+
+                                        <View style={{ width: '100%', marginTop: 24, alignSelf: 'stretch', paddingHorizontal: 24 }}>
+                                            <TextInput
+                                                placeholder="APPLY COUPON (SAVE20)"
+                                                style={styles.couponInput}
+                                                value={couponCode}
+                                                onChangeText={setCouponCode}
+                                            />
+
+                                            {pointsBalance > 0 && (
+                                                <TouchableOpacity
+                                                    style={StyleSheet.flatten([styles.pointsRedeem, usePoints && styles.pointsRedeemActive])}
+                                                    onPress={() => setUsePoints(!usePoints)}
+                                                >
+                                                    <View style={styles.pointsInfo}>
+                                                        <Star size={20} color={usePoints ? 'white' : '#1D9E86'} fill={usePoints ? 'white' : '#1D9E86'} />
+                                                        <View>
+                                                            <Text style={StyleSheet.flatten([styles.pointsTitle, usePoints && { color: 'white' }])}>Use Loyalty Points</Text>
+                                                            <Text style={StyleSheet.flatten([styles.pointsSubtitle, usePoints && { color: 'rgba(255,255,255,0.8)' }])}>Balance: {pointsBalance} pts (₹1 = 1 pt)</Text>
+                                                        </View>
+                                                    </View>
+                                                    <View style={StyleSheet.flatten([styles.redeemToggle, usePoints && styles.redeemToggleActive])}>
+                                                        {usePoints && <Check size={12} color="#FF7A3D" />}
+                                                    </View>
+                                                </TouchableOpacity>
+                                            )}
+
+                                            <View style={styles.paymentMethods}>
+                                                {[
+                                                    { id: 'wallet', icon: Wallet, label: 'WALLET' },
+                                                    { id: 'gateway', icon: CreditCard, label: 'PAY' },
+                                                    { id: 'split', icon: Repeat, label: 'SPLIT' }
+                                                ].map(mode => (
+                                                    <TouchableOpacity
+                                                        key={mode.id}
+                                                        onPress={() => setPaymentMode(mode.id as any)}
+                                                        style={StyleSheet.flatten([styles.paymentBtn, paymentMode === mode.id && styles.paymentBtnActive])}
+                                                    >
+                                                        <mode.icon size={20} color={paymentMode === mode.id ? "#FF7A3D" : "#7A5540"} />
+                                                        <Text style={StyleSheet.flatten([styles.paymentLabelText, paymentMode === mode.id && styles.textPrimary])}>{mode.label}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                            
+                                            {paymentMode === 'split' && (
+                                                <View style={styles.splitPaymentContainer}>
+                                                    <Text style={styles.splitTitle}>SPLIT AMOUNT SETTINGS</Text>
+                                                    <Text style={styles.splitSub}>Available Wallet Balance: <Text style={{ fontWeight: 'bold', color: '#1D9E86' }}>₹{walletBalance.toFixed(2)}</Text></Text>
+                                                    
+                                                    <View style={styles.splitRow}>
+                                                        <View style={styles.splitCol}>
+                                                            <Text style={styles.splitInputLabel}>Wallet Portion</Text>
+                                                            <View style={styles.splitInputWrapper}>
+                                                                <Text style={styles.splitPrefix}>₹</Text>
+                                                                <TextInput
+                                                                    keyboardType="numeric"
+                                                                    value={String(splitWalletPortion)}
+                                                                    onChangeText={(val) => {
+                                                                        const amt = parseFloat(val) || 0;
+                                                                        const maxRedeem = Math.min(walletBalance, calculateFinalPayable());
+                                                                        setSplitWalletPortion(Math.max(0, Math.min(amt, maxRedeem)));
+                                                                    }}
+                                                                    style={styles.splitInput}
+                                                                />
+                                                            </View>
+                                                        </View>
+                                                        <View style={styles.splitCol}>
+                                                            <Text style={styles.splitInputLabel}>Card/Gateway Portion</Text>
+                                                            <View style={styles.splitInputWrapper}>
+                                                                <Text style={styles.splitPrefix}>₹</Text>
+                                                                <Text style={styles.splitPortionVal}>
+                                                                    {Math.max(0, calculateFinalPayable() - splitWalletPortion).toFixed(2)}
+                                                                </Text>
+                                                            </View>
+                                                        </View>
+                                                    </View>
+
+                                                    <View style={styles.splitChips}>
+                                                        <TouchableOpacity 
+                                                            style={styles.splitChip} 
+                                                            onPress={() => {
+                                                                const half = Math.round((calculateFinalPayable() / 2) * 100) / 100;
+                                                                setSplitWalletPortion(Math.min(walletBalance, half));
+                                                            }}
+                                                        >
+                                                            <Text style={styles.splitChipText}>50/50 Split</Text>
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity 
+                                                            style={styles.splitChip} 
+                                                            onPress={() => {
+                                                                const max = Math.min(walletBalance, calculateFinalPayable());
+                                                                setSplitWalletPortion(max);
+                                                            }}
+                                                        >
+                                                            <Text style={styles.splitChipText}>Use Max Wallet</Text>
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity 
+                                                            style={styles.splitChip} 
+                                                            onPress={() => setSplitWalletPortion(0)}
+                                                        >
+                                                            <Text style={styles.splitChipText}>Reset</Text>
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                </View>
+                                            )}
+                                        </View>
+
                                         <TouchableOpacity
-                                            style={StyleSheet.flatten([styles.continueBtn, { width: '100%', marginTop: 30 }])}
+                                            style={StyleSheet.flatten([styles.continueBtn, { width: '90%', marginTop: 30 }])}
                                             onPress={handlePay}
                                             disabled={isSubmitting}
                                         >
                                             <Text style={styles.continueBtnText}>
-                                                {isSubmitting ? 'PROCESSING...' : `CONFIRM & PAY ₹${createdBooking?.total_amount}`}
+                                                {isSubmitting ? 'PROCESSING...' : `CONFIRM & PAY ₹${calculateFinalPayable().toFixed(2)}`}
                                             </Text>
                                         </TouchableOpacity>
                                     </View>
@@ -1458,7 +1565,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                             ) : (
                                 <>
                                     <Text style={styles.continueBtnText}>
-                                        {step === 2 ? `PAY ₹${calculateTotal().toFixed(0)}` : 'CONTINUE'}
+                                        {step === 2 ? 'SUBMIT REQUEST' : 'CONTINUE'}
                                     </Text>
                                     <ChevronRight size={18} color="white" />
                                 </>
@@ -1471,17 +1578,17 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     );
 }
 
-const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: '#FFF9F5' },
-    container: { flex: 1, backgroundColor: '#FFF9F5' },
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: colors.background },
+    container: { flex: 1, backgroundColor: colors.background },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20, paddingBottom: 15 },
-    backBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#F5E6D8', alignItems: 'center', justifyContent: 'center' },
+    backBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: colors.surfaceSecondary, alignItems: 'center', justifyContent: 'center' },
     headerTitles: { alignItems: 'center' },
-    headerTitle: { fontSize: 13, fontWeight: '900', color: '#B09080', letterSpacing: 2 },
-    stepIndicator: { fontSize: 18, fontWeight: '900', color: '#1A1612', marginTop: 2 },
+    headerTitle: { fontSize: 13, fontWeight: '900', color: colors.textMuted, letterSpacing: 2 },
+    stepIndicator: { fontSize: 18, fontWeight: '900', color: colors.text, marginTop: 2 },
     infoBtn: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 
-    progressTrack: { height: 6, backgroundColor: '#F5E6D8', marginHorizontal: 24, borderRadius: 3, overflow: 'hidden', marginBottom: 20 },
+    progressTrack: { height: 6, backgroundColor: colors.border, marginHorizontal: 24, borderRadius: 3, overflow: 'hidden', marginBottom: 20 },
     progressBar: { height: '100%', borderRadius: 3 },
 
     scrollContainer: { flex: 1 },
@@ -1489,175 +1596,175 @@ const styles = StyleSheet.create({
     scrollContent: { paddingBottom: 120 },
     stepView: { paddingHorizontal: 24, paddingTop: 10 },
     textGroup: { marginBottom: 32 },
-    title: { fontSize: 32, fontWeight: '900', color: '#1A1612', letterSpacing: -1 },
-    italic: { color: '#FF7A3D', fontStyle: 'italic' },
-    subtitle: { fontSize: 15, color: '#7A5540', fontWeight: '600', marginTop: 8 },
+    title: { fontSize: 32, fontWeight: '900', color: colors.text, letterSpacing: -1 },
+    italic: { color: colors.primary, fontStyle: 'italic' },
+    subtitle: { fontSize: 15, color: colors.textSecondary, fontWeight: '600', marginTop: 8 },
 
     sectionBlock: { marginBottom: 36 },
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    sectionTitle: { fontSize: 12, fontWeight: '900', color: '#B09080', letterSpacing: 1.5 },
-    selectionCount: { fontSize: 12, fontWeight: '800', color: '#FF7A3D' },
+    sectionTitle: { fontSize: 12, fontWeight: '900', color: colors.textMuted, letterSpacing: 1.5 },
+    selectionCount: { fontSize: 12, fontWeight: '800', color: colors.primary },
 
     petScroll: { marginHorizontal: -24, paddingLeft: 24 },
-    petCard: { width: 90, alignItems: 'center', marginRight: 16, paddingVertical: 12, borderRadius: 24, backgroundColor: 'white', borderWidth: 2, borderColor: 'transparent' },
-    petCardActive: { borderColor: '#FF7A3D', shadowColor: '#FF7A3D', shadowOpacity: 0.1, shadowRadius: 10, elevation: 2 },
-    petImageWrapper: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#F5E6D8', padding: 3, marginBottom: 8, borderWidth: 1, borderColor: '#F5E6D8' },
+    petCard: { width: 90, alignItems: 'center', marginRight: 16, paddingVertical: 12, borderRadius: 24, backgroundColor: colors.surface, borderWidth: 2, borderColor: 'transparent' },
+    petCardActive: { borderColor: colors.primary, shadowColor: colors.primary, shadowOpacity: 0.1, shadowRadius: 10, elevation: 2 },
+    petImageWrapper: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.surfaceSecondary, padding: 3, marginBottom: 8, borderWidth: 1, borderColor: colors.border },
     petImage: { width: '100%', height: '100%', borderRadius: 32 },
-    petName: { fontSize: 12, fontWeight: '800', color: '#7A5540' },
-    petNameActive: { color: '#FF7A3D' },
-    petCheckBadge: { position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, backgroundColor: '#FF7A3D', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' },
-    petCardAdd: { width: 90, height: 110, alignItems: 'center', justifyContent: 'center', marginRight: 16, borderRadius: 24, backgroundColor: '#FFF3EC', borderStyle: 'dashed', borderWidth: 2, borderColor: '#FFB088' },
-    addIconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-    addText: { fontSize: 9, fontWeight: '900', color: '#FF7A3D' },
+    petName: { fontSize: 12, fontWeight: '800', color: colors.textSecondary },
+    petNameActive: { color: colors.primary },
+    petCheckBadge: { position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface },
+    petCardAdd: { width: 90, height: 110, alignItems: 'center', justifyContent: 'center', marginRight: 16, borderRadius: 24, backgroundColor: colors.primaryLight, borderStyle: 'dashed', borderWidth: 2, borderColor: colors.primary },
+    addIconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+    addText: { fontSize: 9, fontWeight: '900', color: colors.primary },
 
     locationTabs: { flexDirection: 'row', gap: 12, marginTop: 12 },
-    locationTab: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F5E6D8', alignItems: 'center', justifyContent: 'center' },
-    locationTabActive: { backgroundColor: '#1A1612' },
-    locationTabText: { fontSize: 11, fontWeight: '900', color: '#7A5540', letterSpacing: 1 },
-    locationTabTextActive: { color: 'white' },
+    locationTab: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: colors.surfaceSecondary, alignItems: 'center', justifyContent: 'center' },
+    locationTabActive: { backgroundColor: colors.text },
+    locationTabText: { fontSize: 11, fontWeight: '900', color: colors.textSecondary, letterSpacing: 1 },
+    locationTabTextActive: { color: colors.background },
 
     addressList: { gap: 12, marginTop: 4 },
-    addressCard: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: 'white', borderRadius: 20, borderWidth: 2, borderColor: 'transparent' },
-    addressCardActive: { borderColor: '#1D9E86', shadowColor: '#1D9E86', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
-    addrIconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
-    addrIconCircleActive: { backgroundColor: '#1D9E86' },
+    addressCard: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 2, borderColor: 'transparent' },
+    addressCardActive: { borderColor: colors.accent, shadowColor: colors.accent, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+    addrIconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+    addrIconCircleActive: { backgroundColor: colors.accent },
     addrInfo: { flex: 1 },
-    addrLabel: { fontSize: 15, fontWeight: '900', color: '#1A1612', marginBottom: 2 },
-    addrText: { fontSize: 12, fontWeight: '600', color: '#94A3B8' },
-    selectionCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
-    selectionCircleActive: { backgroundColor: '#1D9E86', borderColor: '#1D9E86' },
-    addressAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 20, backgroundColor: '#FFF3EC', borderStyle: 'dashed', borderWidth: 2, borderColor: '#FFB088', marginTop: 4 },
-    addressAddBtnText: { fontSize: 12, fontWeight: '900', color: '#FF7A3D', letterSpacing: 0.5 },
+    addrLabel: { fontSize: 15, fontWeight: '900', color: colors.text, marginBottom: 2 },
+    addrText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+    selectionCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+    selectionCircleActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+    addressAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 20, backgroundColor: colors.primaryLight, borderStyle: 'dashed', borderWidth: 2, borderColor: colors.primary, marginTop: 4 },
+    addressAddBtnText: { fontSize: 12, fontWeight: '900', color: colors.primary, letterSpacing: 0.5 },
 
     packageList: { gap: 12, marginTop: 4 },
-    planCard: { padding: 20, backgroundColor: 'white', borderRadius: 24, borderWidth: 2, borderColor: 'transparent' },
-    planCardActive: { borderColor: '#1D9E86', backgroundColor: '#FAFFFE' },
+    planCard: { padding: 20, backgroundColor: colors.surface, borderRadius: 24, borderWidth: 2, borderColor: 'transparent' },
+    planCardActive: { borderColor: colors.accent, backgroundColor: colors.accentLight },
     planHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     planTitleBox: { flex: 1, marginRight: 16 },
-    planName: { fontSize: 17, fontWeight: '900', color: '#1A1612', marginBottom: 4 },
-    planFeatures: { fontSize: 12, color: '#94A3B8', fontWeight: '600' },
-    planPrice: { fontSize: 22, fontWeight: '900', color: '#1A1612' },
-    planSelectionIndicator: { position: 'absolute', top: -10, right: 20, width: 24, height: 24, borderRadius: 12, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' },
-    planSelectionIndicatorActive: { backgroundColor: '#1D9E86' },
+    planName: { fontSize: 17, fontWeight: '900', color: colors.text, marginBottom: 4 },
+    planFeatures: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
+    planPrice: { fontSize: 22, fontWeight: '900', color: colors.text },
+    planSelectionIndicator: { position: 'absolute', top: -10, right: 20, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface },
+    planSelectionIndicatorActive: { backgroundColor: colors.accent },
 
-    footer: { position: 'absolute', bottom: 0, width: '100%', paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, paddingTop: 16, backgroundColor: 'rgba(255,255,255,0.9)' },
-    continueBtn: { height: 64, borderRadius: 24, backgroundColor: '#1D9E86', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, shadowColor: '#1D9E86', shadowOpacity: 0.3, shadowRadius: 15, elevation: 8 },
-    continueBtnDisabled: { backgroundColor: '#cbd5e1', shadowOpacity: 0 },
+    footer: { position: 'absolute', bottom: 0, width: '100%', paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, paddingTop: 16, backgroundColor: colors.surface },
+    continueBtn: { height: 64, borderRadius: 24, backgroundColor: colors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, shadowColor: colors.accent, shadowOpacity: 0.3, shadowRadius: 15, elevation: 8 },
+    continueBtnDisabled: { backgroundColor: colors.border, shadowOpacity: 0 },
     continueBtnText: { color: 'white', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
 
     frequencyTabs: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-    freqTab: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F5E6D8', alignItems: 'center' },
-    freqTabActive: { backgroundColor: '#1A1612' },
-    freqTabText: { fontSize: 11, fontWeight: '900', color: '#7A5540' },
-    freqTabTextActive: { color: 'white' },
+    freqTab: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: colors.surfaceSecondary, alignItems: 'center' },
+    freqTabActive: { backgroundColor: colors.text },
+    freqTabText: { fontSize: 11, fontWeight: '900', color: colors.textSecondary },
+    freqTabTextActive: { color: colors.background },
     dateList: { marginHorizontal: -24, paddingLeft: 24, marginBottom: 24 },
-    dateCard: { width: 70, height: 90, borderRadius: 20, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginRight: 12, borderWidth: 2, borderColor: 'transparent' },
-    dateCardActive: { backgroundColor: '#1A1612', borderColor: '#1A1612' },
-    dateMonth: { fontSize: 10, fontWeight: '900', color: '#B09080' },
-    dateDay: { fontSize: 24, fontWeight: '900', color: '#1A1612', marginTop: 2 },
+    dateCard: { width: 70, height: 90, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: 12, borderWidth: 2, borderColor: 'transparent' },
+    dateCardActive: { backgroundColor: colors.text, borderColor: colors.text },
+    dateMonth: { fontSize: 10, fontWeight: '900', color: colors.textMuted },
+    dateDay: { fontSize: 24, fontWeight: '900', color: colors.text, marginTop: 2 },
     timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 30 },
-    timeBtn: { width: (width - 68) / 3, paddingVertical: 14, borderRadius: 16, backgroundColor: 'white', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
-    timeBtnActive: { backgroundColor: '#1A1612', borderColor: '#1A1612' },
+    timeBtn: { width: (width - 68) / 3, paddingVertical: 14, borderRadius: 16, backgroundColor: colors.surface, alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
+    timeBtnActive: { backgroundColor: colors.text, borderColor: colors.text },
     timeBtnDisabled: { opacity: 0.4 },
-    timeText: { fontSize: 12, fontWeight: '800', color: '#1A1612' },
-    timerBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#E0F5F0', borderRadius: 20 },
+    timeText: { fontSize: 12, fontWeight: '800', color: colors.text },
+    timerBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: colors.accentLight, borderRadius: 20 },
     timerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    timerLabel: { fontSize: 13, fontWeight: '800', color: '#1D9E86' },
-    timerValue: { fontSize: 18, fontWeight: '900', color: '#1D9E86' },
+    timerLabel: { fontSize: 13, fontWeight: '800', color: colors.accent },
+    timerValue: { fontSize: 18, fontWeight: '900', color: colors.accent },
     addonList: { gap: 12, marginBottom: 24 },
-    addonCard: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: 'white', borderRadius: 20, borderWidth: 2, borderColor: 'transparent' },
-    addonCardActive: { borderColor: '#1D9E86', backgroundColor: '#FAFFFE' },
+    addonCard: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 2, borderColor: 'transparent' },
+    addonCardActive: { borderColor: colors.accent, backgroundColor: colors.accentLight },
     addonInfo: { flex: 1 },
-    addonTitle: { fontSize: 15, fontWeight: '800', color: '#1A1612', marginBottom: 4 },
-    addonMeta: { fontSize: 12, fontWeight: '600', color: '#94A3B8' },
-    instructionBox: { flexDirection: 'row', padding: 16, backgroundColor: 'white', borderRadius: 20, borderWidth: 2, borderColor: '#F5E6D8' },
+    addonTitle: { fontSize: 15, fontWeight: '800', color: colors.text, marginBottom: 4 },
+    addonMeta: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+    instructionBox: { flexDirection: 'row', padding: 16, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 2, borderColor: colors.border },
     instructionIcon: { marginTop: 4, marginRight: 12 },
-    instructionInput: { flex: 1, fontSize: 14, color: '#1A1612', fontWeight: '500', height: 80, textAlignVertical: 'top' },
-    summaryCard: { padding: 24, backgroundColor: 'white', borderRadius: 28, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 20, elevation: 4 },
+    instructionInput: { flex: 1, fontSize: 14, color: colors.text, fontWeight: '500', height: 80, textAlignVertical: 'top' },
+    summaryCard: { padding: 24, backgroundColor: colors.surface, borderRadius: 28, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 20, elevation: 4 },
     summaryHeader: { flexDirection: 'row', gap: 16, marginBottom: 24 },
-    summaryTitle: { fontSize: 17, fontWeight: '900', color: '#1A1612' },
-    summaryMeta: { fontSize: 13, color: '#B09080', fontWeight: '700', marginTop: 2 },
-    summaryDetails: { borderTopWidth: 1.5, borderTopColor: '#F5E6D8', paddingTop: 20, gap: 12, marginBottom: 20 },
+    summaryTitle: { fontSize: 17, fontWeight: '900', color: colors.text },
+    summaryMeta: { fontSize: 13, color: colors.textMuted, fontWeight: '700', marginTop: 2 },
+    summaryDetails: { borderTopWidth: 1.5, borderTopColor: colors.border, paddingTop: 20, gap: 12, marginBottom: 20 },
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
-    summaryLabel: { fontSize: 14, color: '#7A5540', fontWeight: '600' },
-    summaryVal: { fontSize: 14, color: '#1A1612', fontWeight: '800' },
-    couponInput: { height: 54, backgroundColor: '#F8FAFC', borderRadius: 16, paddingHorizontal: 20, fontSize: 12, fontWeight: '900', color: '#1A1612', letterSpacing: 1, marginBottom: 20, borderWidth: 1.5, borderColor: '#E2E8F0' },
-    pointsRedeem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#E0F5F0', borderRadius: 20, marginBottom: 24 },
-    pointsRedeemActive: { backgroundColor: '#1D9E86' },
+    summaryLabel: { fontSize: 14, color: colors.textSecondary, fontWeight: '600' },
+    summaryVal: { fontSize: 14, color: colors.text, fontWeight: '800' },
+    couponInput: { height: 54, backgroundColor: colors.background, borderRadius: 16, paddingHorizontal: 20, fontSize: 12, fontWeight: '900', color: colors.text, letterSpacing: 1, marginBottom: 20, borderWidth: 1.5, borderColor: colors.border },
+    pointsRedeem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: colors.accentLight, borderRadius: 20, marginBottom: 24 },
+    pointsRedeemActive: { backgroundColor: colors.accent },
     pointsInfo: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-    pointsTitle: { fontSize: 14, fontWeight: '900', color: '#1D9E86' },
-    pointsSubtitle: { fontSize: 11, fontWeight: '700', color: 'rgba(29, 158, 134, 0.7)' },
+    pointsTitle: { fontSize: 14, fontWeight: '900', color: colors.accent },
+    pointsSubtitle: { fontSize: 11, fontWeight: '700', color: colors.accent },
     redeemToggle: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' },
     redeemToggleActive: { backgroundColor: 'white' },
     paymentMethods: { flexDirection: 'row', gap: 10 },
-    paymentBtn: { flex: 1, height: 70, backgroundColor: '#F8FAFC', borderRadius: 18, alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: '#E2E8F0' },
-    paymentBtnActive: { backgroundColor: 'white', borderColor: '#FF7A3D', shadowColor: '#FF7A3D', shadowOpacity: 0.1, shadowRadius: 10, elevation: 2 },
-    paymentLabelText: { fontSize: 10, fontWeight: '900', color: '#7A5540', letterSpacing: 0.5 },
+    paymentBtn: { flex: 1, height: 70, backgroundColor: colors.background, borderRadius: 18, alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: colors.border },
+    paymentBtnActive: { backgroundColor: colors.surface, borderColor: colors.primary, shadowColor: colors.primary, shadowOpacity: 0.1, shadowRadius: 10, elevation: 2 },
+    paymentLabelText: { fontSize: 10, fontWeight: '900', color: colors.textSecondary, letterSpacing: 0.5 },
     totalBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4, marginTop: 32 },
-    totalLabel: { fontSize: 10, fontWeight: '900', color: '#B09080', letterSpacing: 1.5 },
-    totalValue: { fontSize: 32, fontWeight: '900', color: '#1A1612' },
-    gstLabel: { fontSize: 9, fontWeight: '900', color: '#B09080' },
-    gstStatus: { fontSize: 11, fontWeight: '900', color: '#1D9E86', marginTop: 2 },
+    totalLabel: { fontSize: 10, fontWeight: '900', color: colors.textMuted, letterSpacing: 1.5 },
+    totalValue: { fontSize: 32, fontWeight: '900', color: colors.text },
+    gstLabel: { fontSize: 9, fontWeight: '900', color: colors.textMuted },
+    gstStatus: { fontSize: 11, fontWeight: '900', color: colors.accent, marginTop: 2 },
     successView: { alignItems: 'center', paddingTop: 40 },
-    successIconOuter: { width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255, 122, 61, 0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 32 },
-    successIconInner: { width: 100, height: 100, borderRadius: 50, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', shadowColor: '#FF7A3D', shadowOpacity: 0.2, shadowRadius: 20, elevation: 10 },
-    successTitle: { fontSize: 26, fontWeight: '900', color: '#1A1612', textAlign: 'center' },
-    successSubtitle: { fontSize: 15, color: '#7A5540', textAlign: 'center', lineHeight: 24, marginTop: 12, paddingHorizontal: 20 },
+    successIconOuter: { width: 140, height: 140, borderRadius: 70, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginBottom: 32 },
+    successIconInner: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: 0.2, shadowRadius: 20, elevation: 10 },
+    successTitle: { fontSize: 26, fontWeight: '900', color: colors.text, textAlign: 'center' },
+    successSubtitle: { fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 24, marginTop: 12, paddingHorizontal: 20 },
     successButtons: { width: '100%', gap: 12, marginTop: 48 },
-    homeBtn: { height: 64, borderRadius: 24, backgroundColor: '#1A1612', alignItems: 'center', justifyContent: 'center' },
-    homeBtnText: { color: 'white', fontSize: 15, fontWeight: '900', letterSpacing: 1 },
-    trackBtn: { height: 60, borderRadius: 24, borderWidth: 2, borderColor: '#F5E6D8', alignItems: 'center', justifyContent: 'center' },
-    trackBtnText: { color: '#B09080', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
-    providerMatchCard: { width: '100%', padding: 24, backgroundColor: 'white', borderRadius: 32, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 20, elevation: 4, marginBottom: 24 },
-    providerAvatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F5E6D8', marginBottom: 16 },
-    matchTitle: { fontSize: 12, fontWeight: '900', color: '#1D9E86', letterSpacing: 1.5, marginBottom: 8 },
-    providerName: { fontSize: 20, fontWeight: '900', color: '#1A1612', marginBottom: 6 },
+    homeBtn: { height: 64, borderRadius: 24, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' },
+    homeBtnText: { color: colors.background, fontSize: 15, fontWeight: '900', letterSpacing: 1 },
+    trackBtn: { height: 60, borderRadius: 24, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+    trackBtnText: { color: colors.textMuted, fontSize: 13, fontWeight: '900', letterSpacing: 1 },
+    providerMatchCard: { width: '100%', padding: 24, backgroundColor: colors.surface, borderRadius: 32, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 20, elevation: 4, marginBottom: 24 },
+    providerAvatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.surfaceSecondary, marginBottom: 16 },
+    matchTitle: { fontSize: 12, fontWeight: '900', color: colors.accent, letterSpacing: 1.5, marginBottom: 8 },
+    providerName: { fontSize: 20, fontWeight: '900', color: colors.text, marginBottom: 6 },
     ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    ratingText: { fontSize: 14, fontWeight: '800', color: '#1A1612' },
+    ratingText: { fontSize: 14, fontWeight: '800', color: colors.text },
     textWhite: { color: 'white' },
     textWhiteMuted: { color: 'rgba(255,255,255,0.7)' },
-    textPrimary: { color: '#FF7A3D' },
+    textPrimary: { color: colors.primary },
     daysContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-    dayChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: '#F5E6D8', borderWidth: 1.5, borderColor: 'transparent' },
-    dayChipActive: { backgroundColor: '#1A1612', borderColor: '#1A1612' },
-    dayChipText: { fontSize: 12, fontWeight: '800', color: '#7A5540' },
-    dayChipTextActive: { color: 'white' },
+    dayChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: colors.surfaceSecondary, borderWidth: 1.5, borderColor: 'transparent' },
+    dayChipActive: { backgroundColor: colors.text, borderColor: colors.text },
+    dayChipText: { fontSize: 12, fontWeight: '800', color: colors.textSecondary },
+    dayChipTextActive: { color: colors.background },
     durationChoiceGrid: { flexDirection: 'row', gap: 8, marginTop: 8 },
-    durationChoiceBtn: { flex: 1, paddingVertical: 12, borderRadius: 16, backgroundColor: 'white', alignItems: 'center', borderWidth: 2, borderColor: '#F5E6D8' },
-    durationChoiceBtnActive: { backgroundColor: '#1A1612', borderColor: '#1A1612' },
-    durationChoiceText: { fontSize: 12, fontWeight: '800', color: '#1A1612' },
+    durationChoiceBtn: { flex: 1, paddingVertical: 12, borderRadius: 16, backgroundColor: colors.surface, alignItems: 'center', borderWidth: 2, borderColor: colors.border },
+    durationChoiceBtnActive: { backgroundColor: colors.text, borderColor: colors.text },
+    durationChoiceText: { fontSize: 12, fontWeight: '800', color: colors.text },
     durationGrid: { flexDirection: 'row', gap: 8, marginTop: 8 },
-    durationBtn: { flex: 1, paddingVertical: 10, borderRadius: 16, backgroundColor: 'white', alignItems: 'center', borderWidth: 2, borderColor: '#F5E6D8' },
-    durationBtnActive: { backgroundColor: '#1A1612', borderColor: '#1A1612' },
-    durationText: { fontSize: 12, fontWeight: '900', color: '#1A1612' },
+    durationBtn: { flex: 1, paddingVertical: 10, borderRadius: 16, backgroundColor: colors.surface, alignItems: 'center', borderWidth: 2, borderColor: colors.border },
+    durationBtnActive: { backgroundColor: colors.text, borderColor: colors.text },
+    durationText: { fontSize: 12, fontWeight: '900', color: colors.text },
     durationPriceLabel: { fontSize: 9, fontWeight: '700', marginTop: 2 },
     walkCountBadgeContainer: { marginTop: 8, marginBottom: 24 },
-    walkCountBadge: { padding: 16, borderRadius: 20, borderWidth: 1.5, borderColor: '#B4E3D7' },
-    walkCountText: { fontSize: 14, fontWeight: '800', color: '#7A5540' },
-    walkCountSubText: { fontSize: 11, fontWeight: '700', color: '#1D9E86', marginTop: 4 },
+    walkCountBadge: { padding: 16, borderRadius: 20, borderWidth: 1.5, borderColor: colors.borderSecondary },
+    walkCountText: { fontSize: 14, fontWeight: '800', color: colors.textSecondary },
+    walkCountSubText: { fontSize: 11, fontWeight: '700', color: colors.accent, marginTop: 4 },
     checklistGrid: { gap: 10, marginTop: 4 },
-    checklistCard: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: 'white', borderRadius: 16, borderWidth: 2, borderColor: '#F5E6D8' },
-    checklistCardActive: { borderColor: '#1D9E86', backgroundColor: '#FAFFFE' },
-    checklistIconCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-    checklistIconCircleActive: { backgroundColor: '#1D9E86', borderColor: '#1D9E86' },
-    checklistText: { fontSize: 14, fontWeight: '800', color: '#7A5540' },
-    checklistTextActive: { color: '#1D9E86' },
-    quickEditBtn: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#FFF3EC' },
-    quickEditText: { fontSize: 12, fontWeight: '900', color: '#FF7A3D' },
+    checklistCard: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 2, borderColor: colors.border },
+    checklistCardActive: { borderColor: colors.accent, backgroundColor: colors.accentLight },
+    checklistIconCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.borderSecondary, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    checklistIconCircleActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+    checklistText: { fontSize: 14, fontWeight: '800', color: colors.textSecondary },
+    checklistTextActive: { color: colors.accent },
+    quickEditBtn: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 8, backgroundColor: colors.primaryLight },
+    quickEditText: { fontSize: 12, fontWeight: '900', color: colors.primary },
     summaryChecklistItems: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-    summaryChecklistItem: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F0FDF4', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: '#B4E3D7' },
-    summaryChecklistText: { fontSize: 11, fontWeight: '800', color: '#1D9E86' },
-    splitPaymentContainer: { marginTop: 24, padding: 16, borderRadius: 24, backgroundColor: 'rgba(255, 122, 61, 0.04)', borderWidth: 1, borderColor: '#FFEADB' },
-    splitTitle: { fontSize: 11, fontWeight: '900', color: '#FF7A3D', letterSpacing: 1.5, marginBottom: 4 },
-    splitSub: { fontSize: 12, fontWeight: '700', color: '#7A5540', marginBottom: 16 },
+    summaryChecklistItem: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accentLight, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.borderSecondary },
+    summaryChecklistText: { fontSize: 11, fontWeight: '800', color: colors.accent },
+    splitPaymentContainer: { marginTop: 24, padding: 16, borderRadius: 24, backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.border },
+    splitTitle: { fontSize: 11, fontWeight: '900', color: colors.primary, letterSpacing: 1.5, marginBottom: 4 },
+    splitSub: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginBottom: 16 },
     splitRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
     splitCol: { flex: 1 },
-    splitInputLabel: { fontSize: 11, fontWeight: '900', color: '#B09080', marginBottom: 6 },
-    splitInputWrapper: { flexDirection: 'row', alignItems: 'center', height: 48, borderRadius: 12, backgroundColor: 'white', borderWidth: 1, borderColor: '#DEC9B5', paddingHorizontal: 12 },
-    splitPrefix: { fontSize: 16, fontWeight: '900', color: '#FF7A3D', marginRight: 4 },
-    splitInput: { flex: 1, fontSize: 16, fontWeight: '900', color: '#1A1612', padding: 0 },
-    splitPortionVal: { fontSize: 16, fontWeight: '900', color: '#1A1612' },
+    splitInputLabel: { fontSize: 11, fontWeight: '900', color: colors.textMuted, marginBottom: 6 },
+    splitInputWrapper: { flexDirection: 'row', alignItems: 'center', height: 48, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12 },
+    splitPrefix: { fontSize: 16, fontWeight: '900', color: colors.primary, marginRight: 4 },
+    splitInput: { flex: 1, fontSize: 16, fontWeight: '900', color: colors.text, padding: 0 },
+    splitPortionVal: { fontSize: 16, fontWeight: '900', color: colors.text },
     splitChips: { flexDirection: 'row', gap: 8 },
-    splitChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: 'white', borderWidth: 1, borderColor: '#DEC9B5' },
-    splitChipText: { fontSize: 11, fontWeight: '800', color: '#7A5540' },
+    splitChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+    splitChipText: { fontSize: 11, fontWeight: '800', color: colors.textSecondary },
 });

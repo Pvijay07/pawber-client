@@ -13,6 +13,8 @@ import { supabase } from './src/lib/supabase';
 
 // Screens
 // ... (imports remain the same)
+import ResolutionModal from './src/components/ResolutionModal';
+import ProviderProfile from './src/screens/ProviderProfile';
 import BookingFlow from './src/screens/BookingFlow';
 import Pets from './src/screens/Pets';
 import Chat from './src/screens/Chat';
@@ -59,15 +61,15 @@ export default function App() {
 
   useEffect(() => {
     // Apply default font/scaling globally in effect to avoid side-effects in render
-    if (Text.defaultProps == null) {
+    if ((Text as any).defaultProps == null) {
       (Text as any).defaultProps = {};
     }
-    (Text.defaultProps as any).allowFontScaling = false;
+    (Text as any).defaultProps.allowFontScaling = false;
 
-    if (TextInput.defaultProps == null) {
+    if ((TextInput as any).defaultProps == null) {
       (TextInput as any).defaultProps = {};
     }
-    (TextInput.defaultProps as any).allowFontScaling = false;
+    (TextInput as any).defaultProps.allowFontScaling = false;
   }, []);
 
   useEffect(() => {
@@ -284,6 +286,7 @@ function AppContent({ session }: { session: Session | null }) {
             <Stack.Screen name="ServiceBidding" component={ServiceBidding} />
             <Stack.Screen name="Pets" component={Pets} />
             <Stack.Screen name="Chat" component={Chat} />
+          <Stack.Screen name="ProviderProfile" component={ProviderProfile} />
             <Stack.Screen name="LiveTracking" component={LiveTracking} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Addresses" component={Addresses} />

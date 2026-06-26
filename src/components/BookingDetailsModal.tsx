@@ -78,13 +78,50 @@ export default function BookingDetailsModal({ visible, bookingId, onClose, onSta
             const res = await bookingsApi.getById(bookingId);
             if (res.success && res.data) {
                 setBooking(res.data.booking);
+            } else {
+                Alert.alert('Error', res.error?.message || 'Failed to load booking details');
+                onClose();
             }
         } catch (error) {
             console.error('Error loading booking details:', error);
             Alert.alert('Error', 'Failed to load booking details');
+            onClose();
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleDeleteBooking = async () => {
+        if (!booking) return;
+        Alert.alert(
+            'Cancel Booking Request',
+            'Are you sure you want to cancel this booking request? This will remove the request and any active bids.',
+            [
+                { text: 'No', style: 'cancel' },
+                {
+                    text: 'Yes, Cancel',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setIsSubmittingAction(true);
+                        try {
+                            const res = await bookingsApi.deleteBooking(booking.id);
+                            if (res.success) {
+                                Alert.alert('Success', 'Booking request cancelled successfully!');
+                                onClose();
+                                if (onStatusChange) onStatusChange();
+                            } else {
+                                Alert.alert('Error', res.error?.message || 'Failed to cancel booking request');
+                            }
+                        } catch (error) {
+                            console.error(error);
+                            Alert.alert('Error', 'An error occurred while cancelling the booking request');
+                        } finally {
+                            setIsSubmittingAction(false);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const handleReleasePayment = async () => {
@@ -236,7 +273,9 @@ export default function BookingDetailsModal({ visible, bookingId, onClose, onSta
                                 </View>
 
                                 <Text style={[styles.petName, { color: colors.text }]}>
-                                    Pet: {booking.booking_pets?.[0]?.pet?.name || 'Your Pet'} ({booking.booking_pets?.[0]?.pet?.breed || 'Breed'})
+                                    Pet: {booking.booking_pets && booking.booking_pets.length > 0
+                                        ? booking.booking_pets.map((bp: any) => bp.pet?.name).join(', ')
+                                        : 'Your Pet'}
                                 </Text>
 
                                 <View style={styles.metaRow}>
@@ -258,6 +297,100 @@ export default function BookingDetailsModal({ visible, bookingId, onClose, onSta
                                             <Text style={[styles.providerSub, { color: colors.textSecondary }]}>
                                                 ★ {booking.provider.rating || 'New Provider'}
                                             </Text>
+                                        </View>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* Request Summary Card */}
+                            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 12 }]}>
+                                <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 13, marginBottom: 12 }]}>
+                                    Request Summary
+                                </Text>
+
+                                {/* Multiple Pets list */}
+                                <View style={[styles.metaRow, { alignItems: 'flex-start' }]}>
+                                    <Text style={{ fontSize: 14 }}>🐾</Text>
+                                    <View style={{ flex: 1, marginLeft: 8 }}>
+                                        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>Pets</Text>
+                                        {booking.booking_pets && booking.booking_pets.length > 0 ? (
+                                            booking.booking_pets.map((bp: any, idx: number) => (
+                                                <Text key={idx} style={{ color: colors.textSecondary, fontSize: 13 }}>
+                                                    • {bp.pet?.name} ({bp.pet?.breed || 'Breed'})
+                                                </Text>
+                                            ))
+                                        ) : (
+                                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Your Pet</Text>
+                                        )}
+                                    </View>
+                                </View>
+
+                                {/* Time of request */}
+                                {booking.booking_time && (
+                                    <View style={[styles.metaRow, { marginTop: 10 }]}>
+                                        <Clock size={14} color={colors.textSecondary} />
+                                        <Text style={[styles.metaText, { color: colors.textSecondary, marginLeft: 8 }]}>
+                                            Requested Time: <Text style={{ color: colors.text, fontWeight: '700' }}>{booking.booking_time}</Text>
+                                        </Text>
+                                    </View>
+                                )}
+
+                                {/* Package details */}
+                                {booking.package && (
+                                    <View style={[styles.metaRow, { marginTop: 10, alignItems: 'flex-start' }]}>
+                                        <Text style={{ fontSize: 14 }}>📦</Text>
+                                        <View style={{ flex: 1, marginLeft: 8 }}>
+                                            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>Package</Text>
+                                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+                                                {booking.package.package_name} (₹{booking.package.price})
+                                            </Text>
+                                            {booking.package.features && booking.package.features.length > 0 && (
+                                                <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                                                    Features: {booking.package.features.join(', ')}
+                                                </Text>
+                                            )}
+                                        </View>
+                                    </View>
+                                )}
+
+                                {/* Addons list */}
+                                {booking.booking_addons && booking.booking_addons.length > 0 && (
+                                    <View style={[styles.metaRow, { marginTop: 10, alignItems: 'flex-start' }]}>
+                                        <Plus size={14} color={colors.textSecondary} />
+                                        <View style={{ flex: 1, marginLeft: 8 }}>
+                                            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>Add-ons</Text>
+                                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+                                                {booking.booking_addons.map((ba: any) => ba.addon?.name).join(', ')}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                )}
+
+                                {/* Special instructions */}
+                                {(booking.notes || (booking.special_instructions && booking.special_instructions.length > 0)) && (
+                                    <View style={[styles.metaRow, { marginTop: 10, alignItems: 'flex-start', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 }]}>
+                                        <FileText size={14} color={colors.textSecondary} />
+                                        <View style={{ flex: 1, marginLeft: 8 }}>
+                                            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>Special Instructions</Text>
+                                            {booking.notes ? (
+                                                <Text style={{ color: colors.textSecondary, fontSize: 13, fontStyle: 'italic' }}>
+                                                    "{booking.notes}"
+                                                </Text>
+                                            ) : null}
+                                            {Array.isArray(booking.special_instructions) && booking.special_instructions.length > 0 && (
+                                                <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700', marginTop: 4 }}>
+                                                    Requirements: {booking.special_instructions.map((item: string) => {
+                                                        const labelMap: Record<string, string> = {
+                                                            leash_required: 'Leash Required',
+                                                            avoid_dogs: 'Avoid Other Dogs',
+                                                            medication: 'Medication',
+                                                            key_pickup: 'Key Pickup',
+                                                            emergency_vet: 'Emergency Vet'
+                                                        };
+                                                        return labelMap[item] || item;
+                                                    }).join(', ')}
+                                                </Text>
+                                            )}
                                         </View>
                                     </View>
                                 )}
@@ -669,6 +802,29 @@ export default function BookingDetailsModal({ visible, bookingId, onClose, onSta
                                     )}
                                 </View>
                             )}
+                            {/* Cancel Booking Section (for pending, requested, bidding) */}
+                            {booking && ['pending', 'requested', 'bidding'].includes(booking.status) && (
+                                <View style={styles.cancelActionSection}>
+                                    <Text style={[styles.cancelTitle, { color: colors.text }]}>Cancel Booking Request</Text>
+                                    <Text style={[styles.cancelSub, { color: colors.textSecondary }]}>
+                                        You can cancel this request at any time before it is accepted by a provider. If active bids are present, they will be discarded.
+                                    </Text>
+                                    <TouchableOpacity
+                                        style={[styles.cancelBtn, { backgroundColor: '#e11d48' }]}
+                                        onPress={handleDeleteBooking}
+                                        disabled={isSubmittingAction}
+                                    >
+                                        {isSubmittingAction ? (
+                                            <ActivityIndicator color="white" />
+                                        ) : (
+                                            <>
+                                                <AlertCircle size={20} color="white" />
+                                                <Text style={styles.cancelBtnText}>CANCEL REQUEST</Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+                            )}
                         </ScrollView>
                     ) : null}
                 </BlurView>
@@ -1061,4 +1217,40 @@ const styles = StyleSheet.create({
     commentInput: { width: '100%', height: 64, borderWidth: 1, borderRadius: 12, padding: 10, fontSize: 13, fontWeight: '600', textAlignVertical: 'top', marginTop: 4 },
     submitReviewBtn: { width: '100%', height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
     submitReviewBtnText: { color: 'white', fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
+    cancelActionSection: {
+        marginTop: 16,
+        padding: 20,
+        borderRadius: 24,
+        backgroundColor: 'rgba(225, 29, 72, 0.05)',
+        borderWidth: 1,
+        borderColor: 'rgba(225, 29, 72, 0.1)',
+        alignItems: 'center',
+        gap: 8,
+    },
+    cancelTitle: {
+        fontSize: 15,
+        fontWeight: '900',
+    },
+    cancelSub: {
+        fontSize: 12,
+        textAlign: 'center',
+        lineHeight: 18,
+        marginBottom: 12,
+        fontWeight: '600',
+    },
+    cancelBtn: {
+        flexDirection: 'row',
+        width: '100%',
+        height: 52,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 8,
+    },
+    cancelBtnText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: '900',
+        letterSpacing: 0.5,
+    },
 });

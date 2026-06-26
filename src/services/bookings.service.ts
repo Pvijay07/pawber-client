@@ -28,10 +28,14 @@ export const bookingsApi = {
         notes?: string;
         coupon_code?: string;
         points_to_use?: number;
+        [key: string]: any;
     }) => api.post<{ booking: Booking }>('/bookings', data),
 
     cancel: (id: string, reason?: string) =>
         api.post<{ booking: Booking; message: string }>(`/bookings/${id}/cancel`, { reason }),
+
+    deleteBooking: (id: string) =>
+        api.delete<{ success: boolean; message: string; booking: Booking }>(`/bookings/${id}`),
 
     updateStatus: (id: string, status: string) =>
         api.patch<{ booking: Booking }>(`/bookings/${id}/status`, { status }),
@@ -47,14 +51,18 @@ export const bookingsApi = {
     selectBid: (bookingId: string, bidId: string) =>
         api.post<{ booking: Booking }>(`/bookings/${bookingId}/select-bid`, { bid_id: bidId }),
 
+    deselectBid: (bookingId: string) =>
+        api.post<{ booking: Booking }>(`/bookings/${bookingId}/deselect-bid`),
+
+
     releasePayment: (id: string) =>
-        api.post<{ success: boolean; data: any }>(`/bookings/${id}/release-payment`),
+        api.post<any>(`/bookings/${id}/release-payment`),
 
     approveGrooming: (id: string) =>
-        api.post<{ success: boolean; data: any }>(`/bookings/${id}/grooming/approve`),
+        api.post<any>(`/bookings/${id}/grooming/approve`),
 
     handleIncompleteWalkPackage: (id: string, option: 'reschedule' | 'extend' | 'refund_cash' | 'refund_credit', details?: { newDate?: string; extensionDays?: number }) =>
-        api.post<{ success: boolean; data: any }>(`/bookings/${id}/walk/incomplete`, { option, details }),
+        api.post<any>(`/bookings/${id}/walk/incomplete`, { option, details }),
 
     resolveMissedWalk: (id: string, resolutionType: 'reschedule' | 'extend' | 'refund' | 'credits', newDate?: string) =>
         api.post<any>(`/bookings/${id}/resolve`, { resolutionType, newDate }),

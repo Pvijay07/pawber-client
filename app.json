@@ -35,7 +35,8 @@
     },
     "plugins": [
       "expo-web-browser",
-      "expo-av"
+      "expo-av",
+      "expo-font"
     ]
   }
 }

@@ -4,13 +4,13 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    
     Image,
     Dimensions,
     Animated,
     Platform,
     ActivityIndicator,
-    StatusBar
+    StatusBar,
+    Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Import MapView dynamically to avoid web errors
@@ -43,6 +43,7 @@ import { supabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
 import EmergencyModal from '../components/EmergencyModal';
 import GroomingReportModal from '../components/GroomingReportModal';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -54,6 +55,7 @@ interface LocationPoint {
 }
 
 export default function LiveTracking({ navigation, route }: any) {
+    const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
     const bookingId = route?.params?.bookingId;
     const mapRef = useRef<any>(null);
@@ -117,8 +119,28 @@ export default function LiveTracking({ navigation, route }: any) {
                 emit('leave_booking', bookingId);
             };
         } else if (!bookingId) {
-            // Demo Mode simulation
-            // ... (keep existing demo logic)
+            // Demo logic
+            let step = 0;
+            const updates = [
+                { latitude: 19.076, longitude: 72.8777, status: 'Heading to you' },
+                { latitude: 19.075, longitude: 72.876, status: 'Heading to you' },
+                { latitude: 19.074, longitude: 72.874, status: 'Arrived at your location' },
+                { latitude: 19.073, longitude: 72.872, status: 'Service In Progress' },
+            ];
+            setProviderPosition(updates[0]);
+            setPathPoints([updates[0]]);
+
+            const interval = setInterval(() => {
+                if (step < updates.length - 1) {
+                    step++;
+                    setProviderPosition(updates[step]);
+                    setPathPoints(prev => [...prev, updates[step]]);
+                    setCurrentStatus(updates[step].status);
+                } else {
+                    clearInterval(interval);
+                }
+            }, 5000);
+            return () => clearInterval(interval);
         }
     }, [bookingId, isConnected, emit, on]);
 
@@ -164,7 +186,7 @@ export default function LiveTracking({ navigation, route }: any) {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <MapView
                 ref={mapRef}
                 provider={PROVIDER_GOOGLE}
@@ -178,8 +200,8 @@ export default function LiveTracking({ navigation, route }: any) {
             >
                 {/* Home Marker */}
                 <Marker coordinate={demoHome} anchor={{ x: 0.5, y: 0.5 }}>
-                    <View style={styles.homeMarker}>
-                        <MapPin size={18} color="#3b82f6" fill="#3b82f6" />
+                    <View style={[styles.homeMarker, { borderColor: colors.primary }]}>
+                        <MapPin size={18} color={colors.primary} fill={colors.primary} fillOpacity={0.1} />
                     </View>
                 </Marker>
 
@@ -187,10 +209,10 @@ export default function LiveTracking({ navigation, route }: any) {
                 {providerPosition && (
                     <Marker coordinate={providerPosition} anchor={{ x: 0.5, y: 0.5 }}>
                         <View style={styles.providerMarker}>
-                            <View style={styles.providerMarkerInner}>
+                            <View style={[styles.providerMarkerInner, { backgroundColor: colors.accent, borderColor: colors.surface }]}>
                                 <Navigation size={18} color="white" fill="white" />
                             </View>
-                            <View style={styles.pingAnimation} />
+                            <View style={[styles.pingAnimation, { backgroundColor: colors.accentLight }]} />
                         </View>
                     </Marker>
                 )}
@@ -198,7 +220,7 @@ export default function LiveTracking({ navigation, route }: any) {
                 {/* Path Polyline */}
                 <Polyline
                     coordinates={pathPoints}
-                    strokeColor="#10b981"
+                    strokeColor={colors.accent}
                     strokeWidth={4}
                     lineDashPattern={[10, 10]}
                 />
@@ -206,20 +228,20 @@ export default function LiveTracking({ navigation, route }: any) {
 
             {/* Header Overlay */}
             <View style={[styles.header, { top: Math.max(insets.top, 20) + 10 }]}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <ArrowLeft size={20} color="#0f172a" />
+                <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: colors.surface }]}>
+                    <ArrowLeft size={20} color={colors.text} />
                 </TouchableOpacity>
 
-                <View style={styles.statusBanner}>
+                <View style={[styles.statusBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <Image
                         source={{ uri: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=100&h=100' }}
                         style={styles.statusAvatar}
                     />
                     <View>
-                        <Text style={styles.statusType}>LIVE SESSION</Text>
+                        <Text style={[styles.statusType, { color: colors.text }]}>LIVE SESSION</Text>
                         <View style={styles.statusRow}>
-                            <View style={styles.pulseDot} />
-                            <Text style={styles.statusText}>{currentStatus.toUpperCase()}</Text>
+                            <View style={[styles.pulseDot, { backgroundColor: colors.accent }]} />
+                            <Text style={[styles.statusText, { color: colors.accent }]}>{currentStatus.toUpperCase()}</Text>
                         </View>
                     </View>
                 </View>
@@ -227,99 +249,99 @@ export default function LiveTracking({ navigation, route }: any) {
                 <View style={styles.headerRight}>
                     <TouchableOpacity
                         onPress={() => setSosVisible(true)}
-                        style={styles.sosBtn}
+                        style={[styles.sosBtn, { backgroundColor: colors.danger, shadowColor: colors.danger }]}
                     >
                         <Text style={styles.sosText}>SOS</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         onPress={() => providerPosition && mapRef.current?.animateToRegion({ ...providerPosition, latitudeDelta: 0.01, longitudeDelta: 0.01 })}
-                        style={styles.recenterBtn}
+                        style={[styles.recenterBtn, { backgroundColor: colors.surface }]}
                     >
-                        <Navigation size={20} color="#14b8a6" fill="#14b8a6" />
+                        <Navigation size={20} color={colors.accent} fill={colors.accent} />
                     </TouchableOpacity>
                 </View>
             </View>
 
             {/* Bottom Panel */}
-            <Animated.View style={[styles.panel, { height: panelHeight }]}>
+            <Animated.View style={[styles.panel, { height: panelHeight, backgroundColor: colors.surface, shadowColor: colors.cardShadow }]}>
                 <TouchableOpacity onPress={togglePanel} style={styles.panelHandleBtn}>
-                    <View style={styles.panelHandle} />
+                    <View style={[styles.panelHandle, { backgroundColor: colors.border }]} />
                 </TouchableOpacity>
 
                 <View style={styles.panelContent}>
                     <View style={styles.providerRow}>
                         <View style={styles.providerLeft}>
-                            <Image source={{ uri: 'https://i.pravatar.cc/100?img=12' }} style={styles.providerAvatar} />
+                            <Image source={{ uri: 'https://i.pravatar.cc/100?img=12' }} style={[styles.providerAvatar, { borderColor: colors.surface }]} />
                             <View>
-                                <Text style={styles.providerName}>David Miller</Text>
+                                <Text style={[styles.providerName, { color: colors.text }]}>David Miller</Text>
                                 <View style={styles.providerMeta}>
-                                    <View style={styles.ratingBox}>
-                                        <Star size={10} color="#f97316" fill="#f97316" />
-                                        <Text style={styles.ratingText}>4.9</Text>
+                                    <View style={[styles.ratingBox, { backgroundColor: colors.primaryLight }]}>
+                                        <Star size={10} color={colors.primary} fill={colors.primary} />
+                                        <Text style={[styles.ratingText, { color: colors.primary }]}>4.9</Text>
                                     </View>
-                                    <Text style={styles.partnerText}>GOLD PARTNER</Text>
+                                    <Text style={[styles.partnerText, { color: colors.textMuted }]}>GOLD PARTNER</Text>
                                 </View>
                             </View>
                         </View>
                         <View style={styles.actionRow}>
-                            <TouchableOpacity onPress={() => navigation.navigate('Chat')} style={styles.panelActionBtn}>
-                                <MessageCircle size={20} color="#0f172a" />
+                            <TouchableOpacity onPress={() => navigation.navigate('Chat')} style={[styles.panelActionBtn, { backgroundColor: colors.background }]}>
+                                <MessageCircle size={20} color={colors.text} />
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.panelActionBtn}>
-                                <Phone size={20} color="#0f172a" />
+                            <TouchableOpacity style={[styles.panelActionBtn, { backgroundColor: colors.background }]}>
+                                <Phone size={20} color={colors.text} />
                             </TouchableOpacity>
                         </View>
                     </View>
 
                     <View style={styles.statsGrid}>
-                        <View style={styles.statBox}>
-                            <View style={[styles.statIconBox, { backgroundColor: '#f0fdfa' }]}>
-                                <Clock size={16} color="#14b8a6" />
+                        <View style={[styles.statBox, { backgroundColor: colors.background }]}>
+                            <View style={[styles.statIconBox, { backgroundColor: colors.accentLight }]}>
+                                <Clock size={16} color={colors.accent} />
                             </View>
-                            <Text style={styles.statLabel}>TIME</Text>
-                            <Text style={styles.statValue}>{formatTime(elapsedTime)}</Text>
+                            <Text style={[styles.statLabel, { color: colors.textMuted }]}>TIME</Text>
+                            <Text style={[styles.statValue, { color: colors.text }]}>{formatTime(elapsedTime)}</Text>
                         </View>
-                        <View style={styles.statBox}>
-                            <View style={[styles.statIconBox, { backgroundColor: '#fff7ed' }]}>
-                                <Footprints size={16} color="#f97316" />
+                        <View style={[styles.statBox, { backgroundColor: colors.background }]}>
+                            <View style={[styles.statIconBox, { backgroundColor: colors.primaryLight }]}>
+                                <Footprints size={16} color={colors.primary} />
                             </View>
-                            <Text style={styles.statLabel}>DISTANCE</Text>
-                            <Text style={styles.statValue}>{distance.toFixed(1)} km</Text>
+                            <Text style={[styles.statLabel, { color: colors.textMuted }]}>DISTANCE</Text>
+                            <Text style={[styles.statValue, { color: colors.text }]}>{distance.toFixed(1)} km</Text>
                         </View>
-                        <View style={styles.statBox}>
-                            <View style={[styles.statIconBox, { backgroundColor: '#eff6ff' }]}>
-                                <Route size={16} color="#3b82f6" />
+                        <View style={[styles.statBox, { backgroundColor: colors.background }]}>
+                            <View style={[styles.statIconBox, { backgroundColor: colors.primaryLight }]}>
+                                <Route size={16} color={colors.primary} />
                             </View>
-                            <Text style={styles.statLabel}>STATUS</Text>
-                            <Text style={styles.statValue}>{currentStatus.split(' ')[0]}</Text>
+                            <Text style={[styles.statLabel, { color: colors.textMuted }]}>STATUS</Text>
+                            <Text style={[styles.statValue, { color: colors.text }]}>{currentStatus.split(' ')[0]}</Text>
                         </View>
                     </View>
 
                     {isPanelExpanded && (
                         <View style={styles.expandedContent}>
-                            <View style={styles.insuranceCard}>
-                                <ShieldCheck size={20} color="#14b8a6" />
-                                <Text style={styles.insuranceText}>Insurance covered for this session. Funds held in escrow.</Text>
+                            <View style={[styles.insuranceCard, { backgroundColor: colors.accentLight }]}>
+                                <ShieldCheck size={20} color={colors.accent} />
+                                <Text style={[styles.insuranceText, { color: colors.accent }]}>Insurance covered for this session. Funds held in escrow.</Text>
                             </View>
 
                             <View style={styles.timeline}>
-                                <Text style={styles.timelineTitle}>SESSION TIMELINE</Text>
+                                <Text style={[styles.timelineTitle, { color: colors.textMuted }]}>SESSION TIMELINE</Text>
                                 <View style={styles.timelineItem}>
-                                    <View style={[styles.timelineDot, { backgroundColor: '#14b8a6' }]} />
-                                    <Text style={styles.timelineText}>Started {formatTime(elapsedTime)} ago</Text>
+                                    <View style={[styles.timelineDot, { backgroundColor: colors.accent }]} />
+                                    <Text style={[styles.timelineText, { color: colors.text }]}>Started {formatTime(elapsedTime)} ago</Text>
                                 </View>
                                 <View style={styles.timelineItem}>
-                                    <View style={[styles.timelineDot, { backgroundColor: '#f97316' }]} />
-                                    <Text style={styles.timelineText}>{pathPoints.length} location updates received</Text>
+                                    <View style={[styles.timelineDot, { backgroundColor: colors.primary }]} />
+                                    <Text style={[styles.timelineText, { color: colors.text }]}>{pathPoints.length} location updates received</Text>
                                 </View>
                             </View>
 
                             <TouchableOpacity 
-                                style={[styles.endBtn, isGroomingCompleted && { backgroundColor: '#3b82f6' }]}
+                                style={[styles.endBtn, { backgroundColor: colors.text }, isGroomingCompleted && { backgroundColor: '#3b82f6' }]}
                                 onPress={() => isGroomingCompleted ? setReportVisible(true) : null}
                             >
-                                <Zap size={16} color="white" fill="white" />
-                                <Text style={styles.endBtnText}>
+                                <Zap size={16} color={colors.background} fill={colors.background} />
+                                <Text style={[styles.endBtnText, { color: colors.background }]}>
                                     {isGroomingCompleted ? 'VIEW GROOMING REPORT' : 'END SESSION & PAY'}
                                 </Text>
                             </TouchableOpacity>
@@ -328,11 +350,11 @@ export default function LiveTracking({ navigation, route }: any) {
 
                     {!isPanelExpanded && (
                         <TouchableOpacity 
-                            style={[styles.endBtnSmall, isGroomingCompleted && { backgroundColor: '#3b82f6' }]}
+                            style={[styles.endBtnSmall, { backgroundColor: colors.text }, isGroomingCompleted && { backgroundColor: '#3b82f6' }]}
                             onPress={() => isGroomingCompleted ? setReportVisible(true) : null}
                         >
-                            <Zap size={16} color="white" fill="white" />
-                            <Text style={styles.endBtnText}>
+                            <Zap size={16} color={colors.background} fill={colors.background} />
+                            <Text style={[styles.endBtnText, { color: colors.background }]}>
                                 {isGroomingCompleted ? 'VIEW GROOMING REPORT' : 'END SESSION & PAY'}
                             </Text>
                         </TouchableOpacity>
@@ -371,7 +393,6 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: 'white',
     },
     map: {
         ...StyleSheet.absoluteFillObject,
@@ -382,7 +403,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         borderRadius: 12,
         borderWidth: 2,
-        borderColor: '#3b82f6',
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
@@ -398,10 +418,8 @@ const styles = StyleSheet.create({
     providerMarkerInner: {
         width: 36,
         height: 36,
-        backgroundColor: '#14b8a6',
         borderRadius: 18,
         borderWidth: 3,
-        borderColor: 'white',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2,
@@ -411,7 +429,6 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: 'rgba(20, 184, 166, 0.3)',
         zIndex: 1,
     },
     header: {
@@ -426,7 +443,6 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 14,
-        backgroundColor: 'white',
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
@@ -438,14 +454,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 12,
         paddingVertical: 8,
-        backgroundColor: 'white',
         borderRadius: 16,
         gap: 12,
         shadowColor: '#000',
         shadowOpacity: 0.1,
         shadowOffset: { width: 0, height: 4 },
         borderWidth: 1,
-        borderColor: '#f1f5f9',
     },
     statusAvatar: {
         width: 32,
@@ -457,7 +471,6 @@ const styles = StyleSheet.create({
     statusType: {
         fontSize: 9,
         fontWeight: '900',
-        color: '#0f172a',
         letterSpacing: 1,
     },
     statusRow: {
@@ -470,19 +483,16 @@ const styles = StyleSheet.create({
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: '#14b8a6',
     },
     statusText: {
         fontSize: 9,
         fontWeight: 'bold',
-        color: '#14b8a6',
         letterSpacing: 0.5,
     },
     recenterBtn: {
         width: 44,
         height: 44,
         borderRadius: 14,
-        backgroundColor: 'white',
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
@@ -497,10 +507,8 @@ const styles = StyleSheet.create({
         height: 44,
         paddingHorizontal: 16,
         borderRadius: 14,
-        backgroundColor: '#ff3b30',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#ff3b30',
         shadowOpacity: 0.3,
         shadowOffset: { width: 0, height: 4 },
         shadowRadius: 8,
@@ -516,10 +524,8 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: 'white',
         borderTopLeftRadius: 32,
         borderTopRightRadius: 32,
-        shadowColor: '#000',
         shadowOpacity: 0.1,
         shadowOffset: { width: 0, height: -10 },
         elevation: 10,
@@ -531,7 +537,6 @@ const styles = StyleSheet.create({
     panelHandle: {
         width: 48,
         height: 6,
-        backgroundColor: '#f1f5f9',
         borderRadius: 3,
     },
     panelContent: {
@@ -553,12 +558,10 @@ const styles = StyleSheet.create({
         height: 56,
         borderRadius: 18,
         borderWidth: 2,
-        borderColor: 'white',
     },
     providerName: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#0f172a',
     },
     providerMeta: {
         flexDirection: 'row',
@@ -570,7 +573,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 2,
-        backgroundColor: '#fff7ed',
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 6,
@@ -578,12 +580,10 @@ const styles = StyleSheet.create({
     ratingText: {
         fontSize: 10,
         fontWeight: '900',
-        color: '#f97316',
     },
     partnerText: {
         fontSize: 9,
         fontWeight: '900',
-        color: '#94a3b8',
         letterSpacing: 0.5,
     },
     actionRow: {
@@ -594,7 +594,6 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 14,
-        backgroundColor: '#f8fafc',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -605,7 +604,6 @@ const styles = StyleSheet.create({
     },
     statBox: {
         flex: 1,
-        backgroundColor: '#f8fafc',
         borderRadius: 24,
         padding: 12,
         alignItems: 'center',
@@ -622,13 +620,11 @@ const styles = StyleSheet.create({
     statLabel: {
         fontSize: 8,
         fontWeight: '900',
-        color: '#94a3b8',
         letterSpacing: 1,
     },
     statValue: {
         fontSize: 12,
         fontWeight: 'bold',
-        color: '#0f172a',
     },
     expandedContent: {
         gap: 20,
@@ -637,14 +633,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
-        backgroundColor: '#f0fdfa',
         padding: 16,
         borderRadius: 20,
     },
     insuranceText: {
         flex: 1,
         fontSize: 11,
-        color: '#14b8a6',
         fontWeight: '500',
     },
     timeline: {
@@ -653,7 +647,6 @@ const styles = StyleSheet.create({
     timelineTitle: {
         fontSize: 10,
         fontWeight: '900',
-        color: '#94a3b8',
         letterSpacing: 1.5,
     },
     timelineItem: {
@@ -668,14 +661,12 @@ const styles = StyleSheet.create({
     },
     timelineText: {
         fontSize: 12,
-        color: '#0f172a',
         fontWeight: '500',
     },
     endBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#0f172a',
         height: 60,
         borderRadius: 20,
         gap: 10,
@@ -685,13 +676,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#0f172a',
         height: 60,
         borderRadius: 20,
         gap: 10,
     },
     endBtnText: {
-        color: 'white',
         fontSize: 12,
         fontWeight: '900',
         letterSpacing: 2,

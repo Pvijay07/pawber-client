@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, Alert, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../hooks/useAuth';
-import api from '../lib/api';
+import { api } from '../services/api';
 
 interface EmergencyModalProps {
     visible: boolean;
@@ -12,7 +11,6 @@ interface EmergencyModalProps {
 }
 
 export default function EmergencyModal({ visible, onClose, bookingId, providerId }: EmergencyModalProps) {
-    const { user } = useAuth();
     const [caseType, setCaseType] = useState<string>('lost_pet');
     const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);

@@ -58,7 +58,7 @@ export const useSocket = () => {
         initSocket();
 
         // Listen for auth changes to re-init socket
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
                 initSocket();
             } else if (event === 'SIGNED_OUT') {

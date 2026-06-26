@@ -5,7 +5,6 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    
     TextInput,
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -20,8 +19,10 @@ import {
     KeyRound,
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function ForgotPassword({ navigation }: any) {
+    const { colors, isDark } = useTheme();
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -58,30 +59,35 @@ export default function ForgotPassword({ navigation }: any) {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.container}
             >
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <ArrowLeft size={24} color="#1A1612" />
+                <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <ArrowLeft size={24} color={colors.text} />
                 </TouchableOpacity>
 
                 <View style={styles.content}>
-                    <View style={styles.iconBox}>
-                        <KeyRound size={40} color="#1D9E86" />
+                    <View style={[styles.iconBox, { backgroundColor: colors.surfaceSecondary }]}>
+                        <KeyRound size={40} color={colors.primary} />
                     </View>
 
-                    <Text style={styles.title}>Reset Password</Text>
-                    <Text style={styles.subtitle}>No worries, we'll send you a link to reset your password.</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>Reset Password</Text>
+                    <Text style={[styles.subtitle, { color: colors.textSecondary }]}>No worries, we'll send you a link to reset your password.</Text>
 
                     <View style={styles.form}>
-                        <View style={StyleSheet.flatten([styles.inputContainer, emailError ? styles.inputError : null])}>
-                            <Mail size={20} color={emailError ? '#ef4444' : '#B09080'} style={styles.inputIcon} />
+                        <View style={[
+                            styles.inputContainer,
+                            { backgroundColor: colors.surfaceSecondary },
+                            emailError ? styles.inputError : undefined,
+                            emailError ? { borderColor: colors.danger } : undefined
+                        ]}>
+                            <Mail size={20} color={emailError ? colors.danger : colors.textMuted} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: colors.text }]}
                                 placeholder="Enter your email"
-                                placeholderTextColor="#B09080"
+                                placeholderTextColor={colors.textMuted}
                                 value={email}
                                 onChangeText={(val) => { setEmail(val); setEmailError(''); }}
                                 autoCapitalize="none"
@@ -91,21 +97,21 @@ export default function ForgotPassword({ navigation }: any) {
                         {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
                         {error && (
-                            <View style={styles.alertBox}>
-                                <AlertCircle size={18} color="#ef4444" />
-                                <Text style={styles.alertText}>{error}</Text>
+                            <View style={[styles.alertBox, { backgroundColor: colors.dangerLight, borderColor: colors.danger }]}>
+                                <AlertCircle size={18} color={colors.danger} />
+                                <Text style={[styles.alertText, { color: colors.danger }]}>{error}</Text>
                             </View>
                         )}
 
                         {success && (
-                            <View style={StyleSheet.flatten([styles.alertBox, styles.successBox])}>
-                                <CheckCircle2 size={18} color="#FF7A3D" />
-                                <Text style={StyleSheet.flatten([styles.alertText, styles.successText])}>{success}</Text>
+                            <View style={StyleSheet.flatten([styles.alertBox, { backgroundColor: colors.primaryLight, borderColor: colors.primary }])}>
+                                <CheckCircle2 size={18} color={colors.primary} />
+                                <Text style={StyleSheet.flatten([styles.alertText, { color: colors.primary }])}>{success}</Text>
                             </View>
                         )}
 
                         <TouchableOpacity
-                            style={StyleSheet.flatten([styles.resetBtn, (isLoading || !!success) && styles.resetBtnDisabled])}
+                            style={StyleSheet.flatten([styles.resetBtn, { backgroundColor: isDark ? colors.primary : '#1A1612' }, (isLoading || !!success) && [styles.resetBtnDisabled, { backgroundColor: colors.surfaceSecondary }]])}
                             onPress={handleReset}
                             disabled={isLoading || !!success}
                         >
@@ -121,8 +127,8 @@ export default function ForgotPassword({ navigation }: any) {
                     </View>
 
                     <TouchableOpacity style={styles.footer} onPress={() => navigation.goBack()}>
-                        <Text style={styles.footerText}>
-                            Remembered password? <Text style={styles.footerLink}>Go back</Text>
+                        <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+                            Remembered password? <Text style={[styles.footerLink, { color: colors.primary }]}>Go back</Text>
                         </Text>
                     </TouchableOpacity>
                 </View>

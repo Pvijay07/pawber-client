@@ -46,7 +46,7 @@ export default function ResolutionModal({ visible, bookingId, onClose, onResolve
         try {
             const res = await bookingsApi.resolveMissedWalk(bookingId, type, newDate);
             if (res.success) {
-                Alert.alert('Success', res.message || 'Walk resolved successfully.');
+                Alert.alert('Success', res.data?.message || 'Walk resolved successfully.');
                 onResolved();
                 onClose();
             } else {
@@ -68,7 +68,7 @@ export default function ResolutionModal({ visible, bookingId, onClose, onResolve
             onRequestClose={onClose}
         >
             <BlurView intensity={isDark ? 80 : 40} tint={isDark ? "dark" : "light"} style={styles.container}>
-                <View style={[styles.content, { backgroundColor: colors.card }]}>
+                <View style={[styles.content, { backgroundColor: colors.surface }]}>
                     <View style={styles.header}>
                         <View style={styles.headerLeft}>
                             <AlertCircle color="#ef4444" size={24} />

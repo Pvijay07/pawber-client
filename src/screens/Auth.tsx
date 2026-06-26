@@ -33,6 +33,7 @@ import {
     Clock,
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../theme/ThemeContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -53,6 +54,7 @@ const COUNTRIES = [
 
 export default function Auth({ navigation }: AuthProps) {
     const insets = useSafeAreaInsets();
+    const { colors, isDark } = useTheme();
     
     // Auth mode & method
     const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
@@ -318,16 +320,16 @@ export default function Auth({ navigation }: AuthProps) {
             }}
         >
             <Text style={styles.countryFlagText}>{item.flag}</Text>
-            <Text style={styles.countryNameText}>{item.name}</Text>
-            <Text style={styles.countryCodeText}>{item.code}</Text>
+            <Text style={[styles.countryNameText, { color: colors.text }]}>{item.name}</Text>
+            <Text style={[styles.countryCodeText, { color: colors.textSecondary }]}>{item.code}</Text>
         </TouchableOpacity>
     );
 
     const isPhoneValid = phone.trim().length >= 8;
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFF9F5" />
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
@@ -353,14 +355,14 @@ export default function Auth({ navigation }: AuthProps) {
                                     navigation.goBack();
                                 }
                             }}
-                            style={styles.backBtn}
+                            style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                         >
-                            <ChevronLeft size={24} color="#1A1612" />
+                            <ChevronLeft size={24} color={colors.text} />
                         </TouchableOpacity>
 
-                        <View style={styles.logoWrapper}>
+                        <View style={[styles.logoWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             <PawPrint size={18} color="#FF7A3D" style={styles.logoIcon} />
-                            <Text style={styles.logoText}>
+                            <Text style={[styles.logoText, { color: colors.text }]}>
                                 paw<Text style={styles.logoAccent}>ber</Text>
                             </Text>
                         </View>
@@ -368,15 +370,15 @@ export default function Auth({ navigation }: AuthProps) {
 
                     {/* Notification Alerts */}
                     {error && (
-                        <View style={styles.alertError}>
-                            <AlertCircle size={16} color="#ef4444" />
-                            <Text style={styles.alertText}>{error}</Text>
+                        <View style={[styles.alertError, { backgroundColor: colors.dangerLight, borderColor: isDark ? 'rgba(248,113,113,0.2)' : '#fee2e2' }]}>
+                            <AlertCircle size={16} color={colors.danger} />
+                            <Text style={[styles.alertText, { color: colors.text }]}>{error}</Text>
                         </View>
                     )}
                     {success && (
-                        <View style={styles.alertSuccess}>
-                            <CheckCircle2 size={16} color="#1D9E86" />
-                            <Text style={styles.alertText}>{success}</Text>
+                        <View style={[styles.alertSuccess, { backgroundColor: colors.accentLight, borderColor: isDark ? 'rgba(77,191,171,0.2)' : '#ccfbf1' }]}>
+                            <CheckCircle2 size={16} color={colors.accent} />
+                            <Text style={[styles.alertText, { color: colors.text }]}>{success}</Text>
                         </View>
                     )}
 
@@ -385,13 +387,14 @@ export default function Auth({ navigation }: AuthProps) {
                         !otpSent ? (
                             /* 1. Phone Input View */
                             <View style={styles.contentBody}>
-                                <Text style={styles.welcomeTitle}>Welcome Back!</Text>
-                                <Text style={styles.welcomeSubtitle}>Access your account through your phone number</Text>
+                                <Text style={[styles.welcomeTitle, { color: colors.text }]}>Welcome Back!</Text>
+                                <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>Access your account through your phone number</Text>
 
                                 <View style={styles.inputSection}>
-                                    <Text style={styles.inputLabel}>Enter Your Phone Number</Text>
+                                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Enter Your Phone Number</Text>
                                     <View style={StyleSheet.flatten([
                                         styles.phoneInputContainer,
+                                        { backgroundColor: colors.surface, borderColor: colors.border },
                                         phoneError ? styles.inputErrorBorder : null
                                     ])}>
                                         <TouchableOpacity 
@@ -399,14 +402,14 @@ export default function Auth({ navigation }: AuthProps) {
                                             onPress={() => setCountryModalVisible(true)}
                                         >
                                             <Text style={styles.flagText}>{selectedCountry.flag}</Text>
-                                            <ChevronDown size={14} color="#7A5540" />
+                                            <ChevronDown size={14} color={colors.textSecondary} />
                                         </TouchableOpacity>
-                                        <View style={styles.dividerLine} />
-                                        <Text style={styles.phoneCodePrefix}>{selectedCountry.code}</Text>
+                                        <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                                        <Text style={[styles.phoneCodePrefix, { color: colors.text }]}>{selectedCountry.code}</Text>
                                         <TextInput
-                                            style={styles.phoneInput}
+                                            style={[styles.phoneInput, { color: colors.text }]}
                                             placeholder="EX: 3834 3939 393"
-                                            placeholderTextColor="#B09080"
+                                            placeholderTextColor={colors.textMuted}
                                             keyboardType="phone-pad"
                                             value={phone}
                                             onChangeText={(val) => {
@@ -421,7 +424,8 @@ export default function Auth({ navigation }: AuthProps) {
                                 <TouchableOpacity 
                                     style={StyleSheet.flatten([
                                         styles.continueBtn,
-                                        !isPhoneValid ? styles.continueBtnDisabled : null
+                                        { backgroundColor: isDark ? colors.primary : '#1A1612' },
+                                        !isPhoneValid ? [styles.continueBtnDisabled, { backgroundColor: isDark ? colors.surfaceSecondary : '#F5E6D8' }] : null
                                     ])}
                                     onPress={handleSendOTP}
                                     disabled={isLoading || !isPhoneValid}
@@ -446,8 +450,8 @@ export default function Auth({ navigation }: AuthProps) {
                         ) : (
                             /* 2. OTP Verification View */
                             <View style={styles.contentBody}>
-                                <Text style={styles.welcomeTitle}>Enter Code</Text>
-                                <Text style={styles.welcomeSubtitle}>
+                                <Text style={[styles.welcomeTitle, { color: colors.text }]}>Enter Code</Text>
+                                <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
                                     We've sent a 6-digit verification code to {selectedCountry.code} {phone}
                                 </Text>
 
@@ -457,7 +461,7 @@ export default function Auth({ navigation }: AuthProps) {
                                             <TextInput
                                                 key={index}
                                                 ref={otpRefs[index]}
-                                                style={styles.otpInput}
+                                                style={[styles.otpInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                                                 maxLength={1}
                                                 keyboardType="number-pad"
                                                 value={digit}
@@ -470,7 +474,7 @@ export default function Auth({ navigation }: AuthProps) {
                                 </View>
 
                                 <TouchableOpacity 
-                                    style={styles.continueBtn}
+                                    style={[styles.continueBtn, { backgroundColor: isDark ? colors.primary : '#1A1612' }]}
                                     onPress={handleVerifyOTP}
                                     disabled={isLoading}
                                 >
@@ -482,9 +486,9 @@ export default function Auth({ navigation }: AuthProps) {
                                 </TouchableOpacity>
 
                                 <View style={styles.resendContainer}>
-                                    <Clock size={16} color="#B09080" />
+                                    <Clock size={16} color={colors.textMuted} />
                                     {otpCountdown > 0 ? (
-                                        <Text style={styles.resendText}>Resend code in 00:{otpCountdown < 10 ? `0${otpCountdown}` : otpCountdown}</Text>
+                                        <Text style={[styles.resendText, { color: colors.textSecondary }]}>Resend code in 00:{otpCountdown < 10 ? `0${otpCountdown}` : otpCountdown}</Text>
                                     ) : (
                                         <TouchableOpacity onPress={handleSendOTP}>
                                             <Text style={styles.resendLinkText}>Resend OTP Code</Text>
@@ -496,10 +500,10 @@ export default function Auth({ navigation }: AuthProps) {
                     ) : (
                         /* 3. Traditional Email Login/Signup View */
                         <View style={styles.contentBody}>
-                            <Text style={styles.welcomeTitle}>
+                            <Text style={[styles.welcomeTitle, { color: colors.text }]}>
                                 {mode === 'login' ? 'Welcome Back!' : 'Create Account'}
                             </Text>
-                            <Text style={styles.welcomeSubtitle}>
+                            <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
                                 {mode === 'login' 
                                     ? 'Access your account using your email address' 
                                     : 'Sign up to start booking premium pet services'
@@ -509,15 +513,16 @@ export default function Auth({ navigation }: AuthProps) {
                             <View style={styles.formContainer}>
                                 {mode === 'signup' && (
                                     <View style={styles.inputWrapper}>
-                                        <Text style={styles.inputLabel}>Full Name</Text>
+                                        <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Full Name</Text>
                                         <View style={StyleSheet.flatten([
                                             styles.emailInputContainer,
+                                            { backgroundColor: colors.surface, borderColor: colors.border },
                                             nameError ? styles.inputErrorBorder : null
                                         ])}>
                                             <TextInput
                                                 placeholder="John Doe"
-                                                placeholderTextColor="#B09080"
-                                                style={styles.emailInput}
+                                                placeholderTextColor={colors.textMuted}
+                                                style={[styles.emailInput, { color: colors.text }]}
                                                 value={fullName}
                                                 onChangeText={(val) => {
                                                     setFullName(val);
@@ -531,16 +536,17 @@ export default function Auth({ navigation }: AuthProps) {
                                 )}
 
                                 <View style={styles.inputWrapper}>
-                                    <Text style={styles.inputLabel}>Email Address</Text>
+                                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Email Address</Text>
                                     <View style={StyleSheet.flatten([
                                         styles.emailInputContainer,
+                                        { backgroundColor: colors.surface, borderColor: colors.border },
                                         emailError ? styles.inputErrorBorder : null
                                     ])}>
-                                        <Mail size={16} color="#B09080" />
+                                        <Mail size={16} color={colors.textMuted} />
                                         <TextInput
                                             placeholder="sarah@example.com"
-                                            placeholderTextColor="#B09080"
-                                            style={styles.emailInput}
+                                            placeholderTextColor={colors.textMuted}
+                                            style={[styles.emailInput, { color: colors.text }]}
                                             value={email}
                                             onChangeText={(val) => {
                                                 setEmail(val);
@@ -554,16 +560,17 @@ export default function Auth({ navigation }: AuthProps) {
                                 </View>
 
                                 <View style={styles.inputWrapper}>
-                                    <Text style={styles.inputLabel}>Password</Text>
+                                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Password</Text>
                                     <View style={StyleSheet.flatten([
                                         styles.emailInputContainer,
+                                        { backgroundColor: colors.surface, borderColor: colors.border },
                                         passwordError ? styles.inputErrorBorder : null
                                     ])}>
-                                        <Lock size={16} color="#B09080" />
+                                        <Lock size={16} color={colors.textMuted} />
                                         <TextInput
                                             placeholder="••••••••"
-                                            placeholderTextColor="#B09080"
-                                            style={styles.emailInput}
+                                            placeholderTextColor={colors.textMuted}
+                                            style={[styles.emailInput, { color: colors.text }]}
                                             value={password}
                                             onChangeText={(val) => {
                                                 setPassword(val);
@@ -585,7 +592,7 @@ export default function Auth({ navigation }: AuthProps) {
                                 )}
 
                                 <TouchableOpacity 
-                                    style={styles.continueBtn}
+                                    style={[styles.continueBtn, { backgroundColor: isDark ? colors.primary : '#1A1612' }]}
                                     onPress={handleEmailAuth}
                                     disabled={isLoading}
                                 >
@@ -603,19 +610,19 @@ export default function Auth({ navigation }: AuthProps) {
                             </View>
 
                             <View style={styles.divider}>
-                                <View style={styles.line} />
-                                <Text style={styles.dividerText}>SOCIAL CONNECT</Text>
-                                <View style={styles.line} />
+                                <View style={[styles.line, { backgroundColor: colors.border }]} />
+                                <Text style={[styles.dividerText, { color: colors.textMuted }]}>SOCIAL CONNECT</Text>
+                                <View style={[styles.line, { backgroundColor: colors.border }]} />
                             </View>
 
                             <View style={styles.socialGrid}>
-                                <TouchableOpacity onPress={() => handleOAuth('google')} style={styles.socialBtn}>
+                                <TouchableOpacity onPress={() => handleOAuth('google')} style={[styles.socialBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                     <Chrome size={18} color="#ef4444" />
-                                    <Text style={styles.socialBtnText}>Google</Text>
+                                    <Text style={[styles.socialBtnText, { color: colors.text }]}>Google</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={() => handleOAuth('github')} style={styles.socialBtn}>
-                                    <Github size={18} color="#1A1612" />
-                                    <Text style={styles.socialBtnText}>Github</Text>
+                                <TouchableOpacity onPress={() => handleOAuth('github')} style={[styles.socialBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                    <Github size={18} color={colors.text} />
+                                    <Text style={[styles.socialBtnText, { color: colors.text }]}>Github</Text>
                                 </TouchableOpacity>
                             </View>
 
@@ -640,7 +647,7 @@ export default function Auth({ navigation }: AuthProps) {
                                 setError(null);
                             }}
                         >
-                            <Text style={styles.footerText}>
+                            <Text style={[styles.footerText, { color: colors.textSecondary }]}>
                                 {mode === 'login' ? "Don't have an account?" : "Already have an account?"}
                                 <Text style={styles.footerAction}> {mode === 'login' ? "Signup" : "Login"}</Text>
                             </Text>
@@ -654,11 +661,12 @@ export default function Auth({ navigation }: AuthProps) {
                 visible={countryModalVisible}
                 animationType="slide"
                 transparent={true}
+                onRequestClose={() => setCountryModalVisible(false)}
             >
-                <View style={styles.modalBackground}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Select Country</Text>
+                <View style={[styles.modalBackground, { backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(26,22,18,0.4)' }]}>
+                    <View style={[styles.modalContainer, { backgroundColor: colors.surface }]}>
+                        <View style={[styles.modalHeader, { borderColor: colors.border }]}>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Country</Text>
                             <TouchableOpacity onPress={() => setCountryModalVisible(false)}>
                                 <Text style={styles.modalCloseText}>Close</Text>
                             </TouchableOpacity>
@@ -667,7 +675,7 @@ export default function Auth({ navigation }: AuthProps) {
                             data={COUNTRIES}
                             keyExtractor={(item) => item.code}
                             renderItem={renderCountryItem}
-                            ItemSeparatorComponent={() => <View style={styles.modalDivider} />}
+                            ItemSeparatorComponent={() => <View style={[styles.modalDivider, { backgroundColor: colors.border }]} />}
                         />
                     </View>
                 </View>
