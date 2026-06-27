@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -9,11 +9,13 @@ import { Text, TextInput, StyleSheet, LogBox } from 'react-native';
 
 LogBox.ignoreLogs(['ExpoKeepAwake.activate']);
 import { supabase } from './src/lib/supabase';
-// import * as Notifications from 'expo-notifications';
+let Notifications: any = null;
+try { Notifications = require('expo-notifications'); } catch (e) { Notifications = null; }
 
 // Screens
 // ... (imports remain the same)
 import ResolutionModal from './src/components/ResolutionModal';
+import { AlertProvider } from './src/components/CustomAlertModal';
 import ProviderProfile from './src/screens/ProviderProfile';
 import BookingFlow from './src/screens/BookingFlow';
 import Pets from './src/screens/Pets';
@@ -44,8 +46,10 @@ import MainTabNavigator from './src/navigation/MainTabNavigator';
 
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import * as Linking from 'expo-linking';
+import { usePushNotifications } from './src/hooks/usePushNotifications';
 
 const Stack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef();
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -99,11 +103,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        {(!fontsLoaded || isLoading) ? (
-          <Splash />
-        ) : (
-          <AppContent session={session} />
-        )}
+        <AlertProvider>
+          {(!fontsLoaded || isLoading) ? (
+            <Splash />
+          ) : (
+            <AppContent session={session} />
+          )}
+        </AlertProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
@@ -111,13 +117,12 @@ export default function App() {
 
 function AppContent({ session }: { session: Session | null }) {
   const { colors, isDark } = useTheme();
-  const notificationListener = React.useRef<any>(null);
-  const responseListener = React.useRef<any>(null);
   const [splashFinished, setSplashFinished] = useState(false);
+
+  usePushNotifications(session?.user?.id, navigationRef);
 
   useEffect(() => {
     if (session?.user?.id) {
-      registerForPushNotificationsAsync(session.user.id);
       setupRealtime(session.user.id);
     }
 
@@ -130,62 +135,6 @@ function AppContent({ session }: { session: Session | null }) {
     };
   }, [session]);
 
-  useEffect(() => {
-    // Handle notifications while the app is foregrounded
-    // try {
-    //   notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-    //     console.log('Notification received:', notification);
-    //   });
-
-    //   // Handle user interaction with a notification
-    //   responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-    //     const { data } = response.notification.request.content;
-    //     console.log('Notification response:', data);
-    //     // Redirection logic can be handled here if linking config is not enough
-    //   });
-    // } catch (e) {
-    //   console.warn('Notification listeners could not be initialized (likely Expo Go restriction):', e);
-    // }
-
-    return () => {
-      // try {
-      //   if (notificationListener.current) notificationListener.current.remove();
-      //   if (responseListener.current) responseListener.current.remove();
-      // } catch (e) {
-      //   // Ignore removal errors
-      // }
-    };
-  }, [session]);
-
-  const registerForPushNotificationsAsync = async (userId: string) => {
-    // Expo SDK 53+ restriction: Remote notifications don't work in Expo Go on Android
-    // Commented out to prevent crash
-    /*
-    try {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      if (finalStatus !== 'granted') return;
-
-      const tokenData = await Notifications.getExpoPushTokenAsync();
-      const token = tokenData.data;
-      
-      // Update profile with token
-      await supabase
-        .from('profiles')
-        .update({ push_token: token })
-        .eq('id', userId);
-
-      console.log('Push token registered', { userId, token });
-    } catch (e: any) {
-      console.warn('Push notification registration skipped (Expo Go limitation):', e.message);
-    }
-    */
-  };
-
   const setupRealtime = (userId: string) => {
     const channel = supabase
       .channel(`user-${userId}`)
@@ -196,16 +145,16 @@ function AppContent({ session }: { session: Session | null }) {
         filter: `user_id=eq.${userId}`
       }, (payload: any) => {
         // Trigger local notification for in-app events
-        /*
-        Notifications.scheduleNotificationAsync({
-          content: {
-            title: payload.new.title,
-            body: payload.new.message,
-            data: payload.new.data,
-          },
-          trigger: null,
-        });
-        */
+        if (Notifications && Notifications.scheduleNotificationAsync) {
+          Notifications.scheduleNotificationAsync({
+            content: {
+              title: payload.new.title || 'Pawber',
+              body: payload.new.body || payload.new.message || '',
+              data: payload.new.data || {},
+            },
+            trigger: null,
+          }).catch(() => {});
+        }
       })
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -214,18 +163,24 @@ function AppContent({ session }: { session: Session | null }) {
         filter: `user_id=eq.${userId}`
       }, (payload: any) => {
         // Notify user about booking status changes
-        /*
-        if (payload.old.status !== payload.new.status) {
+        if (payload.old?.status !== payload.new?.status && Notifications && Notifications.scheduleNotificationAsync) {
+          const statusLabels: Record<string, string> = {
+            confirmed: '✅ Confirmed',
+            accepted: '🤝 Accepted by Provider',
+            in_progress: '🚀 In Progress',
+            completed: '🎉 Completed',
+            cancelled: '❌ Cancelled',
+          };
+          const label = statusLabels[payload.new.status] || payload.new.status?.toUpperCase();
           Notifications.scheduleNotificationAsync({
             content: {
               title: 'Booking Updated',
-              body: `Your booking status has changed to ${payload.new.status.toUpperCase()}`,
+              body: `Your booking is now: ${label}`,
               data: { type: 'booking', id: payload.new.id },
             },
             trigger: null,
-          });
+          }).catch(() => {});
         }
-        */
       })
       .subscribe();
 
@@ -268,7 +223,7 @@ function AppContent({ session }: { session: Session | null }) {
   };
 
   return (
-    <NavigationContainer theme={navigationTheme as any} linking={linking as any}>
+    <NavigationContainer theme={navigationTheme as any} linking={linking as any} ref={navigationRef as any}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
