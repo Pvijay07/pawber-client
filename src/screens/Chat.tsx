@@ -30,6 +30,8 @@ import {
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../theme/ThemeContext';
 import { api } from '../services/api';
+import { useSocket } from '../hooks/useSocket';
+import { useAlert } from '../components/CustomAlertModal';
 
 const { width } = Dimensions.get('window');
 
@@ -53,6 +55,7 @@ const DEMO_PROVIDER = {
 
 export default function Chat({ navigation, route }: any) {
     const { colors, isDark } = useTheme();
+    const { showError } = useAlert();
     const insets = useSafeAreaInsets();
     const bookingId = route?.params?.bookingId;
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -63,7 +66,13 @@ export default function Chat({ navigation, route }: any) {
     const flatListRef = useRef<FlatList>(null);
     const currentUserId = useRef<string>('demo-user');
 
-    const [recipient, setRecipient] = useState<any>(null);
+    const initialName = route?.params?.providerName || route?.params?.provider?.business_name || route?.params?.provider?.provider_name || 'Pawber Specialist';
+    const [recipient, setRecipient] = useState<any>({
+        name: initialName,
+        avatar: route?.params?.provider?.provider_image || 'https://i.pravatar.cc/100?img=12',
+        rating: 4.9,
+        status: 'Online'
+    });
 
     useEffect(() => {
         const init = async () => {
@@ -87,6 +96,19 @@ export default function Chat({ navigation, route }: any) {
                 const { data: thread } = await query.maybeSingle();
                 if (thread) {
                     finalThreadId = thread.id;
+                } else {
+                    try {
+                        const res: any = await api.post('/chat/threads', {
+                            booking_id: bookingId,
+                            provider_user_id: providerUserId
+                        });
+                        const createdThreadId = res?.data?.thread?.id || res?.thread?.id || res?.data?.id || res?.id;
+                        if (createdThreadId) {
+                            finalThreadId = createdThreadId;
+                        }
+                    } catch (e) {
+                        console.error('Failed to auto-create thread:', e);
+                    }
                 }
             }
 
@@ -111,27 +133,26 @@ export default function Chat({ navigation, route }: any) {
                             .from('profiles')
                             .select('full_name, avatar_url')
                             .eq('id', otherUserId)
-                            .single();
+                            .maybeSingle();
 
-                        if (profile) {
-                            let rating = 4.9;
-                            const { data: providerData } = await supabase
-                                .from('providers')
-                                .select('rating')
-                                .eq('user_id', otherUserId)
-                                .maybeSingle();
+                        const { data: providerData } = await supabase
+                            .from('providers')
+                            .select('business_name, rating')
+                            .eq('user_id', otherUserId)
+                            .maybeSingle();
 
-                            if (providerData?.rating) {
-                                rating = parseFloat(providerData.rating);
-                            }
-
-                            setRecipient({
-                                name: profile.full_name || 'User',
-                                avatar: profile.avatar_url || 'https://i.pravatar.cc/100',
-                                rating: rating,
-                                status: 'Online'
-                            });
+                        let rating = 4.9;
+                        if (providerData?.rating) {
+                            rating = parseFloat(providerData.rating);
                         }
+
+                        const finalName = providerData?.business_name || profile?.full_name || initialName;
+                        setRecipient({
+                            name: finalName,
+                            avatar: profile?.avatar_url || 'https://i.pravatar.cc/100?img=12',
+                            rating: rating,
+                            status: 'Online'
+                        });
                     }
                 }
             }
@@ -147,9 +168,41 @@ export default function Chat({ navigation, route }: any) {
         init();
     }, [bookingId, route?.params?.threadId, route?.params?.providerUserId]);
 
+    const { socket, isConnected, emit, on } = useSocket();
+    const typingTimeoutRef = useRef<any>(null);
+
     useEffect(() => {
         if (!threadId) return;
 
+        // Join socket room for instant delivery
+        if (isConnected) {
+            emit('join_chat', threadId);
+        }
+
+        // Listen to Socket.IO events
+        const unsubNewMsg = on('new_message', (newMsg: ChatMessage) => {
+            setMessages(prev => {
+                if (prev.some(m => m.id === newMsg.id)) return prev;
+                return [...prev, newMsg];
+            });
+            if (newMsg.sender_id !== currentUserId.current) {
+                setIsTyping(false);
+            }
+        });
+
+        const unsubTypingStart = on('typing_start', (data: any) => {
+            if (data.threadId === threadId && data.userId !== currentUserId.current) {
+                setIsTyping(true);
+            }
+        });
+
+        const unsubTypingStop = on('typing_stop', (data: any) => {
+            if (data.threadId === threadId && data.userId !== currentUserId.current) {
+                setIsTyping(false);
+            }
+        });
+
+        // Supabase realtime fallback
         const subscription = supabase
             .channel(`chat:${threadId}`)
             .on('postgres_changes', {
@@ -170,9 +223,26 @@ export default function Chat({ navigation, route }: any) {
             .subscribe();
 
         return () => {
+            if (isConnected) {
+                emit('leave_chat', threadId);
+            }
+            unsubNewMsg();
+            unsubTypingStart();
+            unsubTypingStop();
             subscription.unsubscribe();
         };
-    }, [threadId]);
+    }, [threadId, isConnected]);
+
+    const handleInputChange = (text: string) => {
+        setInput(text);
+        if (threadId && isConnected) {
+            emit('typing_start', { threadId });
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => {
+                emit('typing_stop', { threadId });
+            }, 2000);
+        }
+    };
 
     const loadMessages = async (tId: string) => {
         const { data } = await supabase
@@ -235,12 +305,17 @@ export default function Chat({ navigation, route }: any) {
 
         if (threadId) {
             try {
-                await api.post(`/chat/threads/${threadId}/messages`, {
+                const res: any = await api.post(`/chat/threads/${threadId}/messages`, {
                     content,
                     message_type: 'text',
                 });
-            } catch (err) {
+                if (res && res.success === false) {
+                    showError('Safety Notice 🛡️', res.error?.message || 'For your safety, personal contact details cannot be shared. Please continue chatting through Pawber.');
+                    setInput(content);
+                }
+            } catch (err: any) {
                 console.error('Failed to send message:', err);
+                showError('Error', err.message || 'Failed to send message');
             }
         } else {
             const newMsg: ChatMessage = {
@@ -395,14 +470,11 @@ export default function Chat({ navigation, route }: any) {
 
                 {/* Input Area */}
                 <View style={[styles.inputArea, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-                    <TouchableOpacity style={[styles.attachBtn, { backgroundColor: colors.background }]}>
-                        <Paperclip size={20} color={colors.textMuted} />
-                    </TouchableOpacity>
                     <TextInput
                         style={[styles.textInput, { backgroundColor: colors.background, color: colors.text }]}
                         placeholder="Type a message..."
                         value={input}
-                        onChangeText={setInput}
+                        onChangeText={handleInputChange}
                         multiline
                         placeholderTextColor={colors.textMuted}
                     />
