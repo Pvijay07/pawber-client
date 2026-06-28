@@ -561,8 +561,8 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 const loaded = await loadRazorpay();
                 if (loaded) {
                     const orderRes = await paymentsApi.createOrder(createdBooking.id, gatewayPortion, walletPortion);
-                    if (orderRes.success && orderRes.data?.order) {
-                        const orderData = orderRes.data.order;
+                    if (orderRes.success && orderRes.data?.order_id) {
+                        const orderData = orderRes.data;
                         
                         initializeRazorpayPayment({
                             key: orderData.key_id,
@@ -608,13 +608,13 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
             setIsSubmitting(true);
             try {
                 const orderRes = await paymentsApi.createOrder(createdBooking.id, gatewayPortion, walletPortion);
-                if (!orderRes.success || !orderRes.data?.order) {
+                if (!orderRes.success || !orderRes.data?.order_id) {
                     alert('Failed to initialize payment order: ' + (orderRes.error?.message || 'Payment gateway error'));
                     setIsSubmitting(false);
                     return;
                 }
 
-                const orderData = orderRes.data.order;
+                const orderData = orderRes.data;
                 const sessionRes = await supabase.auth.getSession();
                 const userEmail = sessionRes.data?.session?.user?.email || 'customer@pawber.com';
 
