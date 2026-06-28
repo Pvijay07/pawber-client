@@ -53,6 +53,9 @@ import { Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ServiceDetail, Pet } from '../shared/types';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { API_BASE_URL } from '../shared/constants';
 
 // LayoutAnimation is disabled on Android to prevent native crashes during layout changes
 
@@ -593,24 +596,67 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 }
             }
 
-            // 3. Fallback/Mock for native/mobile environments
-            console.log('⚡ Using Mock Payment confirmation flow');
-            const orderRes = await paymentsApi.createOrder(createdBooking.id, gatewayPortion, walletPortion);
-            if (orderRes.success && orderRes.data?.order) {
-                setPaymentModalDetails({
-                    orderId: orderRes.data.order.order_id,
-                    amount: gatewayPortion,
-                    walletPortion: walletPortion
-                });
-                setShowPaymentModal(true);
-            } else {
-                const res = await bookingsApi.confirmPayment(createdBooking.id);
-                if (res.success) {
-                    setBookingStatus('confirmed');
-                    loadBooking(createdBooking.id);
-                } else {
-                    alert('Payment failed. Please try again.');
+            // 3. Native/Mobile environments: Open real hosted checkout page in WebBrowser
+            console.log('⚡ Launching real hosted Razorpay payment checkout flow');
+            setIsSubmitting(true);
+            try {
+                const sessionRes = await supabase.auth.getSession();
+                const token = sessionRes.data?.session?.access_token;
+                
+                if (!token) {
+                    alert('Authentication session expired. Please log in again.');
+                    setIsSubmitting(false);
+                    return;
                 }
+
+                const redirectUrl = Linking.createURL('/payment-callback');
+                // Construct checkout URL on backend (pointing to root domain)
+                const baseUrl = API_BASE_URL.replace(/\/api$/, '');
+                const checkoutUrl = `${baseUrl}/api/payments/checkout?booking_id=${createdBooking.id}&amount=${gatewayPortion}&wallet_amount=${walletPortion}&token=${token}&redirect_url=${encodeURIComponent(redirectUrl)}`;
+
+                console.log('[Payment] Opening hosted checkout at:', checkoutUrl);
+
+                let subscription: any = null;
+
+                const handleDeepLink = async (event: { url: string }) => {
+                    console.log('[Payment] Received deep link callback:', event.url);
+                    const parsed = Linking.parse(event.url);
+                    const { status, booking_id: cbBookingId } = parsed.queryParams || {};
+
+                    if (cbBookingId === createdBooking.id) {
+                        // Clean up listener
+                        if (subscription) {
+                            subscription.remove();
+                        }
+                        // Close Browser sheet
+                        WebBrowser.dismissBrowser();
+
+                        if (status === 'success') {
+                            setBookingStatus('confirmed');
+                            loadBooking(createdBooking.id);
+                        } else if (status === 'cancel') {
+                            alert('Payment was cancelled.');
+                        } else {
+                            alert('Payment failed: ' + (parsed.queryParams?.error || 'Unknown error'));
+                        }
+                    }
+                };
+
+                // Add linking event listener
+                subscription = Linking.addEventListener('url', handleDeepLink);
+
+                // Open the checkout sheet
+                const result = await WebBrowser.openBrowserAsync(checkoutUrl);
+
+                // If user manually closes browser tab
+                if (result.type === 'cancel' || result.type === 'dismiss') {
+                    if (subscription) {
+                        subscription.remove();
+                    }
+                }
+            } catch (err: any) {
+                console.error('[Payment] Native payment launch error:', err);
+                alert('Failed to launch payment checkout.');
             }
         } catch (error: any) {
             console.error('Payment error:', error);
