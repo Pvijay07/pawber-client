@@ -47,6 +47,7 @@ import MainTabNavigator from './src/navigation/MainTabNavigator';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import * as Linking from 'expo-linking';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
+import GlobalSocketHandler from './src/components/GlobalSocketHandler';
 
 const Stack = createNativeStackNavigator();
 const navigationRef = createNavigationContainerRef();
@@ -224,6 +225,7 @@ function AppContent({ session }: { session: Session | null }) {
 
   return (
     <NavigationContainer theme={navigationTheme as any} linking={linking as any} ref={navigationRef as any}>
+      {session && <GlobalSocketHandler navigationRef={navigationRef} />}
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
