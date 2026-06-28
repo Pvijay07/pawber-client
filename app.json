@@ -26,6 +26,11 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.pawber.client",
       "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAevoZuWL_UAEktBhxjjie94Y263CZZbXM"
+        }
+      },
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
