@@ -693,6 +693,28 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         else navigation.goBack();
     };
 
+    const handleCancelOrFailure = async () => {
+        setIsSubmitting(true);
+        try {
+            if (route?.params?.fromBidding && createdBooking?.id) {
+                const res = await bookingsApi.deselectBid(createdBooking.id);
+                if (res.success) {
+                    navigation.goBack();
+                } else {
+                    console.error('Failed to revert bid selection:', res.error?.message);
+                    navigation.goBack(); // fallback
+                }
+            } else {
+                setIsSubmitting(false);
+            }
+        } catch (err) {
+            console.error('Error during handleCancelOrFailure:', err);
+            navigation.goBack();
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const handleChatWithProvider = async () => {
         if (!createdBooking?.id || !createdBooking?.provider?.user_id) {
             alert('Provider information not loaded yet');
@@ -1800,7 +1822,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                     animationType="slide"
                     onRequestClose={() => {
                         setShowPaymentWebView(false);
-                        setIsSubmitting(false);
+                        handleCancelOrFailure();
                     }}
                 >
                     <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
@@ -1809,7 +1831,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                             <TouchableOpacity 
                                 onPress={() => {
                                     setShowPaymentWebView(false);
-                                    setIsSubmitting(false);
+                                    handleCancelOrFailure();
                                 }}
                                 style={{ padding: 8 }}
                             >
@@ -1844,12 +1866,12 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                     }
                                 } else if (navState.url.includes('/payments/checkout/cancel') || navState.url.includes('status=cancel')) {
                                     setShowPaymentWebView(false);
-                                    setIsSubmitting(false);
+                                    handleCancelOrFailure();
                                     alert('Payment was cancelled.');
                                 } else if (navState.url.includes('status=error')) {
                                     const errorMsg = getUrlQueryParam(navState.url, 'error') || 'Payment failed';
                                     setShowPaymentWebView(false);
-                                    setIsSubmitting(false);
+                                    handleCancelOrFailure();
                                     alert('Payment failed: ' + errorMsg);
                                 }
                             }}
