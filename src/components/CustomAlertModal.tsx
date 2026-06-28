@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useRef } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import {
-    Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Dimensions
+    Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Dimensions, Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -32,6 +32,19 @@ interface AlertContextType {
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
+export const globalAlertRef: {
+    show?: (title: string, message?: string, buttons?: any[]) => void;
+} = {};
+
+const originalRNAlert = Alert.alert;
+Alert.alert = (title: string, message?: string, buttons?: any[], options?: any) => {
+    if (globalAlertRef.show) {
+        globalAlertRef.show(title, message, buttons);
+    } else {
+        originalRNAlert(title, message, buttons, options);
+    }
+};
+
 export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { colors, isDark } = useTheme();
     const [visible, setVisible] = useState(false);
@@ -42,6 +55,57 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const backdropAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(30)).current;
     const iconScaleAnim = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        globalAlertRef.show = (title: string, message?: string, buttons?: any[]) => {
+            const fullStr = `${title} ${message || ''}`.toLowerCase();
+            let type: AlertType = 'info';
+
+            if (fullStr.includes('error') || fullStr.includes('fail') || fullStr.includes('denied') || fullStr.includes('cannot') || fullStr.includes('invalid') || fullStr.includes('exception')) {
+                type = 'error';
+            } else if (fullStr.includes('success') || fullStr.includes('confirm') || fullStr.includes('paid') || fullStr.includes('released') || fullStr.includes('done') || fullStr.includes('✨') || fullStr.includes('🎉')) {
+                type = 'success';
+            } else if (fullStr.includes('warn') || fullStr.includes('require') || fullStr.includes('incomplete') || fullStr.includes('delete') || fullStr.includes('cancel')) {
+                type = 'warning';
+            }
+
+            let confirmText = 'Got It';
+            let cancelText: string | undefined = undefined;
+            let onConfirm: (() => void) | undefined = undefined;
+            let onCancel: (() => void) | undefined = undefined;
+
+            if (buttons && buttons.length > 0) {
+                if (buttons.length === 1) {
+                    confirmText = buttons[0].text || 'OK';
+                    onConfirm = buttons[0].onPress;
+                } else {
+                    const cancelBtn = buttons.find(b => b.style === 'cancel' || (b.text && b.text.toLowerCase() === 'cancel'));
+                    const confirmBtn = buttons.find(b => b !== cancelBtn) || buttons[1];
+
+                    if (cancelBtn) {
+                        cancelText = cancelBtn.text || 'Cancel';
+                        onCancel = cancelBtn.onPress;
+                    }
+                    if (confirmBtn) {
+                        confirmText = confirmBtn.text || 'Confirm';
+                        onConfirm = confirmBtn.onPress;
+                    }
+                }
+            }
+
+            showAlert({
+                title,
+                message: message || '',
+                type,
+                confirmText,
+                cancelText,
+                onConfirm,
+                onCancel
+            });
+        };
+        return () => {
+            globalAlertRef.show = undefined;
+        };
+    }, []);
 
     const showAlert = (opts: AlertOptions) => {
         setOptions(opts);
