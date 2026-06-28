@@ -56,7 +56,8 @@ import { ServiceDetail, Pet } from '../shared/types';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { API_BASE_URL } from '../shared/constants';
-import { WebView } from 'react-native-webview';
+// @ts-ignore
+import RazorpayCheckout from 'react-native-razorpay';
 
 // LayoutAnimation is disabled on Android to prevent native crashes during layout changes
 
@@ -152,8 +153,6 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     const [bookingStatus, setBookingStatus] = useState<string>('pending');
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [paymentModalDetails, setPaymentModalDetails] = useState<any>(null);
-    const [showPaymentWebView, setShowPaymentWebView] = useState(false);
-    const [paymentUrl, setPaymentUrl] = useState('');
 
     const isWalkingService = serviceData?.slug === 'walking' || serviceData?.category?.slug === 'exercise';
 
@@ -604,27 +603,67 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 }
             }
 
-            // 3. Native/Mobile environments: Open real hosted checkout page in-app using WebView Modal
-            console.log('⚡ Launching real hosted Razorpay payment checkout in-app webview');
+            // 3. Native/Mobile environments: Open Razorpay Native SDK Sheet
+            console.log('⚡ Launching Razorpay Native SDK Checkout Sheet');
             setIsSubmitting(true);
             try {
-                const sessionRes = await supabase.auth.getSession();
-                const token = sessionRes.data?.session?.access_token;
-                
-                if (!token) {
-                    alert('Authentication session expired. Please log in again.');
+                const orderRes = await paymentsApi.createOrder(createdBooking.id, gatewayPortion, walletPortion);
+                if (!orderRes.success || !orderRes.data?.order) {
+                    alert('Failed to initialize payment order: ' + (orderRes.error?.message || 'Payment gateway error'));
                     setIsSubmitting(false);
                     return;
                 }
 
-                const redirectUrl = Linking.createURL('/payment-callback');
-                // Construct checkout URL on backend (pointing to root domain)
-                const baseUrl = API_BASE_URL.replace(/\/api$/, '');
-                const checkoutUrl = `${baseUrl}/api/payments/checkout?booking_id=${createdBooking.id}&amount=${gatewayPortion}&wallet_amount=${walletPortion}&token=${token}&redirect_url=${encodeURIComponent(redirectUrl)}`;
+                const orderData = orderRes.data.order;
+                const sessionRes = await supabase.auth.getSession();
+                const userEmail = sessionRes.data?.session?.user?.email || 'customer@pawber.com';
 
-                console.log('[Payment] Loading checkout URL in webview:', checkoutUrl);
-                setPaymentUrl(checkoutUrl);
-                setShowPaymentWebView(true);
+                const options = {
+                    description: walletPortion > 0 ? `Split Payment (Wallet: ₹${walletPortion})` : 'Service Booking Payment',
+                    image: 'https://razorpay.com/favicon.png',
+                    currency: orderData.currency,
+                    key: orderData.key_id,
+                    amount: orderData.amount, // amount in paise
+                    name: 'Pawber',
+                    order_id: orderData.order_id,
+                    prefill: {
+                        email: userEmail,
+                        contact: '9999999999',
+                        name: 'Pawber Customer'
+                    },
+                    theme: { color: '#FF7A3D' }
+                };
+
+                RazorpayCheckout.open(options)
+                    .then(async (data: any) => {
+                        try {
+                            setIsSubmitting(true);
+                            console.log('⚡ Razorpay payment successful. Verifying signature...', data);
+                            const verifyRes = await paymentsApi.verify({
+                                razorpay_order_id: data.razorpay_order_id,
+                                razorpay_payment_id: data.razorpay_payment_id,
+                                razorpay_signature: data.razorpay_signature,
+                            });
+                            if (verifyRes.success && verifyRes.data?.verified) {
+                                setBookingStatus('confirmed');
+                                loadBooking(createdBooking.id);
+                            } else {
+                                alert('Payment verification failed.');
+                                await handleCancelOrFailure();
+                            }
+                        } catch (err: any) {
+                            console.error('Payment verification signature error:', err);
+                            alert('An error occurred during payment verification.');
+                            await handleCancelOrFailure();
+                        } finally {
+                            setIsSubmitting(false);
+                        }
+                    })
+                    .catch(async (error: any) => {
+                        console.log('❌ Razorpay native payment cancelled/failed:', error);
+                        alert('Payment Cancelled');
+                        await handleCancelOrFailure();
+                    });
             } catch (err: any) {
                 console.error('[Payment] Native payment launch error:', err);
                 alert('Failed to launch payment checkout.');
@@ -1406,7 +1445,12 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
 
                         {step === 3 && (
                             <View style={styles.successView}>
-                                {bookingStatus === 'pending' ? (
+                                {(!createdBooking && route?.params?.fromBidding) ? (
+                                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+                                        <ActivityIndicator size="large" color="#FF7A3D" />
+                                        <Text style={{ marginTop: 16, fontSize: 14, fontWeight: '700', color: colors.textSecondary }}>Preparing checkout...</Text>
+                                    </View>
+                                ) : (bookingStatus === 'pending' && !route?.params?.fromBidding) ? (
                                     <View style={{ alignItems: 'center' }}>
                                         <BookingRadar />
                                         <Text style={styles.successTitle}>Finding Your Expert...</Text>
@@ -1814,70 +1858,6 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                         )}
                     </ScrollView>
                 </View>
-
-                {/* In-App WebView Razorpay Gateway Modal */}
-                <Modal
-                    visible={showPaymentWebView}
-                    transparent={false}
-                    animationType="slide"
-                    onRequestClose={() => {
-                        setShowPaymentWebView(false);
-                        handleCancelOrFailure();
-                    }}
-                >
-                    <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
-                        <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F5E6D8', justifyContent: 'space-between', paddingHorizontal: 16 }}>
-                            <Text style={{ fontSize: 16, fontWeight: '800', color: '#1A1612' }}>Secure Checkout</Text>
-                            <TouchableOpacity 
-                                onPress={() => {
-                                    setShowPaymentWebView(false);
-                                    handleCancelOrFailure();
-                                }}
-                                style={{ padding: 8 }}
-                            >
-                                <Text style={{ color: '#FF7A3D', fontWeight: '800', fontSize: 14 }}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                        
-                        <WebView 
-                            source={{ uri: paymentUrl }}
-                            style={{ flex: 1 }}
-                            javaScriptEnabled={true}
-                            domStorageEnabled={true}
-                            startInLoadingState={true}
-                            renderLoading={() => (
-                                <ActivityIndicator 
-                                    style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -12 }, { translateY: -12 }] }} 
-                                    size="large" 
-                                    color="#FF7A3D" 
-                                />
-                            )}
-                            onNavigationStateChange={(navState) => {
-                                console.log('[WebView] Navigated to:', navState.url);
-                                
-                                if (navState.url.includes('/payments/checkout/success') || navState.url.includes('status=success')) {
-                                    const status = getUrlQueryParam(navState.url, 'status') || 'success';
-                                    const cbBookingId = getUrlQueryParam(navState.url, 'booking_id');
-                                    
-                                    if (cbBookingId === createdBooking?.id) {
-                                        setShowPaymentWebView(false);
-                                        setBookingStatus('confirmed');
-                                        loadBooking(createdBooking.id);
-                                    }
-                                } else if (navState.url.includes('/payments/checkout/cancel') || navState.url.includes('status=cancel')) {
-                                    setShowPaymentWebView(false);
-                                    handleCancelOrFailure();
-                                    alert('Payment was cancelled.');
-                                } else if (navState.url.includes('status=error')) {
-                                    const errorMsg = getUrlQueryParam(navState.url, 'error') || 'Payment failed';
-                                    setShowPaymentWebView(false);
-                                    handleCancelOrFailure();
-                                    alert('Payment failed: ' + errorMsg);
-                                }
-                            }}
-                        />
-                    </SafeAreaView>
-                </Modal>
 
                 {/* Simulated Payment Sheet Modal */}
                 <Modal
