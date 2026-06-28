@@ -10,6 +10,10 @@ export interface Notification {
     reference_id?: string;
     reference_type?: string;
     created_at: string;
+    priority?: 'normal' | 'high' | 'critical';
+    category?: 'client' | 'provider' | 'system';
+    subcategory?: string;
+    template_id?: string;
 }
 
 export const notificationsApi = {

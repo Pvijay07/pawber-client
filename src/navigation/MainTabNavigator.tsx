@@ -14,21 +14,21 @@ import Profile from '../screens/Profile';
 const Tab = createBottomTabNavigator();
 
 export default function MainTabNavigator() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#FF7A3D',
-        tabBarInactiveTintColor: '#94A3B8',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
           height: Platform.OS === 'ios' ? 88 : 68,
           paddingBottom: Platform.OS === 'ios' ? 30 : 12,
           paddingTop: 10,
-          backgroundColor: 'white',
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
-          borderTopColor: '#F1F5F9',
+          borderTopColor: colors.border,
         },
         tabBarLabelStyle: {
           fontSize: 10,
@@ -49,7 +49,7 @@ export default function MainTabNavigator() {
                   size={24}
                   color={color}
                   strokeWidth={focused ? 2.5 : 2}
-                  fill={focused ? 'rgba(255, 122, 61, 0.1)' : 'transparent'}
+                  fill={focused ? 'rgba(255, 122, 61, 0.15)' : 'transparent'}
                 />
               )}
               {focused && (
@@ -57,7 +57,7 @@ export default function MainTabNavigator() {
                   width: 4,
                   height: 4,
                   borderRadius: 2,
-                  backgroundColor: '#FF7A3D',
+                  backgroundColor: colors.primary,
                   marginTop: 4,
                   position: 'absolute',
                   bottom: -16
@@ -91,5 +91,3 @@ export default function MainTabNavigator() {
     </Tab.Navigator>
   );
 }
-
-

@@ -35,6 +35,7 @@ import { bookingsApi, api } from '../services';
 import { useSocket } from '../hooks/useSocket';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../theme/ThemeContext';
+import { useAlert } from '../components/CustomAlertModal';
 
 const { width } = Dimensions.get('window');
 
@@ -106,7 +107,7 @@ const BidCard = ({ bid, index, onAccept, onChat, onProfilePress, isLocking, lock
     bid: Bid;
     index: number;
     onAccept: (bidId: string) => void;
-    onChat: (providerId: string) => void;
+    onChat: (providerId: string, bidObj?: any) => void;
     onProfilePress: () => void;
     isLocking: boolean;
     lockingId: string | null;
@@ -221,7 +222,7 @@ const BidCard = ({ bid, index, onAccept, onChat, onProfilePress, isLocking, lock
                         </TouchableOpacity>
                         <TouchableOpacity 
                             style={[styles.messageBtn, { backgroundColor: colors.background, borderColor: colors.border }]} 
-                            onPress={() => onChat(bid.provider_id)}
+                            onPress={() => onChat((bid as any).provider?.user?.id || bid.provider_id, bid)}
                         >
                             <MessageSquare size={18} color={colors.text} />
                         </TouchableOpacity>
@@ -234,6 +235,7 @@ const BidCard = ({ bid, index, onAccept, onChat, onProfilePress, isLocking, lock
 
 export default function ServiceBidding({ navigation, route }: any) {
     const { colors, isDark } = useTheme();
+    const { showError, showSuccess } = useAlert();
     const bookingId = route?.params?.bookingId;
     const bookingAmount = route?.params?.totalAmount;
     const bookingType = route?.params?.bookingType;
@@ -298,7 +300,7 @@ export default function ServiceBidding({ navigation, route }: any) {
                     id: b.id,
                     provider_id: b.provider_id,
                     provider_name: b.provider_name || 'Provider',
-                    provider_image: b.provider_image || `https://i.pravatar.cc/100?u=${b.provider_id}`,
+                    provider_image: b.provider_image || `https://i.pravatar.cc/100?img=12`,
                     rating: parseFloat(b.provider_rating) || 5.0,
                     amount: parseFloat(b.amount) || 0,
                     eta: b.eta || '15 min',
@@ -309,8 +311,32 @@ export default function ServiceBidding({ navigation, route }: any) {
             });
         });
 
+        const unsubBidUpdated = on('BOOKING_BID_UPDATED', (data: any) => {
+            const b = data.bid;
+            console.log('🔄 Socket: booking bid updated:', b);
+            setBids(prev => prev.map(existing => {
+                if (existing.id === b.id) {
+                    return {
+                        ...existing,
+                        amount: parseFloat(b.amount) || 0,
+                        eta: b.eta || '15 min',
+                        message: b.message || '',
+                    };
+                }
+                return existing;
+            }));
+        });
+
+        const unsubBidDeleted = on('BOOKING_BID_DELETED', (data: any) => {
+            const deletedBidId = data.bid_id;
+            console.log('🗑️ Socket: booking bid deleted:', deletedBidId);
+            setBids(prev => prev.filter(existing => existing.id !== deletedBidId));
+        });
+
         return () => {
             unsubBid();
+            unsubBidUpdated();
+            unsubBidDeleted();
         };
     }, [bookingId, on]);
 
@@ -418,23 +444,26 @@ export default function ServiceBidding({ navigation, route }: any) {
         }
     };
 
-    const handleChat = async (providerId: string) => {
+    const handleChat = async (providerId: string, bidObj?: any) => {
         try {
-            const res = await api.post<any>('/chat/threads', {
+            const res: any = await api.post<any>('/chat/threads', {
                 booking_id: bookingId,
                 provider_user_id: providerId
             });
-            if (res.success && res.data?.thread?.id) {
+            const threadId = res?.data?.thread?.id || res?.thread?.id || res?.data?.id || res?.id;
+            if (threadId) {
                 navigation.navigate('Chat', {
-                    threadId: res.data.thread.id,
+                    threadId: threadId,
                     bookingId: bookingId,
-                    providerUserId: providerId
+                    providerUserId: providerId,
+                    providerName: bidObj?.provider_name || bidObj?.provider?.business_name || bidObj?.business_name || 'Pawber Specialist',
+                    provider: bidObj
                 });
             } else {
-                alert(res.error?.message || 'Failed to open chat thread');
+                showError('Chat Error', res?.error?.message || res?.message || 'Failed to open chat thread');
             }
         } catch (error: any) {
-            alert(error.message || 'Failed to initiate chat');
+            showError('Error', error.message || 'Failed to initiate chat');
         }
     };
 

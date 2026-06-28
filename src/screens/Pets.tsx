@@ -45,6 +45,7 @@ import {
 import { petsApi } from '../services/pets.service';
 import { bookingsApi } from '../services/bookings.service';
 import { useTheme } from '../theme/ThemeContext';
+import PetAvatar from '../components/PetAvatar';
 
 // LayoutAnimation is disabled on Android to prevent native crashes during layout changes
 
@@ -483,14 +484,8 @@ export default function Pets({ navigation, route }: any) {
                                 }}
                             >
                                 <View style={[styles.uploadPlaceholder, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-                                    {formData.image ? (
-                                        <Image source={{ uri: formData.image }} style={styles.uploadedImg} />
-                                    ) : (
-                                        <>
-                                            <Camera size={40} color={colors.textMuted} />
-                                            <Text style={[styles.uploadLabel, { color: colors.textMuted }]}>GENERATE AVATAR</Text>
-                                        </>
-                                    )}
+                                    <PetAvatar name={formData.name || 'New Pet'} type={formData.type} imageUrl={formData.image} size={80} />
+                                    <Text style={[styles.uploadLabel, { color: colors.textMuted, marginTop: 8 }]}>DYNAMIC AVATAR PREVIEW</Text>
                                 </View>
                             </TouchableOpacity>
 
@@ -662,8 +657,7 @@ export default function Pets({ navigation, route }: any) {
                                     style={[styles.petListItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
                                 >
                                     <View style={styles.listAvatarWrapper}>
-                                        <Image source={{ uri: pet.image }} style={styles.listAvatar} />
-                                        <View style={styles.avatarOverlay} />
+                                        <PetAvatar name={pet.name} type={pet.type} imageUrl={pet.image} size={64} />
                                     </View>
                                     <View style={styles.listInfo}>
                                         <View style={styles.nameRow}>

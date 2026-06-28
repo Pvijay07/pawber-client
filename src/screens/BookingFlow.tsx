@@ -5,7 +5,6 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    
     Image,
     Dimensions,
     TextInput,
@@ -13,7 +12,8 @@ import {
     Platform,
     UIManager,
     ActivityIndicator,
-    BackHandler
+    BackHandler,
+    Modal
 } from 'react-native';
 import {
     ArrowLeft,
@@ -146,6 +146,8 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
     const [pointsBalance, setPointsBalance] = useState(0);
     const [createdBooking, setCreatedBooking] = useState<any>(null);
     const [bookingStatus, setBookingStatus] = useState<string>('pending');
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [paymentModalDetails, setPaymentModalDetails] = useState<any>(null);
 
     const isWalkingService = serviceData?.slug === 'walking' || serviceData?.category?.slug === 'exercise';
 
@@ -242,30 +244,23 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         fetchInitialData(true); // Full loading on mount
     }, [fetchInitialData]);
 
+    const loadBooking = async (bookingId: string) => {
+        try {
+            const res = await bookingsApi.getById(bookingId);
+            if (res.success && res.data?.booking) {
+                console.log('🔄 Loaded booking details:', res.data.booking);
+                setCreatedBooking(res.data.booking);
+                setBookingStatus(res.data.booking.status);
+            }
+        } catch (err) {
+            console.error('Failed to load booking details:', err);
+        }
+    };
+
     useEffect(() => {
-        if (route?.params?.fromBidding && route?.params?.bookingId) {
-            console.log('🔄 Coming back from bidding screen, setting state for payment');
-            setCreatedBooking({
-                id: route.params.bookingId,
-                total_amount: route.params.totalAmount,
-                provider: {
-                    business_name: route.params.selectedBid?.provider_name,
-                    rating: route.params.selectedBid?.rating,
-                    user_id: route.params.selectedBid?.provider_id,
-                    user: {
-                        avatar_url: route.params.selectedBid?.provider_image
-                    }
-                }
-            });
-            setBookingStatus('accepted');
-            setStep(3);
-        } else if (route?.params?.bookingId && !route?.params?.fromBidding) {
-            console.log('🔄 Re-opening active search screen for booking:', route.params.bookingId);
-            setCreatedBooking({
-                id: route.params.bookingId,
-                total_amount: route.params.totalAmount || 0,
-            });
-            setBookingStatus('pending');
+        if (route?.params?.bookingId) {
+            console.log('🔄 Re-opening booking screen with ID:', route.params.bookingId);
+            loadBooking(route.params.bookingId);
             setStep(3);
         }
     }, [route?.params]);
@@ -525,6 +520,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 const res = await walletApi.pay(createdBooking.id, amount);
                 if (res.success) {
                     setBookingStatus('confirmed');
+                    loadBooking(createdBooking.id);
                 } else {
                     alert('Wallet payment failed: ' + (res.error?.message || 'Insufficient balance'));
                 }
@@ -541,6 +537,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                 const res = await walletApi.pay(createdBooking.id, amount);
                 if (res.success) {
                     setBookingStatus('confirmed');
+                    loadBooking(createdBooking.id);
                 } else {
                     alert('Wallet payment failed: ' + (res.error?.message || 'Insufficient balance'));
                 }
@@ -574,6 +571,7 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                     });
                                     if (verifyRes.success && verifyRes.data?.verified) {
                                         setBookingStatus('confirmed');
+                                        loadBooking(createdBooking.id);
                                     } else {
                                         alert('Payment verification failed.');
                                     }
@@ -599,20 +597,17 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
             console.log('⚡ Using Mock Payment confirmation flow');
             const orderRes = await paymentsApi.createOrder(createdBooking.id, gatewayPortion, walletPortion);
             if (orderRes.success && orderRes.data?.order) {
-                const verifyRes = await paymentsApi.verify({
-                    razorpay_order_id: orderRes.data.order.order_id,
-                    razorpay_payment_id: 'pay_mock_' + Date.now(),
-                    razorpay_signature: 'sig_mock_pass'
+                setPaymentModalDetails({
+                    orderId: orderRes.data.order.order_id,
+                    amount: gatewayPortion,
+                    walletPortion: walletPortion
                 });
-                if (verifyRes.success && verifyRes.data?.verified) {
-                    setBookingStatus('confirmed');
-                } else {
-                    alert('Mock payment verification failed.');
-                }
+                setShowPaymentModal(true);
             } else {
                 const res = await bookingsApi.confirmPayment(createdBooking.id);
                 if (res.success) {
                     setBookingStatus('confirmed');
+                    loadBooking(createdBooking.id);
                 } else {
                     alert('Payment failed. Please try again.');
                 }
@@ -623,6 +618,38 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleSimulatePaymentSuccess = async () => {
+        if (!paymentModalDetails) return;
+        setIsSubmitting(true);
+        setShowPaymentModal(false);
+        try {
+            const verifyRes = await paymentsApi.verify({
+                razorpay_order_id: paymentModalDetails.orderId,
+                razorpay_payment_id: 'pay_mock_' + Date.now(),
+                razorpay_signature: 'sig_mock_pass'
+            });
+            if (verifyRes.success && verifyRes.data?.verified) {
+                setBookingStatus('confirmed');
+                loadBooking(createdBooking.id);
+            } else {
+                alert('Mock payment verification failed.');
+            }
+        } catch (err) {
+            console.error('Verify payment error:', err);
+            alert('Mock payment verification failed.');
+        } finally {
+            setIsSubmitting(false);
+            setPaymentModalDetails(null);
+        }
+    };
+
+    const handleSimulatePaymentCancel = () => {
+        setShowPaymentModal(false);
+        setPaymentModalDetails(null);
+        setIsSubmitting(false);
+        alert('Payment cancelled by user.');
     };
 
     const handleBack = async () => {
@@ -720,7 +747,9 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                         <ArrowLeft size={20} color="#1A1612" />
                     </TouchableOpacity>
                     <View style={styles.headerTitles}>
-                        <Text style={styles.headerTitle}>{step === 3 ? 'CONFIRMED' : 'BOOKING'}</Text>
+                        <Text style={styles.headerTitle}>
+                            {bookingStatus === 'confirmed' ? 'CONFIRMED' : bookingStatus === 'accepted' || bookingStatus === 'bid_selected' ? 'CHECKOUT' : 'FINDING PRO'}
+                        </Text>
                         {step < 3 && <Text style={styles.stepIndicator}>Step {step + 1} of 3</Text>}
                     </View>
                     <TouchableOpacity style={styles.infoBtn}>
@@ -1351,20 +1380,25 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                             <Text style={StyleSheet.flatten([styles.trackBtnText, { color: '#1A1612' }])}>WAIT IN BACKGROUND</Text>
                                         </TouchableOpacity>
                                     </View>
-                                ) : bookingStatus === 'accepted' ? (
-                                    <View style={{ alignItems: 'center' }}>
+                                ) : (bookingStatus === 'accepted' || bookingStatus === 'bid_selected') ? (
+                                    <View style={{ alignItems: 'center', width: '100%' }}>
+                                        {/* Assigned Provider Details Card */}
                                         <View style={styles.providerMatchCard}>
                                             <Image
                                                 source={{ uri: createdBooking?.provider?.user?.avatar_url || 'https://i.pravatar.cc/100' }}
                                                 style={styles.providerAvatar}
                                             />
-                                            <Text style={styles.matchTitle}>Expert Found!</Text>
+                                            <Text style={styles.matchTitle}>ASSIGNED PROVIDER</Text>
                                             <Text style={styles.providerName}>{createdBooking?.provider?.business_name}</Text>
                                             <View style={styles.ratingRow}>
                                                 <Star size={14} color="#1D9E86" fill="#1D9E86" />
                                                 <Text style={styles.ratingText}>{createdBooking?.provider?.rating || '4.9'}</Text>
                                             </View>
-
+                                            {createdBooking?.provider?.user?.phone && (
+                                                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginTop: 4 }}>
+                                                    📞 {createdBooking.provider.user.phone}
+                                                </Text>
+                                            )}
                                             {createdBooking?.provider?.user_id && (
                                                 <TouchableOpacity
                                                     onPress={handleChatWithProvider}
@@ -1386,6 +1420,106 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                                 </TouchableOpacity>
                                             )}
                                         </View>
+
+                                        {/* Booking Summary Card */}
+                                        <View style={[styles.summaryCard, { width: '90%', marginBottom: 24, alignSelf: 'stretch', marginHorizontal: 24 }]}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                                <Receipt size={22} color={colors.primary} />
+                                                <Text style={{ fontSize: 15, fontWeight: '900', color: colors.text }}>Booking Details</Text>
+                                            </View>
+                                            
+                                            <View style={{ gap: 12 }}>
+                                                {/* Service & Package */}
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 10 }}>
+                                                    <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '600' }}>Service & Package</Text>
+                                                    <Text style={{ fontSize: 13, color: colors.text, fontWeight: '800' }}>
+                                                        {createdBooking?.service?.name || serviceData?.name} - {createdBooking?.package?.package_name || serviceData?.packages?.find(p => p.id === selectedPackage)?.package_name || 'Standard Plan'}
+                                                    </Text>
+                                                </View>
+
+                                                {/* Date & Time */}
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 10 }}>
+                                                    <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '600' }}>Schedule</Text>
+                                                    <Text style={{ fontSize: 13, color: colors.text, fontWeight: '800' }}>
+                                                        {createdBooking?.booking_date || selectedDate} @ {createdBooking?.booking_time || selectedTime || 'Flexible'}
+                                                    </Text>
+                                                </View>
+
+                                                {/* Frequency & Walks */}
+                                                {(createdBooking?.frequency || frequency) && (createdBooking?.frequency || frequency) !== 'onetime' && (
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 10 }}>
+                                                        <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '600' }}>Frequency & Walks</Text>
+                                                        <Text style={{ fontSize: 13, color: colors.text, fontWeight: '800' }}>
+                                                            {(createdBooking?.frequency || frequency).toUpperCase()} ({createdBooking?.total_walks || calculateTotalWalksClient(startDate, endDate, frequency, specificDays)} walks)
+                                                        </Text>
+                                                    </View>
+                                                )}
+
+                                                {/* Walk Duration */}
+                                                {(createdBooking?.walk_duration_minutes || walkDuration) && (createdBooking?.walk_duration_minutes || walkDuration) > 0 && isWalkingService && (
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 10 }}>
+                                                        <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '600' }}>Walk Duration</Text>
+                                                        <Text style={{ fontSize: 13, color: colors.text, fontWeight: '800' }}>
+                                                            {createdBooking?.walk_duration_minutes || walkDuration} mins
+                                                        </Text>
+                                                    </View>
+                                                )}
+
+                                                {/* Pets */}
+                                                {createdBooking?.booking_pets && createdBooking.booking_pets.length > 0 && (
+                                                    <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 10 }}>
+                                                        <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '600', marginBottom: 6 }}>Pets</Text>
+                                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                                                            {createdBooking.booking_pets.map((bp: any) => (
+                                                                <View key={bp.pet?.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.background, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
+                                                                    <Image source={{ uri: bp.pet?.image_url || 'https://i.pravatar.cc/100?img=12' }} style={{ width: 20, height: 20, borderRadius: 10 }} />
+                                                                    <Text style={{ fontSize: 12, fontWeight: '800', color: colors.text }}>
+                                                                        {bp.pet?.name} ({bp.pet?.breed || bp.pet?.type || 'Pet'})
+                                                                    </Text>
+                                                                </View>
+                                                            ))}
+                                                        </View>
+                                                    </View>
+                                                )}
+
+                                                {/* Addons */}
+                                                {createdBooking?.booking_addons && createdBooking.booking_addons.length > 0 && (
+                                                    <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 10 }}>
+                                                        <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '600', marginBottom: 6 }}>Addons</Text>
+                                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                                                            {createdBooking.booking_addons.map((ba: any) => (
+                                                                <View key={ba.addon?.id} style={{ backgroundColor: colors.accentLight, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.borderSecondary }}>
+                                                                    <Text style={{ fontSize: 11, fontWeight: '800', color: colors.accent }}>
+                                                                        {ba.addon?.name}
+                                                                    </Text>
+                                                                </View>
+                                                            ))}
+                                                        </View>
+                                                    </View>
+                                                )}
+
+                                                {/* Address */}
+                                                {(createdBooking?.address || addresses.find(a => a.id === selectedAddress)?.address) && (
+                                                    <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 10 }}>
+                                                        <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '600', marginBottom: 4 }}>Address</Text>
+                                                        <Text style={{ fontSize: 12, color: colors.text, fontWeight: '700' }} numberOfLines={2}>
+                                                            {createdBooking?.address || addresses.find(a => a.id === selectedAddress)?.address}
+                                                        </Text>
+                                                    </View>
+                                                )}
+
+                                                {/* Special Instructions / Notes */}
+                                                {(createdBooking?.notes || instructions) && (
+                                                    <View style={{ paddingBottom: 4 }}>
+                                                        <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '600', marginBottom: 4 }}>Instructions</Text>
+                                                        <Text style={{ fontSize: 12, color: colors.textMuted, fontStyle: 'italic', fontWeight: '500' }}>
+                                                            "{createdBooking?.notes || instructions}"
+                                                        </Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        </View>
+
                                         <Text style={styles.successSubtitle}>
                                             Please confirm payment to finalize the booking. Your expert is ready to start!
                                         </Text>
@@ -1521,25 +1655,117 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                                         </TouchableOpacity>
                                     </View>
                                 ) : (
-                                    <View style={{ alignItems: 'center' }}>
+                                    <View style={{ alignItems: 'center', width: '100%', paddingHorizontal: 16 }}>
                                         <View style={styles.successIconOuter}>
                                             <View style={styles.successIconInner}>
                                                 <CheckCircle2 size={64} color="#FF7A3D" strokeWidth={2.5} />
                                             </View>
                                         </View>
+                                        
                                         <Text style={styles.successTitle}>Booking Confirmed!</Text>
-                                        <Text style={styles.successSubtitle}>
-                                            Your dedicated expert is now assigned. Get ready for premium care!
+                                        <Text style={[styles.successSubtitle, { marginBottom: 20 }]}>
+                                            Your payment was successful and your booking is secured. Get ready for premium care!
                                         </Text>
-                                        <View style={styles.successButtons}>
+
+                                        {/* Copyable Booking ID */}
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surfaceSecondary, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 12, marginBottom: 24, borderWidth: 1, borderColor: colors.border }}>
+                                            <Text style={{ fontSize: 11, fontWeight: '800', color: colors.textMuted, letterSpacing: 0.5 }}>BOOKING ID:</Text>
+                                            <Text style={{ fontSize: 12, fontWeight: '900', color: colors.text }}>{createdBooking?.id}</Text>
+                                        </View>
+
+                                        {/* Timeline Stepper */}
+                                        <View style={{ width: '100%', backgroundColor: colors.surface, borderRadius: 24, padding: 20, marginBottom: 20, borderWidth: 1.5, borderColor: colors.border }}>
+                                            <Text style={{ fontSize: 12, fontWeight: '900', color: colors.textMuted, letterSpacing: 1.5, marginBottom: 16 }}>BOOKING TIMELINE</Text>
+                                            
+                                            {/* Step 1 */}
+                                            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                                                <View style={{ alignItems: 'center' }}>
+                                                    <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#48BB78', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <Check size={10} color="white" strokeWidth={4} />
+                                                    </View>
+                                                    <View style={{ width: 2, height: 24, backgroundColor: '#48BB78' }} />
+                                                </View>
+                                                <View style={{ flex: 1, paddingTop: 1 }}>
+                                                    <Text style={{ fontSize: 13, fontWeight: '900', color: colors.text }}>Request Submitted</Text>
+                                                    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted, marginTop: 2 }}>Booking request broadcasted & received</Text>
+                                                </View>
+                                            </View>
+
+                                            {/* Step 2 */}
+                                            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                                                <View style={{ alignItems: 'center' }}>
+                                                    <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#48BB78', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <Check size={10} color="white" strokeWidth={4} />
+                                                    </View>
+                                                    <View style={{ width: 2, height: 24, backgroundColor: '#48BB78' }} />
+                                                </View>
+                                                <View style={{ flex: 1, paddingTop: 1 }}>
+                                                    <Text style={{ fontSize: 13, fontWeight: '900', color: colors.text }}>Provider Assigned</Text>
+                                                    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted, marginTop: 2 }}>{createdBooking?.provider?.business_name || 'Service Professional'}</Text>
+                                                </View>
+                                            </View>
+
+                                            {/* Step 3 */}
+                                            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                                                <View style={{ alignItems: 'center' }}>
+                                                    <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#48BB78', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <Check size={10} color="white" strokeWidth={4} />
+                                                    </View>
+                                                    <View style={{ width: 2, height: 24, backgroundColor: colors.border }} />
+                                                </View>
+                                                <View style={{ flex: 1, paddingTop: 1 }}>
+                                                    <Text style={{ fontSize: 13, fontWeight: '900', color: colors.text }}>Payment Received</Text>
+                                                    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted, marginTop: 2 }}>Payment securely verified</Text>
+                                                </View>
+                                            </View>
+
+                                            {/* Step 4 */}
+                                            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                                                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.borderSecondary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.border }}>
+                                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textMuted }} />
+                                                </View>
+                                                <View style={{ flex: 1, paddingTop: 1 }}>
+                                                    <Text style={{ fontSize: 13, fontWeight: '900', color: colors.textMuted }}>Service Commencing</Text>
+                                                    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted, marginTop: 2 }}>Awaiting schedule time to begin service</Text>
+                                                </View>
+                                            </View>
+                                        </View>
+
+                                        {/* Assigned Provider Contact details Card */}
+                                        <View style={{ width: '100%', backgroundColor: colors.surface, borderRadius: 24, padding: 20, marginBottom: 28, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center' }}>
+                                            <Image
+                                                source={{ uri: createdBooking?.provider?.user?.avatar_url || 'https://i.pravatar.cc/100' }}
+                                                style={{ width: 64, height: 64, borderRadius: 32, marginBottom: 12 }}
+                                            />
+                                            <Text style={{ fontSize: 12, fontWeight: '900', color: colors.accent, letterSpacing: 1.5, marginBottom: 4 }}>YOUR PET CARE EXPERT</Text>
+                                            <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text }}>{createdBooking?.provider?.business_name}</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginTop: 4 }}>📞 {createdBooking?.provider?.user?.phone || 'Contact via Chat'}</Text>
+                                        </View>
+
+                                        {/* Success Buttons */}
+                                        <View style={{ width: '100%', gap: 12, marginBottom: 20 }}>
+                                            {createdBooking?.provider?.user_id && (
+                                                <TouchableOpacity
+                                                    style={{ height: 60, borderRadius: 20, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+                                                    onPress={handleChatWithProvider}
+                                                >
+                                                    <MessageSquare size={20} color="white" />
+                                                    <Text style={{ color: 'white', fontSize: 15, fontWeight: '900', letterSpacing: 0.5 }}>CHAT WITH PROVIDER</Text>
+                                                </TouchableOpacity>
+                                            )}
+
                                             <TouchableOpacity
-                                                style={styles.homeBtn}
+                                                style={{ height: 56, borderRadius: 20, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' }}
                                                 onPress={() => navigation.navigate('LiveTracking', { bookingId: createdBooking?.id })}
                                             >
-                                                <Text style={styles.homeBtnText}>TRACK LIVE</Text>
+                                                <Text style={{ color: colors.background, fontSize: 14, fontWeight: '900', letterSpacing: 1 }}>TRACK LIVE</Text>
                                             </TouchableOpacity>
-                                            <TouchableOpacity style={styles.trackBtn} onPress={() => navigation.navigate('Main')}>
-                                                <Text style={styles.trackBtnText}>BACK TO HOME</Text>
+
+                                            <TouchableOpacity 
+                                                style={{ height: 56, borderRadius: 20, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }} 
+                                                onPress={() => navigation.navigate('Main')}
+                                            >
+                                                <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>BACK TO HOME</Text>
                                             </TouchableOpacity>
                                         </View>
                                     </View>
@@ -1548,6 +1774,68 @@ export default function BookingFlow({ navigation, route }: BookingFlowProps) {
                         )}
                     </ScrollView>
                 </View>
+
+                {/* Simulated Payment Sheet Modal */}
+                <Modal
+                    visible={showPaymentModal}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={handleSimulatePaymentCancel}
+                >
+                    <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+                        <View style={{ backgroundColor: '#1A202C', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 }}>
+                            {/* Razorpay Brand Header */}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, borderBottomWidth: 1, borderBottomColor: '#2D3748', paddingBottom: 16 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <Image source={{ uri: 'https://razorpay.com/favicon.png' }} style={{ width: 24, height: 24 }} defaultSource={{ uri: 'https://razorpay.com/favicon.png' }} />
+                                    <Text style={{ color: 'white', fontSize: 16, fontWeight: '900', letterSpacing: 0.5 }}>razorpay</Text>
+                                </View>
+                                <View style={{ backgroundColor: '#ECC94B', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8 }}>
+                                    <Text style={{ color: '#1A202C', fontSize: 10, fontWeight: '900' }}>TEST MODE</Text>
+                                </View>
+                            </View>
+
+                            {/* Order & Amount */}
+                            <View style={{ marginBottom: 24 }}>
+                                <Text style={{ color: '#A0AEC0', fontSize: 12, fontWeight: '700' }}>ORDER ID</Text>
+                                <Text style={{ color: 'white', fontSize: 14, fontWeight: '800', marginTop: 2 }}>{paymentModalDetails?.orderId}</Text>
+                                
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, backgroundColor: '#2D3748', padding: 16, borderRadius: 16 }}>
+                                    <Text style={{ color: '#E2E8F0', fontSize: 14, fontWeight: '800' }}>Amount to Pay</Text>
+                                    <Text style={{ color: '#63B3ED', fontSize: 20, fontWeight: '900' }}>₹{paymentModalDetails?.amount?.toFixed(2)}</Text>
+                                </View>
+                            </View>
+
+                            {/* Simulation Notice */}
+                            <View style={{ backgroundColor: '#2C5282', padding: 16, borderRadius: 16, marginBottom: 28, flexDirection: 'row', gap: 12 }}>
+                                <Info size={20} color="#90CDF4" style={{ marginTop: 2 }} />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ color: 'white', fontSize: 13, fontWeight: '800' }}>Simulated Razorpay Gateway</Text>
+                                    <Text style={{ color: '#EBF8FF', fontSize: 12, fontWeight: '600', marginTop: 2, lineHeight: 18 }}>
+                                        This modal simulates Razorpay's native checkout SDK sheet. Choose to succeed or cancel the payment below.
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Actions */}
+                            <View style={{ gap: 12 }}>
+                                <TouchableOpacity
+                                    onPress={handleSimulatePaymentSuccess}
+                                    style={{ height: 56, borderRadius: 16, backgroundColor: '#48BB78', alignItems: 'center', justifyContent: 'center', shadowColor: '#48BB78', shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 }}
+                                >
+                                    <Text style={{ color: 'white', fontSize: 15, fontWeight: '900', letterSpacing: 0.5 }}>SUCCESS (CONFIRM PAYMENT)</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    onPress={handleSimulatePaymentCancel}
+                                    style={{ height: 56, borderRadius: 16, backgroundColor: '#E53E3E', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                    <Text style={{ color: 'white', fontSize: 15, fontWeight: '900', letterSpacing: 0.5 }}>CANCEL PAYMENT</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
 
                 {/* Footer Navigation */}
                 {step < 3 && (

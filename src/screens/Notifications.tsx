@@ -5,11 +5,11 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    
     Dimensions,
     ActivityIndicator,
     Platform,
-    StatusBar
+    StatusBar,
+    RefreshControl
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -20,9 +20,17 @@ import {
     Gift,
     Info,
     ChevronRight,
+    AlertTriangle,
+    CreditCard,
+    Scissors,
+    MapPin,
+    MessageSquare,
+    Star,
+    ShieldAlert
 } from 'lucide-react-native';
 import { notificationsApi, Notification } from '../services/notifications.service';
 import { useTheme } from '../theme/ThemeContext';
+import { subscribeToNotifications } from '../hooks/useSocket';
 
 const { width } = Dimensions.get('window');
 
@@ -38,9 +46,18 @@ export default function Notifications({ navigation }: NotificationsProps) {
 
     useEffect(() => {
         loadNotifications();
+        // Subscribe to real-time notification updates via socket
+        const unsubscribe = subscribeToNotifications(() => {
+            loadNotifications(true);
+        });
+        return () => { unsubscribe(); };
     }, []);
 
-    const loadNotifications = async () => {
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const loadNotifications = async (isRefresh = false) => {
+        if (isRefresh) setIsRefreshing(true);
+        else setIsLoading(true);
         try {
             const response = await notificationsApi.list();
             if (response?.data?.notifications) {
@@ -49,10 +66,13 @@ export default function Notifications({ navigation }: NotificationsProps) {
                     title: n.title,
                     message: n.message,
                     time: new Date(n.created_at).toLocaleDateString(),
-                    icon: getIconForType(n.type),
-                    color: getColorForType(n.type),
-                    bgColor: getBgColorForType(n.type),
+                    icon: getIconForType(n.subcategory || n.type),
+                    color: getColorForPriority(n.priority || 'normal'),
+                    bgColor: getBgColorForPriority(n.priority || 'normal'),
                     isNew: !n.is_read,
+                    data: (n as any).data || {},
+                    rawType: n.type,
+                    priority: n.priority || 'normal',
                 }));
                 setNotifications(mapped);
             }
@@ -60,43 +80,70 @@ export default function Notifications({ navigation }: NotificationsProps) {
             console.error('Failed to load notifications:', error);
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
     };
 
-    const handleMarkAsRead = async (id: string, isNew: boolean) => {
-        if (!isNew) return;
-        try {
-            await notificationsApi.markAsRead(id);
-            setNotifications(prev => prev.map(n => n.id === id ? { ...n, isNew: false } : n));
-        } catch(error) {
-            console.error(error);
+    const handleItemPress = async (item: any) => {
+        if (item.isNew) {
+            try {
+                await notificationsApi.markAsRead(item.id);
+                setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, isNew: false } : n));
+            } catch(error) {
+                console.error(error);
+            }
+        }
+
+        const data = item.data;
+        if (data?.type === 'booking' || item.rawType === 'booking' || data?.type === 'booking_accepted') {
+            navigation.navigate('Main', { screen: 'BookingsTab' });
+        } else if (data?.type === 'chat' || item.rawType === 'chat') {
+            if (data.thread_id) {
+                navigation.navigate('Chat', { threadId: data.thread_id });
+            }
+        } else if (data?.type === 'payment' || item.rawType === 'payment') {
+            navigation.navigate('Main', { screen: 'WalletTab' });
+        } else if (data?.bookingId) {
+            navigation.navigate('LiveTracking', { bookingId: data.bookingId });
         }
     };
 
-    const getIconForType = (type: string) => {
-        switch (type) {
+    const getIconForType = (subcat: string) => {
+        switch (subcat) {
             case 'booking': return Calendar;
-            case 'payment': return CheckCircle2;
+            case 'walking': return MapPin;
+            case 'grooming': return Scissors;
+            case 'payments':
+            case 'earnings':
+            case 'payment':
+                return CreditCard;
+            case 'communication':
+            case 'chat':
+                return MessageSquare;
+            case 'reviews': return Star;
+            case 'safety': return ShieldAlert;
             case 'promo': return Gift;
             default: return Info;
         }
     };
     
-    const getColorForType = (type: string) => {
-        switch (type) {
-            case 'booking': return '#FF7A3D';
-            case 'payment': return '#1D9E86';
-            case 'promo': return '#ec4899';
+    const getColorForPriority = (priority: string) => {
+        switch (priority) {
+            case 'critical': return '#ef4444';
+            case 'high': return '#f97316';
+            case 'normal': return '#3b82f6';
+            case 'low': return '#10b981';
             default: return '#3b82f6';
         }
     };
     
-    const getBgColorForType = (type: string) => {
-        switch (type) {
-            case 'booking': return isDark ? 'rgba(20,184,166,0.1)' : '#FFF3EC';
-            case 'payment': return isDark ? 'rgba(249,115,22,0.1)' : '#E0F5F0';
-            case 'promo': return isDark ? 'rgba(236,72,153,0.1)' : '#fdf2f8';
-            default: return isDark ? 'rgba(59,130,246,0.1)' : '#eff6ff';
+    const getBgColorForPriority = (priority: string) => {
+        switch (priority) {
+            case 'critical': return isDark ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2';
+            case 'high': return isDark ? 'rgba(249, 115, 22, 0.15)' : '#ffedd5';
+            case 'normal': return isDark ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe';
+            case 'low': return isDark ? 'rgba(16, 185, 129, 0.15)' : '#d1fae5';
+            default: return isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff';
         }
     };
 
@@ -114,7 +161,13 @@ export default function Notifications({ navigation }: NotificationsProps) {
                     </TouchableOpacity>
                 </View>
 
-                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl refreshing={isRefreshing} onRefresh={() => loadNotifications(true)} colors={[colors.primary]} />
+                    }
+                >
                     {isLoading ? (
                         <View style={{ padding: 80, alignItems: 'center' }}>
                             <ActivityIndicator size="large" color={colors.primary} />
@@ -128,8 +181,13 @@ export default function Notifications({ navigation }: NotificationsProps) {
                             {notifications.map((item: any) => (
                                 <TouchableOpacity 
                                     key={item.id} 
-                                    onPress={() => handleMarkAsRead(item.id, item.isNew)} 
-                                    style={StyleSheet.flatten([styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, item.isNew && { borderColor: colors.primary, backgroundColor: colors.primaryLight }])}
+                                    onPress={() => handleItemPress(item)} 
+                                    style={StyleSheet.flatten([
+                                        styles.card, 
+                                        { backgroundColor: colors.surface, borderColor: colors.border }, 
+                                        item.isNew && { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+                                        { borderLeftWidth: 4, borderLeftColor: item.color }
+                                    ])}
                                 >
                                     <View style={StyleSheet.flatten([styles.iconBox, { backgroundColor: item.isNew ? (isDark ? 'rgba(45,212,191,0.15)' : 'rgba(255,255,255,0.8)') : item.bgColor }])}>
                                         <item.icon size={20} color={item.color} strokeWidth={2.5} />

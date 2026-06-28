@@ -2,8 +2,18 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { supabase } from '../lib/supabase';
 
-const rawSocketUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
-const SOCKET_URL = rawSocketUrl.replace(/^['"]|['"]$/g, '');
+import { API_BASE_URL } from '../shared/constants';
+
+const SOCKET_URL = API_BASE_URL.replace(/\/api$/, '');
+
+// Global notification listeners so any screen can subscribe
+type NotificationCallback = (notification: any) => void;
+const notificationListeners = new Set<NotificationCallback>();
+
+export function subscribeToNotifications(callback: NotificationCallback) {
+    notificationListeners.add(callback);
+    return () => { notificationListeners.delete(callback); };
+}
 
 export const useSocket = () => {
     const socketRef = useRef<Socket | null>(null);
@@ -48,6 +58,14 @@ export const useSocket = () => {
 
             newSocket.on('connect_error', (err) => {
                 console.error('Socket.io connection error:', err.message);
+            });
+
+            // Listen for real-time notifications from backend
+            newSocket.on('new_notification', (notification: any) => {
+                console.log('[Socket] New notification received:', notification?.title);
+                notificationListeners.forEach(cb => {
+                    try { cb(notification); } catch (e) { /* ignore */ }
+                });
             });
 
             socketRef.current = newSocket;

@@ -336,12 +336,16 @@ const BookingCard = React.memo(({ item, index, colors, isDark, navigation, onPre
                                     })()}
 
                                     {/* Chat button */}
-                                    {item.booking_type === 'scheduled' &&
-                                     ['confirmed', 'in_progress', 'service_completed'].includes(item.status) &&
-                                     isServiceDateStarted(item.booking_date) && (
+                                    {['pending', 'requested', 'bidding', 'confirmed', 'in_progress', 'service_completed'].includes(item.status) && (
                                         <TouchableOpacity
                                             style={[styles.chatBtnRound, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#FFF3EC', borderColor: '#F5E6D8' }]}
-                                            onPress={() => navigation.navigate('Chat', { bookingId: item.id })}
+                                            onPress={() => {
+                                                if (item.status === 'bidding' || item.status === 'requested') {
+                                                    navigation.navigate('ServiceBidding', { bookingId: item.id, totalAmount: item.total_amount, bookingType: item.booking_type });
+                                                } else {
+                                                    navigation.navigate('Chat', { bookingId: item.id });
+                                                }
+                                            }}
                                         >
                                             <MessageSquare size={15} color={colors.primary} />
                                         </TouchableOpacity>
